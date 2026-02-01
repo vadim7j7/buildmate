@@ -1,0 +1,64 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs
+.idea/
+.vscode/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# Vim / Neovim
+*.swp
+*.swo
+*~
+Session.vim
+.netrwhist
+
+# Emacs
+*#
+.\#*
+*.elc
+
+# JetBrains (PyCharm, RubyMine, WebStorm)
+*.iml
+.idea/
+
+# VS Code
+.vscode/
+
+# Editor backups
+*.bak
+*.orig
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Agent transient state (generated at runtime)
+.agent-status/
+.agent-pipeline/
+.agent-eval-results/
+
+# Dependencies
+node_modules/
+
+# Temp / scratch
+tmp/
+*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+build/
+
+# Logs
+*.log
