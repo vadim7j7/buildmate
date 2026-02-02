@@ -46,6 +46,12 @@ agents/
       hooks/                #     RN-specific hooks
     fullstack/              #   Fullstack (Rails + React) stack
       agents/               #     Fullstack-specific agent overrides
+    python-fastapi/         #   Python FastAPI stack
+      agents/               #     FastAPI-specific agent overrides
+      skills/               #     FastAPI skills (new-router, new-schema, etc.)
+      hooks/                #     FastAPI-specific hooks
+      patterns/             #     FastAPI code patterns
+      styles/               #     Python style guides
   docs/                     # Documentation for the generator itself
   evals/                    # Evaluation configs and test cases
   CLAUDE.md                 # This file - project-level instructions
@@ -57,7 +63,7 @@ agents/
 The bootstrap script follows a four-phase pipeline:
 
 ### Phase 1: Validate
-- Checks that the requested stack name is one of: `rails`, `react-nextjs`, `react-native`, `fullstack`
+- Checks that the requested stack name is one of: `rails`, `react-nextjs`, `react-native`, `fullstack`, `python-fastapi`
 - Verifies the target path exists and is a directory
 - Warns if the target is not a git repository
 - Checks for existing `.claude/` directory (fails unless `--force` is passed)
@@ -94,6 +100,7 @@ This is the core logic. It builds the final configuration by layering:
 | `react-nextjs` | React + Next.js applications | new-component, new-page, new-container, new-context, new-form, new-api-service, component-gen |
 | `react-native` | React Native mobile apps | new-screen, new-rn-component, new-store, new-query, new-db-query, platform-check |
 | `fullstack` | Combined Rails API + React frontend | Combines rails + react-nextjs skills |
+| `python-fastapi` | Python FastAPI applications | new-router, new-schema, new-model, new-service, new-migration, db-migrate, new-test, new-task |
 
 ## How to Add a New Stack Template
 
@@ -145,6 +152,7 @@ The `.agent-pipeline/` directory (gitignored) holds transient pipeline state for
 ./bootstrap.sh react-nextjs /path/to/my-react-app
 ./bootstrap.sh react-native /path/to/my-rn-app
 ./bootstrap.sh fullstack /path/to/my-fullstack-app
+./bootstrap.sh python-fastapi /path/to/my-fastapi-app
 
 # Force overwrite existing .claude/ directory
 ./bootstrap.sh rails /path/to/my-rails-app --force

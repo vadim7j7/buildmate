@@ -44,7 +44,12 @@ Task("Act as PM and coordinate building auth")
 
 ---
 
-## Phase 1: Planning
+## Phase 1: Planning (INTERACTIVE)
+
+> **This phase is interactive.** Ask the user clarifying questions before
+> committing to a plan. Use the AskUserQuestion tool when requirements are
+> ambiguous, the scope is unclear, or multiple valid approaches exist.
+> Once the user approves the plan, Phases 2–5 run **autonomously**.
 
 When the user provides a feature request, begin by gathering requirements and creating a feature file.
 
@@ -126,10 +131,30 @@ Break the feature into specific, actionable tasks. Example:
 ### 1.4 Validate the Plan
 
 Before proceeding to implementation:
-- Confirm the plan with the user if the feature is large (>5 files changed)
-- For small features, proceed directly unless the user asked for plan approval
+
+- **Always present the plan to the user.** Show the feature file (requirements,
+  technical approach, task list) and ask for approval.
+- If anything is ambiguous, use AskUserQuestion to clarify before locking the plan.
+- For trivial changes (1–2 files, obvious approach), you may proceed without
+  explicit approval.
+
+**Once the user approves the plan, ALL subsequent phases run AUTONOMOUSLY.
+Do not ask for confirmation between phases — just execute.**
 
 ---
+
+## Phases 2–5: Autonomous Execution
+
+> **From this point on, the pipeline runs without user interaction.** The
+> orchestrator chains Task calls, uses the **grind agent** for fix-verify
+> loops, and only stops if:
+>
+> - The grind agent cannot converge (max iterations reached)
+> - The reviewer returns BLOCKED (unresolvable architectural concern)
+> - A hard infrastructure failure occurs (dependency not installed, DB unreachable)
+>
+> For all other issues (lint errors, test failures, type errors, review feedback),
+> the grind agent handles fix-verify loops automatically.
 
 ## Phase 2: Implementation
 
@@ -233,7 +258,7 @@ Place tests according to project conventions.
 When complete, run the tests and report results."
 ```
 
-### 3.2 Quality Gates
+### 3.2 Quality Gates (Grind Agent)
 
 All of the following MUST pass before moving to review:
 
@@ -242,20 +267,27 @@ All of the following MUST pass before moving to review:
 3. **Tests**: All new AND existing tests must pass
 4. **No regressions**: Existing functionality must not be broken
 
-If any gate fails:
-- Identify the failure
-- Delegate a fix to the appropriate agent
-- Re-run the gate
-- Repeat until all gates pass
+**Delegate all gates to the grind agent in a single Task call:**
 
-Run quality gates via Bash:
-
-```bash
-# Example gate checks - adapt to project's actual commands
-npm run typecheck   # or npx tsc --noEmit
-npm run lint        # or npx eslint .
-npm run test        # or npx jest / npx vitest
 ```
+Task (subagent_type: general-purpose): "You are the grind agent. Read
+agents/grind.md for your full instructions.
+
+Context: We just implemented <feature summary>. Files changed:
+- <file 1>
+- <file 2>
+
+Run these verification commands in order and fix any failures:
+1. <typecheck command>
+2. <lint command>
+3. <test command>
+
+Max iterations: 10."
+```
+
+- If the grind agent returns **CONVERGED**: proceed to review.
+- If the grind agent returns **DID NOT CONVERGE**: stop the pipeline and report
+  to the user with the remaining errors and grind agent's recommendation.
 
 ---
 
@@ -281,14 +313,36 @@ Review criteria:
 5. Test coverage - Are tests adequate?
 
 Provide specific, actionable feedback with file paths and line references.
-Rate overall: APPROVE, REQUEST_CHANGES, or NEEDS_DISCUSSION."
+Rate overall: APPROVED, NEEDS_CHANGES, or BLOCKED."
 ```
 
 ### 4.2 Handle Review Feedback
 
-- If APPROVE: Proceed to completion
-- If REQUEST_CHANGES: Delegate fixes to {{DEVELOPER_AGENT}}, then re-review
-- If NEEDS_DISCUSSION: Surface the concerns to the user for decision
+- **If APPROVED:** Proceed to completion.
+- **If NEEDS_CHANGES:** Delegate the review feedback to the **grind agent**:
+
+  ```
+  Task (subagent_type: general-purpose): "You are the grind agent. Read
+  agents/grind.md for your full instructions.
+
+  The reviewer requested these changes:
+  <paste full reviewer feedback here>
+
+  Apply the requested changes, then re-run quality gates:
+  1. <typecheck command>
+  2. <lint command>
+  3. <test command>
+
+  Max iterations: 10."
+  ```
+
+  After the grind agent converges, **re-run the review** (delegate to
+  {{REVIEWER_AGENT}} again). If the reviewer requests changes a second time,
+  run grind again. If it fails to converge after the second review cycle,
+  stop and report to the user.
+
+- **If BLOCKED:** Stop autonomous execution and surface the concerns to the
+  user for a decision.
 
 ---
 
@@ -370,5 +424,9 @@ The following placeholders are replaced by the stack-specific layer:
 | `{{DEVELOPER_AGENT}}` | The stack's primary implementation agent |
 | `{{TESTER_AGENT}}` | The stack's test-writing agent |
 | `{{REVIEWER_AGENT}}` | The stack's code review agent |
+
+The **grind agent** (`agents/grind.md`) is shared across all stacks. It runs
+fix-verify loops for quality gates and review feedback. Quality gate commands
+are stack-specific and must be provided in the Task prompt.
 
 Additional stack-specific agents may be available. Refer to the stack's agent configuration for the full list.

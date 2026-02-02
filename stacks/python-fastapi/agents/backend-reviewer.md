@@ -125,7 +125,7 @@ Issues that must be fixed before merge. The review verdict is BLOCKED.
 
 ### WARNING
 
-Issues that should be fixed but do not block merge. The review verdict is NEEDS CHANGES.
+Issues that should be fixed but do not block merge. The review verdict is NEEDS_CHANGES.
 
 - Missing test coverage for new code paths
 - Missing docstrings on public classes/functions
@@ -153,7 +153,7 @@ Produce your review in the following markdown format:
 ```markdown
 ## Code Review: <Feature/PR Name>
 
-### Verdict: APPROVED | NEEDS CHANGES | BLOCKED
+### Verdict: APPROVED | NEEDS_CHANGES | BLOCKED
 
 ### Summary
 <1-2 sentence summary of the changes and overall quality>

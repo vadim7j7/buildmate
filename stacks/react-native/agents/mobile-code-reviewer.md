@@ -234,7 +234,7 @@ Write the review as a markdown document:
 ```markdown
 # Code Review: <Feature/Change Description>
 
-## Verdict: APPROVE | REQUEST_CHANGES
+## Verdict: APPROVED | NEEDS_CHANGES | BLOCKED
 
 ## Summary
 <1-2 paragraph summary of the changes and overall assessment>
@@ -271,9 +271,10 @@ Write the review as a markdown document:
 
 ## Verdict Rules
 
-- **APPROVE**: No BLOCKERs. Any WARNINGs and SUGGESTIONs are advisory.
-- **REQUEST_CHANGES**: At least one BLOCKER exists. All BLOCKERs must be resolved
+- **APPROVED**: No BLOCKERs. Any WARNINGs and SUGGESTIONs are advisory.
+- **NEEDS_CHANGES**: At least one BLOCKER exists. All BLOCKERs must be resolved
   before the code can be approved.
+- **BLOCKED**: Unresolvable architectural concern that requires user decision.
 
 ## Review Guidelines
 

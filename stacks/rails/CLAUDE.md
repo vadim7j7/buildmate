@@ -67,6 +67,7 @@ Plan --> Implement --> Test --> Review --> Eval --> Security
 | Implement  | backend-developer  | Write production Rails code                |
 | Test       | backend-tester     | Write and run RSpec tests                  |
 | Review     | backend-reviewer   | Code review against Rails conventions      |
+| Grind      | grind              | Fix-verify loops until quality gates pass  |
 | Eval       | eval-agent         | Score against quality rubrics              |
 | Security   | security-auditor   | OWASP scan, vulnerability check            |
 
@@ -211,7 +212,8 @@ Before the review stage, the following gates **must** pass:
 | Tests    | `bundle exec rspec`   | All passing   |
 | Eval     | Eval agent score      | >= 0.7        |
 
-If any gate fails, the implementing agent must fix the issues before proceeding.
+If any gate fails, the **grind agent** runs fix-verify loops (fix code, re-run
+gates, repeat) until all gates pass or max iterations are reached.
 
 ## Feature Tracking
 

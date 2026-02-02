@@ -12,6 +12,7 @@ Agent roles, responsibilities, and delegation patterns used by the agent templat
 - [React + Next.js Stack Agents](#react--nextjs-stack-agents)
 - [React Native Stack Agents](#react-native-stack-agents)
 - [Full-Stack Agents](#full-stack-agents)
+- [Python FastAPI Stack Agents](#python-fastapi-stack-agents)
 - [Delegation Patterns](#delegation-patterns)
 - [Agent Communication Protocol](#agent-communication-protocol)
 - [Quality Gates](#quality-gates)
@@ -38,6 +39,7 @@ These agents are included in every stack. They provide cross-cutting capabilitie
 | **Security Auditor** | `security-auditor.md` | Security vulnerability scanner. Audits code for OWASP Top 10 vulnerabilities, injection attacks, authentication/authorization flaws, sensitive data exposure, and hardcoded secrets. Produces severity-classified findings. | Read, Grep, Glob, Bash | Before merging security-sensitive changes (auth, user input, API endpoints, data access). Invoked with `/security`. |
 | **Regression Monitor** | `regression-monitor.md` | Pre-merge regression checker. Verifies existing tests pass, checks for breaking API changes, validates backwards compatibility, and ensures no public exports have been removed. | Read, Bash, Grep, Glob | Before merging changes that modify public interfaces, API endpoints, database schemas, or shared utilities. |
 | **Documentation Specialist** | `documentation-specialist.md` | Documentation generator. Creates and updates inline code documentation (JSDoc, docstrings, YARD), API docs, component docs, and architecture overviews. | Read, Write, Edit, Grep, Glob, Bash | After features are implemented and reviewed, to ensure code is properly documented. Invoked with `/docs`. |
+| **Grind** | `grind.md` | Fix-verify loop agent. Runs verification commands (lint, typecheck, tests), reads error output, fixes the code, and re-runs until everything passes or max iterations reached. Used by the orchestrator for quality gates and review feedback. | Read, Write, Edit, Bash, Grep, Glob | Automatically delegated by the orchestrator during quality gates (Phase 3) and after review feedback (Phase 4). Not invoked directly by users. |
 
 ---
 
@@ -82,9 +84,30 @@ These agents are specific to the React Native + Expo stack.
 
 ## Full-Stack Agents
 
-The fullstack stack combines agents from both Rails and React + Next.js. It uses the shared orchestrator (or a fullstack-specific override if provided) and includes agents from both the backend and frontend stacks.
+The fullstack stack combines agents from both Rails and React + Next.js. It uses a fullstack-specific orchestrator that coordinates agents from both stacks within the same pipeline, with parallel execution for independent backend/frontend work.
 
-Currently, the fullstack stack's `agents/` directory is empty, meaning it inherits all shared agents without overrides. When using the fullstack stack, you typically delegate backend work to rails-style agents and frontend work to react-style agents within the same orchestration pipeline.
+| Agent | File | Role | Tools | When to Use |
+|-------|------|------|-------|-------------|
+| **PM (Orchestrator)** | `orchestrator.md` | Full-stack orchestration guide. Defines API contract first, then coordinates backend-developer, backend-tester, backend-reviewer, frontend-developer, frontend-tester, and frontend-reviewer agents in parallel where possible. | Read, Write, Edit, Bash, Grep, Glob, Task | Full feature development spanning Rails API and React frontend. |
+| **Backend Developer** | `backend-developer.md` | Rails developer (inherited from Rails stack). | Read, Write, Edit, Bash, Grep, Glob | Backend implementation. |
+| **Backend Tester** | `backend-tester.md` | RSpec specialist (inherited from Rails stack). | Read, Write, Edit, Bash, Grep, Glob | Backend testing. |
+| **Backend Reviewer** | `backend-reviewer.md` | Rails reviewer (inherited from Rails stack). | Read, Grep, Glob, Bash | Backend code review. |
+| **Frontend Developer** | `frontend-developer.md` | Next.js developer (inherited from React stack). | Read, Write, Edit, Bash, Grep, Glob | Frontend implementation. |
+| **Frontend Tester** | `frontend-tester.md` | Jest/Playwright specialist (inherited from React stack). | Read, Write, Edit, Bash, Grep, Glob | Frontend testing. |
+| **Frontend Reviewer** | `frontend-reviewer.md` | React/Next.js reviewer (inherited from React stack). | Read, Grep, Glob, Bash | Frontend code review. |
+
+---
+
+## Python FastAPI Stack Agents
+
+These agents are specific to the Python FastAPI stack. The orchestrator replaces the shared one with FastAPI-specific workflows and agent references.
+
+| Agent | File | Role | Tools | When to Use |
+|-------|------|------|-------|-------------|
+| **PM (Orchestrator)** | `orchestrator.md` | FastAPI-specific orchestration guide. Coordinates backend-developer, backend-tester, and backend-reviewer agents. References SQLAlchemy 2.0, Pydantic v2, Alembic, Ruff, mypy, pytest. | Read, Write, Edit, Bash, Grep, Glob, Task | Full feature development in a FastAPI project. |
+| **Backend Developer** | `backend-developer.md` | Senior FastAPI developer. Writes production-quality routers, services, models (SQLAlchemy 2.0 Mapped[]), schemas (Pydantic v2), Alembic migrations, and Celery tasks following async patterns and PEP 8. | Read, Write, Edit, Bash, Grep, Glob | Implementation of any FastAPI backend code. |
+| **Backend Tester** | `backend-tester.md` | pytest testing specialist. Writes async tests using httpx AsyncClient, pytest-asyncio, and project fixtures. Covers router integration tests, service unit tests, and schema validation. | Read, Write, Edit, Bash, Grep, Glob | Writing and running tests for FastAPI code. |
+| **Backend Reviewer** | `backend-reviewer.md` | Python/FastAPI code reviewer. Reviews code against FastAPI conventions, async patterns, dependency injection, N+1 query prevention (selectinload/joinedload), type annotations, and security (Pydantic validation, CORS, auth). | Read, Grep, Glob, Bash | Code review before merging FastAPI changes. |
 
 ---
 
@@ -105,14 +128,52 @@ Task("Follow the PM workflow to build auth")    // WRONG
 Task("Act as PM and coordinate building auth")  // WRONG
 ```
 
-The orchestrator drives the full feature lifecycle:
+The orchestrator drives the full feature lifecycle in two modes:
 
-1. **Planning** -- Reads requirements, checks existing code, creates a feature file in `.claude/context/features/`
-2. **Implementation** -- Delegates to the developer agent via Task tool
-3. **Testing** -- Delegates to the tester agent via Task tool
+#### Phase 1: Interactive Planning
+
+The orchestrator asks the user clarifying questions (via AskUserQuestion), explores the codebase, creates a feature file in `.claude/context/features/`, and presents the plan for user approval. This is the only phase that requires user interaction.
+
+#### Phases 2+: Autonomous Execution
+
+Once the user approves the plan, the remaining phases run without user interaction:
+
+1. **Implementation** -- Delegates to the developer agent via Task tool
+2. **Testing** -- Delegates to the tester agent via Task tool
+3. **Quality Gates** -- Delegates to the **grind agent** to run lint/typecheck/tests and fix any failures in a loop
 4. **Review** -- Delegates to the reviewer agent via Task tool
-5. **Evaluation** -- Optionally runs the eval-agent for quality scoring
-6. **Completion** -- Updates the feature file, reports to the user
+5. **Review Fixes** -- If the reviewer requests changes, delegates to the **grind agent** to apply fixes and re-verify, then re-reviews automatically
+6. **Evaluation** -- Optionally runs the eval-agent for quality scoring
+7. **Completion** -- Updates the feature file, reports to the user
+
+The pipeline only stops during autonomous execution if:
+- The grind agent cannot converge (max iterations reached)
+- The reviewer returns BLOCKED (unresolvable architectural concern)
+- A hard infrastructure failure occurs (dependency not installed, DB unreachable)
+
+### The Grind Agent
+
+The grind agent is a shared sub-agent that runs fix-verify loops. It is never invoked directly by users -- the orchestrator delegates to it automatically during quality gates and after review feedback.
+
+**How it works:**
+
+```
+for iteration in 1..max_iterations:
+    run verification command(s)
+    if ALL pass → return CONVERGED
+    read error output
+    identify root cause
+    fix the code
+    continue
+return DID NOT CONVERGE
+```
+
+The grind agent follows strict rules:
+- Only fixes errors reported by the verification command (no refactoring)
+- Always reads files before editing them
+- Preserves the original intent of the code
+- Stops early if the same error persists after 3 attempts
+- Never spawns sub-agents
 
 ### Sequential Pipeline
 
@@ -248,7 +309,20 @@ Quality gates are enforced at the transition from implementation to review. The 
 | Lint | `npm run lint` | Zero errors |
 | Tests | `npm test` | All passing |
 
-If any gate fails, the implementing agent must fix the issues before the pipeline proceeds to review. The reviewer agent will reject work that has not passed all gates.
+### Python FastAPI Quality Gates
+
+| Gate | Command | Requirement |
+|------|---------|-------------|
+| Format | `uv run ruff format --check src/ tests/` | Zero reformats |
+| Lint | `uv run ruff check src/ tests/` | Zero violations |
+| Types | `uv run mypy src/` | Zero errors |
+| Tests | `uv run pytest` | All passing |
+
+### How Gates Are Enforced
+
+Quality gates are enforced by the **grind agent**. The orchestrator delegates all gates to grind in a single Task call. The grind agent runs each command, and if any fail, it reads the errors, fixes the code, and re-runs until everything passes (or max iterations are reached).
+
+If the grind agent converges (all gates pass), the pipeline proceeds to review. If it does not converge, the pipeline halts and the orchestrator reports the remaining errors to the user.
 
 ---
 

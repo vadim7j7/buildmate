@@ -9,7 +9,7 @@ set -euo pipefail
 # Bootstraps a .claude/ agent configuration into the target project by
 # composing shared infrastructure with stack-specific overlays.
 #
-# Available stacks: rails, react-nextjs, react-native, fullstack
+# Available stacks: rails, react-nextjs, react-native, fullstack, python-fastapi
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -72,10 +72,11 @@ ${BOLD}Usage:${NC}
     ./bootstrap.sh <stack> <target-path> [--force]
 
 ${BOLD}Available stacks:${NC}
-    rails          Ruby on Rails applications
-    react-nextjs   React + Next.js applications
-    react-native   React Native mobile applications
-    fullstack      Combined Rails API + React frontend
+    rails            Ruby on Rails applications
+    react-nextjs     React + Next.js applications
+    react-native     React Native mobile applications
+    fullstack        Combined Rails API + React frontend
+    python-fastapi   Python FastAPI applications
 
 ${BOLD}Options:${NC}
     --force        Overwrite existing .claude/ directory in target

@@ -65,7 +65,7 @@ The reviewer checks for automatic BLOCKERs:
 ```markdown
 ## Code Review Results
 
-**Verdict:** APPROVE | REQUEST_CHANGES
+**Verdict:** APPROVED | NEEDS_CHANGES | BLOCKED
 
 ### Blockers (must fix)
 - [file:line] Description of the architecture violation
@@ -121,8 +121,9 @@ See `references/rn-performance.md` for performance patterns and
 
 | Verdict          | Meaning                                              |
 |------------------|------------------------------------------------------|
-| APPROVE          | No blockers. Warnings and suggestions are advisory.  |
-| REQUEST_CHANGES  | At least one blocker must be resolved before merge.  |
+| APPROVED         | No blockers. Warnings and suggestions are advisory.  |
+| NEEDS_CHANGES    | At least one blocker must be resolved before merge.  |
+| BLOCKED          | Unresolvable architectural concern requiring user decision. |
 
 ## Error Handling
 

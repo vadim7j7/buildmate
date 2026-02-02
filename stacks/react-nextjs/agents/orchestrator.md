@@ -34,6 +34,7 @@ work to specialist sub-agents via the Task tool.
 | `frontend-developer` | Frontend Developer | Implements Next.js pages, components, containers, services |
 | `frontend-tester` | Frontend Tester | Writes Jest + RTL unit tests and Playwright E2E tests |
 | `frontend-reviewer` | Frontend Reviewer | Reviews code for quality, accessibility, performance, security |
+| `grind` (general-purpose) | Grind | Fix-verify loops for quality gates and review fixes |
 
 ---
 
@@ -45,7 +46,12 @@ Every feature flows through the following stages:
 Plan --> Implement --> Test --> Review --> Eval
 ```
 
-### Phase 1: Planning
+### Phase 1: Planning (INTERACTIVE)
+
+> **This phase is interactive.** Ask the user clarifying questions before
+> committing to a plan. Use the AskUserQuestion tool when requirements are
+> ambiguous, the scope is unclear, or multiple valid approaches exist.
+> Once the user approves the plan, Phases 2–6 run **autonomously**.
 
 1. **Understand the request.** Read the user's feature request. Identify scope.
 2. **Check existing patterns.** Read `patterns/frontend-patterns.md` and scan
@@ -105,7 +111,30 @@ Plan --> Implement --> Test --> Review --> Eval
    - If a task needs rework after a failure, keep it `in_progress` and add a new fix task
    - Update the list at every phase transition
 
-5. **Validate.** For large features (>5 files), confirm the plan with the user.
+5. **Validate the plan.**
+   - **Always present the plan to the user.** Show the feature file (requirements,
+     technical approach, task list) and ask for approval.
+   - If anything is ambiguous, use AskUserQuestion to clarify before locking the plan.
+   - For trivial changes (1–2 files, obvious approach), you may proceed without
+     explicit approval.
+
+   **Once the user approves the plan, ALL subsequent phases run AUTONOMOUSLY.
+   Do not ask for confirmation between phases — just execute.**
+
+---
+
+## Phases 2–6: Autonomous Execution
+
+> **From this point on, the pipeline runs without user interaction.** The
+> orchestrator chains Task calls, uses the **grind agent** for fix-verify
+> loops, and only stops if:
+>
+> - The grind agent cannot converge (max iterations reached)
+> - The reviewer returns BLOCKED (unresolvable architectural concern)
+> - A hard infrastructure failure occurs (dependency not installed, DB unreachable)
+>
+> For all other issues (lint errors, test failures, type errors, review feedback),
+> the grind agent handles fix-verify loops automatically.
 
 ### Phase 2: Implementation
 
@@ -187,28 +216,68 @@ Review for:
 6. Security (XSS, secrets in client code)
 7. Test coverage adequacy
 
-Provide verdict: APPROVE or REQUEST_CHANGES."
+Provide verdict: APPROVED, NEEDS_CHANGES, or BLOCKED."
 ```
 
-- **APPROVE**: Proceed to eval/completion
-- **REQUEST_CHANGES**: Delegate fixes to `frontend-developer`, then re-review
+- **APPROVED**: Proceed to eval/completion.
+- **NEEDS_CHANGES**: Delegate the review feedback to the **grind agent**:
 
-### Phase 5: Evaluation (Optional)
+  ```
+  Task (subagent_type: general-purpose): "You are the grind agent. Read
+  agents/grind.md for your full instructions.
 
-If warranted, run the eval-agent for a scored quality assessment.
+  The reviewer requested these changes:
+  <paste full reviewer feedback here>
 
-### Quality Gates
+  Apply the requested changes, then re-run quality gates:
+  1. npx tsc --noEmit
+  2. npm run lint
+  3. npm test
 
-Before moving from Implementation to Testing, these MUST pass:
+  Max iterations: 10."
+  ```
+
+  After the grind agent converges, **re-run the review** (delegate to
+  frontend-reviewer again). If it fails to converge after the second review
+  cycle, stop and report to the user.
+
+- **BLOCKED**: Stop autonomous execution and surface the concerns to the user
+  for a decision.
+
+### Quality Gates (Grind Agent)
+
+Before moving to Review, these MUST pass:
 
 | Gate | Command | Requirement |
 |---|---|---|
 | TypeScript | `npx tsc --noEmit` | Zero errors |
 | Lint | `npm run lint` | Zero errors |
 | Tests | `npm test` | All passing |
-| Eval score | eval-agent | >= 0.7 |
 
-If any gate fails, delegate a fix to `frontend-developer` and re-run.
+**Delegate all gates to the grind agent in a single Task call:**
+
+```
+Task (subagent_type: general-purpose): "You are the grind agent. Read
+agents/grind.md for your full instructions.
+
+Context: We just implemented <feature summary>. Files changed:
+- <file list>
+
+Run these verification commands in order and fix any failures:
+1. npx tsc --noEmit
+2. npm run lint
+3. npm test
+
+Max iterations: 10."
+```
+
+- If the grind agent returns **CONVERGED**: proceed to review.
+- If the grind agent returns **DID NOT CONVERGE**: stop the pipeline and report
+  to the user with the remaining errors and grind agent's recommendation.
+
+### Phase 5: Evaluation (Optional)
+
+If warranted, run the eval-agent for a scored quality assessment.
 
 ### Phase 6: Completion
 

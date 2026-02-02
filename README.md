@@ -6,7 +6,7 @@ A template generator that bootstraps `.claude/` agent configurations for project
 
 For any supported stack, the generator installs:
 
-- **Agents** — Named specialists (orchestrator, developer, tester, reviewer) that coordinate through a pipeline
+- **Agents** — Named specialists (orchestrator, developer, tester, reviewer, grind) that coordinate through a pipeline
 - **Skills** — Slash commands (`/test`, `/review`, `/new-service`, etc.) for common workflows
 - **Hooks** — Shell scripts that run automatically on events (format on save, lint on edit, session persistence)
 - **Patterns** — Code pattern references that agents read before generating code
@@ -97,7 +97,13 @@ After bootstrapping, every non-trivial task flows through:
 Plan --> Implement --> Test --> Review --> Eval --> Security
 ```
 
-The **orchestrator** (PM) coordinates this by delegating to specialist agents. You trigger it with:
+The **orchestrator** (PM) coordinates this by delegating to specialist agents. The pipeline operates in two modes:
+
+**Phase 1 — Interactive Planning:** The orchestrator asks clarifying questions, explores the codebase, creates a feature file, and presents the plan for user approval.
+
+**Phases 2+ — Autonomous Execution:** After the user approves the plan, the orchestrator chains Task calls without stopping. The **grind agent** handles fix-verify loops — running quality gates, reading errors, fixing code, and re-running until everything passes. The pipeline only stops if grind can't converge, the reviewer flags a blocker, or infrastructure fails.
+
+You trigger the full pipeline with:
 
 ```
 Use PM: Build a user authentication system with OAuth
@@ -112,6 +118,20 @@ Or use individual skills directly:
 /new-service UserSync          # Generate a service (Rails)
 /new-component Button          # Generate a component (React)
 ```
+
+### Agents Summary
+
+| Agent | Scope | Role |
+|-------|-------|------|
+| **PM (Orchestrator)** | All stacks | Workflow guide — plans features, delegates to specialists, tracks progress |
+| **Developer** | Per stack | Writes production code (services, models, components, routers) |
+| **Tester** | Per stack | Writes and runs tests (RSpec, Jest, pytest) |
+| **Reviewer** | Per stack | Code review against conventions and best practices |
+| **Grind** | All stacks | Fix-verify loops — runs commands, reads errors, fixes code, repeats until pass |
+| **Eval Agent** | All stacks | Scores code quality across 5 dimensions with weighted formula |
+| **Security Auditor** | All stacks | OWASP Top 10 vulnerability scanning |
+| **Regression Monitor** | All stacks | Pre-merge regression checking |
+| **Documentation Specialist** | All stacks | Generates inline docs, API docs, and architecture overviews |
 
 ## Prerequisites
 

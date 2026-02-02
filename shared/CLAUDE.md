@@ -25,6 +25,7 @@ Plan --> Implement --> Test --> Review --> (Eval --> Security --> Docs)
 | Implement  | implementer              | Write production code                      |
 | Test       | tester                   | Write and run tests                        |
 | Review     | reviewer                 | Code review, find issues                   |
+| Grind      | grind                    | Fix-verify loops until quality gates pass  |
 | Eval       | eval-agent               | Score against quality rubrics              |
 | Security   | security-auditor         | OWASP scan, vulnerability check            |
 | Docs       | documentation-specialist | Generate / update documentation            |
@@ -91,8 +92,8 @@ Before the review stage, the following gates **must** pass:
 | Lint             | `npm run lint` (or equiv.)       | Zero errors          |
 | Tests            | `npm test` (or equiv.)           | All passing          |
 
-If any gate fails, the implementing agent must fix the issues before
-proceeding. The reviewer agent will reject work that has not passed all gates.
+If any gate fails, the **grind agent** runs fix-verify loops (fix code, re-run
+gates, repeat) until all gates pass or max iterations are reached.
 
 ## Available Slash Commands
 

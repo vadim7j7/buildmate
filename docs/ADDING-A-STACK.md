@@ -32,6 +32,7 @@ The existing stacks provide good reference implementations:
 - `stacks/react-nextjs/` -- Client-side React + Next.js
 - `stacks/react-native/` -- Mobile React Native + Expo
 - `stacks/fullstack/` -- Combined Rails + React
+- `stacks/python-fastapi/` -- Python FastAPI backend
 
 ---
 
@@ -653,7 +654,7 @@ Understanding how composition works helps you structure your stack correctly.
 
 When `./bootstrap.sh my-stack /path/to/project` runs:
 
-1. **Copy shared base.** Everything from `shared/` is copied to a temporary directory as the base layer. This includes shared agents (orchestrator, eval-agent, security-auditor, regression-monitor, documentation-specialist), shared skills (delegate, parallel, sequential, test, review, eval, security, docs), shared hooks, shared `CLAUDE.md`, and shared `settings.json`.
+1. **Copy shared base.** Everything from `shared/` is copied to a temporary directory as the base layer. This includes shared agents (orchestrator, grind, eval-agent, security-auditor, regression-monitor, documentation-specialist), shared skills (delegate, parallel, sequential, test, review, eval, security, docs, recap), shared hooks, shared `CLAUDE.md`, and shared `settings.json`.
 
 2. **Overlay agents.** Files from `stacks/my-stack/agents/` are overlaid:
    - If `orchestrator.md` exists in both shared and stack, the stack version **replaces** the shared version
@@ -688,10 +689,10 @@ When `./bootstrap.sh my-stack /path/to/project` runs:
 
 ### Step 1: Register the Stack
 
-Add your stack name to the `VALID_STACKS` array in `bootstrap-lib/validate.sh`:
+Add your stack name to `VALID_STACKS_STR` in `bootstrap-lib/validate.sh`:
 
 ```bash
-readonly VALID_STACKS=("rails" "react-nextjs" "react-native" "fullstack" "my-stack")
+readonly VALID_STACKS_STR="rails react-nextjs react-native fullstack python-fastapi my-stack"
 ```
 
 ### Step 2: Test Bootstrap
@@ -716,8 +717,8 @@ Check that everything was composed correctly:
 # Check installed agents
 ls /tmp/test-my-stack/.claude/agents/
 # Should include: orchestrator.md, my-developer.md, my-tester.md, my-reviewer.md,
-#                 eval-agent.md, security-auditor.md, regression-monitor.md,
-#                 documentation-specialist.md
+#                 grind.md, eval-agent.md, security-auditor.md,
+#                 regression-monitor.md, documentation-specialist.md
 
 # Check installed skills
 ls /tmp/test-my-stack/.claude/skills/

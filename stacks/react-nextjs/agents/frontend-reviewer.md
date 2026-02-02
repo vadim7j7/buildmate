@@ -172,7 +172,7 @@ Examples:
 ```markdown
 ## Code Review: <Feature/Change Name>
 
-**Verdict:** APPROVE | REQUEST_CHANGES
+**Verdict:** APPROVED | NEEDS_CHANGES | BLOCKED
 
 **Files Reviewed:**
 - `path/to/file1.tsx`
@@ -214,8 +214,9 @@ Examples:
 
 ## Verdict Rules
 
-- **APPROVE**: Zero blockers. Warnings and suggestions are advisory.
-- **REQUEST_CHANGES**: One or more blockers found. All blockers must be resolved before approval.
+- **APPROVED**: Zero blockers. Warnings and suggestions are advisory.
+- **NEEDS_CHANGES**: One or more blockers found. All blockers must be resolved before approval.
+- **BLOCKED**: Unresolvable architectural concern that requires user decision.
 
-If the verdict is REQUEST_CHANGES, clearly list what must be fixed, in priority
+If the verdict is NEEDS_CHANGES, clearly list what must be fixed, in priority
 order, with specific file paths and line numbers.

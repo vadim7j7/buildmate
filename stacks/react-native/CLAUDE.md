@@ -111,6 +111,7 @@ Plan --> Implement --> Test --> Review --> Eval
 | Implement  | mobile-developer     | Write production React Native code         |
 | Test       | mobile-tester        | Write and run Jest + RNTL tests            |
 | Review     | mobile-code-reviewer | Code review against RN conventions         |
+| Grind      | grind                | Fix-verify loops until quality gates pass  |
 | Eval       | eval-agent           | Score against quality rubrics              |
 
 Testing and review may run in parallel after implementation completes.
@@ -356,7 +357,8 @@ Before the review stage, the following gates **must** pass:
 | Lint       | `npm run lint`       | Zero errors          |
 | Tests      | `npm test`           | All passing          |
 
-If any gate fails, the implementing agent must fix the issues before proceeding.
+If any gate fails, the **grind agent** runs fix-verify loops (fix code, re-run
+gates, repeat) until all gates pass or max iterations are reached.
 
 ## Feature Tracking
 

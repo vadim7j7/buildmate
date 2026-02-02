@@ -70,6 +70,7 @@ Plan --> Implement --> Test --> Review --> Eval --> Security
 | Implement  | backend-developer  | Write production FastAPI code              |
 | Test       | backend-tester     | Write and run pytest tests                 |
 | Review     | backend-reviewer   | Code review against Python/FastAPI conventions |
+| Grind      | grind              | Fix-verify loops until quality gates pass  |
 | Eval       | eval-agent         | Score against quality rubrics              |
 | Security   | security-auditor   | OWASP scan, vulnerability check            |
 
@@ -230,7 +231,8 @@ Before the review stage, the following gates **must** pass:
 | Types    | `uv run mypy src/`                       | Zero errors        |
 | Tests    | `uv run pytest`                          | All passing        |
 
-If any gate fails, the implementing agent must fix the issues before proceeding.
+If any gate fails, the **grind agent** runs fix-verify loops (fix code, re-run
+gates, repeat) until all gates pass or max iterations are reached.
 
 ## Feature Tracking
 

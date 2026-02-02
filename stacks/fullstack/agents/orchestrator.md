@@ -59,10 +59,16 @@ tasks to both backend and frontend agents, and track progress yourself.
 | Frontend Developer | frontend-developer | Next.js | Write production React/Next.js code (pages, components, containers, services) |
 | Frontend Tester | frontend-tester | Next.js | Write Jest + RTL + Playwright tests |
 | Frontend Reviewer | frontend-reviewer | Next.js | Review code for React/Next.js best practices |
+| Grind | general-purpose | Both | Fix-verify loops for quality gates and review fixes |
 
 ---
 
-## Phase 1: Planning
+## Phase 1: Planning (INTERACTIVE)
+
+> **This phase is interactive.** Ask the user clarifying questions before
+> committing to a plan. Use the AskUserQuestion tool when requirements are
+> ambiguous, the scope is unclear, or multiple valid approaches exist.
+> Once the user approves the plan, Phases 2–6 run **autonomously**.
 
 When the user provides a feature request, begin by gathering requirements and creating
 a feature file that spans both stacks.
@@ -217,10 +223,30 @@ agents will reference this contract during implementation.
 ### 1.5 Validate the Plan
 
 Before proceeding to implementation:
-- Confirm the plan with the user if the feature is large (>5 files changed per stack)
-- For small features, proceed directly unless the user asked for plan approval
+
+- **Always present the plan to the user.** Show the feature file (requirements,
+  API contract, task list) and ask for approval.
+- If anything is ambiguous, use AskUserQuestion to clarify before locking the plan.
+- For trivial changes (1–2 files per stack, obvious approach), you may proceed
+  without explicit approval.
+
+**Once the user approves the plan, ALL subsequent phases run AUTONOMOUSLY.
+Do not ask for confirmation between phases — just execute.**
 
 ---
+
+## Phases 2–6: Autonomous Execution
+
+> **From this point on, the pipeline runs without user interaction.** The
+> orchestrator chains Task calls, uses the **grind agent** for fix-verify
+> loops, and only stops if:
+>
+> - The grind agent cannot converge (max iterations reached)
+> - A reviewer returns BLOCKED (unresolvable architectural concern)
+> - A hard infrastructure failure occurs (dependency not installed, DB unreachable)
+>
+> For all other issues (lint errors, test failures, type errors, review feedback),
+> the grind agent handles fix-verify loops automatically.
 
 ## Phase 2: Implementation
 
@@ -382,24 +408,52 @@ Write tests covering:
 When complete, run: cd frontend && npm test and report results."
 ```
 
-### 3.2 Quality Gates
+### 3.2 Quality Gates (Grind Agent)
 
 All of the following MUST pass before moving to review:
 
 **Backend:**
-1. `cd backend && bundle exec rubocop` - zero offenses
-2. `cd backend && bundle exec rspec` - all passing
+1. `cd backend && bundle exec rubocop` — zero offenses
+2. `cd backend && bundle exec rspec` — all passing
 
 **Frontend:**
-3. `cd frontend && npx tsc --noEmit` - zero errors
-4. `cd frontend && npm run lint` - zero errors
-5. `cd frontend && npm test` - all passing
+3. `cd frontend && npx tsc --noEmit` — zero errors
+4. `cd frontend && npm run lint` — zero errors
+5. `cd frontend && npm test` — all passing
 
-If any gate fails:
-- Identify the failure and which stack it belongs to
-- Delegate a fix to the appropriate developer agent (backend-developer or frontend-developer)
-- Re-run the gate
-- Repeat until all gates pass
+**Delegate gates to the grind agent — one Task per stack, run in PARALLEL:**
+
+```
+Task 1 (subagent_type: general-purpose): "You are the grind agent. Read
+agents/grind.md for your full instructions.
+
+Context: We just implemented <feature summary> in the BACKEND. Files changed:
+- backend/<file list>
+
+Run these verification commands in order and fix any failures:
+1. cd backend && bundle exec rubocop -A
+2. cd backend && bundle exec rubocop
+3. cd backend && bundle exec rspec
+
+Max iterations: 10."
+
+Task 2 (subagent_type: general-purpose): "You are the grind agent. Read
+agents/grind.md for your full instructions.
+
+Context: We just implemented <feature summary> in the FRONTEND. Files changed:
+- frontend/<file list>
+
+Run these verification commands in order and fix any failures:
+1. cd frontend && npx tsc --noEmit
+2. cd frontend && npm run lint
+3. cd frontend && npm test
+
+Max iterations: 10."
+```
+
+- If both grind agents return **CONVERGED**: proceed to review.
+- If either returns **DID NOT CONVERGE**: stop the pipeline and report to the
+  user with the remaining errors and grind agent's recommendation.
 
 ---
 
@@ -451,15 +505,55 @@ Review criteria:
 7. Test coverage adequacy
 8. API contract adherence - service types match backend responses
 
-Provide verdict: APPROVE or REQUEST_CHANGES."
+Provide verdict: APPROVED, NEEDS_CHANGES, or BLOCKED."
 ```
 
 ### 4.2 Handle Review Feedback
 
-- If BOTH approve: Proceed to evaluation
-- If either returns NEEDS_CHANGES: Delegate fixes to the appropriate developer agent,
-  then re-review that stack only
-- If either returns BLOCKED: Surface the concerns to the user for decision
+- **If BOTH approve:** Proceed to evaluation.
+- **If either returns NEEDS_CHANGES:** Delegate the review feedback to the
+  **grind agent** for the affected stack:
+
+  For **backend** review feedback:
+
+  ```
+  Task (subagent_type: general-purpose): "You are the grind agent. Read
+  agents/grind.md for your full instructions.
+
+  The backend reviewer requested these changes:
+  <paste full reviewer feedback here>
+
+  Apply the requested changes, then re-run quality gates:
+  1. cd backend && bundle exec rubocop -A
+  2. cd backend && bundle exec rubocop
+  3. cd backend && bundle exec rspec
+
+  Max iterations: 10."
+  ```
+
+  For **frontend** review feedback:
+
+  ```
+  Task (subagent_type: general-purpose): "You are the grind agent. Read
+  agents/grind.md for your full instructions.
+
+  The frontend reviewer requested these changes:
+  <paste full reviewer feedback here>
+
+  Apply the requested changes, then re-run quality gates:
+  1. cd frontend && npx tsc --noEmit
+  2. cd frontend && npm run lint
+  3. cd frontend && npm test
+
+  Max iterations: 10."
+  ```
+
+  After the grind agent converges, **re-run the review** for that stack only.
+  If it fails to converge after the second review cycle, stop and report to
+  the user.
+
+- **If either returns BLOCKED:** Stop autonomous execution and surface the
+  concerns to the user for a decision.
 
 ---
 

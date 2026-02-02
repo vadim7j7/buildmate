@@ -123,6 +123,7 @@ Plan --> Implement (BE + FE in parallel) --> Test (BE + FE in parallel) --> Revi
 | Implement | backend-developer, frontend-developer | Write production code (parallel) |
 | Test | backend-tester, frontend-tester | Write and run tests (parallel) |
 | Review | backend-reviewer, frontend-reviewer | Code review against conventions (parallel) |
+| Grind | grind | Fix-verify loops until quality gates pass |
 | Eval | eval-agent | Score against quality rubrics |
 | Security | security-auditor | OWASP scan, vulnerability check |
 
@@ -262,7 +263,8 @@ Before the review stage, the following gates **must** pass for both stacks:
 | Eval score | >= 0.7 |
 | Security audit | No critical vulnerabilities |
 
-If any gate fails, the implementing agent must fix the issues before proceeding.
+If any gate fails, the **grind agent** runs fix-verify loops (fix code, re-run
+gates, repeat) until all gates pass or max iterations are reached.
 
 ## Feature Tracking
 

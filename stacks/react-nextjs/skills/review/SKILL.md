@@ -62,7 +62,7 @@ The reviewer agent returns a structured review:
 ```markdown
 ## Code Review Results
 
-**Verdict:** APPROVE | REQUEST_CHANGES
+**Verdict:** APPROVED | NEEDS_CHANGES | BLOCKED
 
 ### Blockers (must fix)
 - [file:line] Description
@@ -112,8 +112,9 @@ If running as part of a pipeline, write results to `.agent-pipeline/review.md`.
 
 | Verdict | Meaning |
 |---|---|
-| APPROVE | No blockers. Warnings and suggestions are advisory. |
-| REQUEST_CHANGES | At least one blocker must be resolved before merge. |
+| APPROVED | No blockers. Warnings and suggestions are advisory. |
+| NEEDS_CHANGES | At least one blocker must be resolved before merge. |
+| BLOCKED | Unresolvable architectural concern requiring user decision. |
 
 ## Error Handling
 

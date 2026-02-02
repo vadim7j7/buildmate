@@ -11,6 +11,7 @@ Skill descriptions, usage examples, and how to create custom skills.
 - [Rails Skills](#rails-skills)
 - [React + Next.js Skills](#react--nextjs-skills)
 - [React Native Skills](#react-native-skills)
+- [Python FastAPI Skills](#python-fastapi-skills)
 - [Delegation Skills](#delegation-skills)
 - [Utility Skills](#utility-skills)
 - [Code Generation Skills](#code-generation-skills)
@@ -101,6 +102,25 @@ These skills are specific to the React Native + Expo stack.
 | `/platform-check` | Verify platform-specific code for iOS and Android correctness | Optional file path |
 | `/test` | Run Jest tests via the mobile-tester agent (overrides shared) | Optional test file path |
 | `/review` | Code review via the mobile-code-reviewer agent (overrides shared) | Optional file path |
+
+---
+
+## Python FastAPI Skills
+
+These skills are specific to the Python FastAPI stack.
+
+| Command | Description | Arguments |
+|---------|-------------|-----------|
+| `/new-router` | Generate a FastAPI router with CRUD endpoints (list, create, get, update, delete) | Router/entity name (e.g., `projects`, `users`) |
+| `/new-schema` | Generate a Pydantic v2 schema set (Base, Create, Update, Read) with `ConfigDict(from_attributes=True)` | Schema/entity name (e.g., `Project`) |
+| `/new-model` | Generate a SQLAlchemy 2.0 model using `Mapped[]` annotations | Model name (e.g., `Project`) |
+| `/new-service` | Generate an async service class with database session injection | Service/entity name (e.g., `ProjectService`) |
+| `/new-migration` | Generate an Alembic migration file | Migration description (e.g., `add_email_to_users`) |
+| `/new-test` | Generate a pytest test file with async fixtures and httpx patterns | Target file path or entity name |
+| `/new-task` | Generate a Celery task with `@shared_task`, retry config, and error handling | Task name (e.g., `sync_external_data`) |
+| `/db-migrate` | Create and run Alembic migrations safely (autogenerate + upgrade) | Migration description |
+| `/test` | Run pytest tests via the backend-tester agent (overrides shared) | Optional test file path |
+| `/review` | Code review via the backend-reviewer agent (overrides shared) | Optional file path; `--staged` |
 
 ---
 
@@ -473,6 +493,92 @@ Generates a Drizzle ORM query module:
 
 Generates:
 - Query functions using Drizzle ORM (select, insert, update, delete) for the specified entity
+
+### Python FastAPI Code Generation
+
+#### /new-router
+
+Generates a FastAPI router with CRUD endpoints:
+
+```
+/new-router projects
+/new-router users
+```
+
+Generates:
+- `src/app/routers/<name>.py` -- APIRouter with list, create, get, update, delete endpoints using Depends(get_db), service injection, and type annotations
+
+#### /new-schema
+
+Generates a Pydantic v2 schema set:
+
+```
+/new-schema Project
+/new-schema User
+```
+
+Generates:
+- `src/app/schemas/<name>.py` -- Base, Create, Update, and Read schemas with `ConfigDict(from_attributes=True)` for ORM integration
+
+#### /new-model
+
+Generates a SQLAlchemy 2.0 model:
+
+```
+/new-model Project
+/new-model User
+```
+
+Generates:
+- `src/app/models/<name>.py` -- Model class using `Mapped[]` annotations, `mapped_column()`, timestamps with `server_default=func.now()`
+
+#### /new-service
+
+Generates an async service class:
+
+```
+/new-service ProjectService
+/new-service UserService
+```
+
+Generates:
+- `src/app/services/<name>.py` -- Async class with `AsyncSession` injection, CRUD methods (list, get_by_id, create, update, delete)
+
+#### /new-migration
+
+Generates an Alembic migration:
+
+```
+/new-migration add_email_to_users
+/new-migration create_projects_table
+```
+
+Generates:
+- `alembic/versions/<timestamp>_<slug>.py` -- Migration file with upgrade/downgrade functions
+
+#### /new-test
+
+Generates a pytest test file:
+
+```
+/new-test src/app/services/project_service.py
+/new-test Project
+```
+
+Generates:
+- Test file with async fixtures, `httpx.AsyncClient` for router tests, pytest-asyncio markers
+
+#### /new-task
+
+Generates a Celery task:
+
+```
+/new-task sync_external_data
+/new-task send_notification
+```
+
+Generates:
+- `src/app/tasks/<name>.py` -- `@shared_task` with `bind=True`, `max_retries`, error handling and retry logic
 
 ---
 

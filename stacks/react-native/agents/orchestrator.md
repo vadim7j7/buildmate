@@ -55,10 +55,16 @@ tasks, and track progress yourself.
 | `mobile-developer`     | Writes production React Native code      |
 | `mobile-tester`        | Writes and runs Jest + RNTL tests        |
 | `mobile-code-reviewer` | Reviews code against RN conventions      |
+| `grind` (general-purpose) | Fix-verify loops for quality gates and review fixes |
 
 ---
 
-## Phase 1: Planning
+## Phase 1: Planning (INTERACTIVE)
+
+> **This phase is interactive.** Ask the user clarifying questions before
+> committing to a plan. Use the AskUserQuestion tool when requirements are
+> ambiguous, the scope is unclear, or multiple valid approaches exist.
+> Once the user approves the plan, Phases 2–5 run **autonomously**.
 
 When the user provides a feature request, begin by gathering requirements and
 creating a feature file.
@@ -158,10 +164,30 @@ Break the feature into specific, actionable tasks. Example:
 ### 1.4 Validate the Plan
 
 Before proceeding to implementation:
-- Confirm the plan with the user if the feature is large (>5 files changed)
-- For small features, proceed directly unless the user asked for plan approval
+
+- **Always present the plan to the user.** Show the feature file (requirements,
+  technical approach, task list) and ask for approval.
+- If anything is ambiguous, use AskUserQuestion to clarify before locking the plan.
+- For trivial changes (1–2 files, obvious approach), you may proceed without
+  explicit approval.
+
+**Once the user approves the plan, ALL subsequent phases run AUTONOMOUSLY.
+Do not ask for confirmation between phases — just execute.**
 
 ---
+
+## Phases 2–5: Autonomous Execution
+
+> **From this point on, the pipeline runs without user interaction.** The
+> orchestrator chains Task calls, uses the **grind agent** for fix-verify
+> loops, and only stops if:
+>
+> - The grind agent cannot converge (max iterations reached)
+> - The reviewer returns BLOCKED (unresolvable architectural concern)
+> - A hard infrastructure failure occurs (dependency not installed, DB unreachable)
+>
+> For all other issues (lint errors, test failures, type errors, review feedback),
+> the grind agent handles fix-verify loops automatically.
 
 ## Phase 2: Implementation
 
@@ -280,7 +306,7 @@ Place tests in __tests__/ following existing conventions.
 When complete, run npm test and report results."
 ```
 
-### 3.2 Quality Gates
+### 3.2 Quality Gates (Grind Agent)
 
 All of the following MUST pass before marking the feature complete:
 
@@ -289,11 +315,26 @@ All of the following MUST pass before marking the feature complete:
 3. **Tests**: `npm test` with all new AND existing tests passing
 4. **No regressions**: Existing functionality must not be broken
 
-If any gate fails:
-- Identify the failure
-- Delegate a fix to the `mobile-developer` agent
-- Re-run the gate
-- Repeat until all gates pass
+**Delegate all gates to the grind agent in a single Task call:**
+
+```
+Task (subagent_type: general-purpose): "You are the grind agent. Read
+agents/grind.md for your full instructions.
+
+Context: We just implemented <feature summary>. Files changed:
+- <file list>
+
+Run these verification commands in order and fix any failures:
+1. npx tsc --noEmit
+2. npm run lint
+3. npm test
+
+Max iterations: 10."
+```
+
+- If the grind agent returns **CONVERGED**: proceed to review.
+- If the grind agent returns **DID NOT CONVERGE**: stop the pipeline and report
+  to the user with the remaining errors and grind agent's recommendation.
 
 ---
 
@@ -323,14 +364,36 @@ Review against React Native conventions in CLAUDE.md. Pay special attention to:
 8. Performance (memoization, list virtualization)
 
 Provide findings as BLOCKER, WARNING, or SUGGESTION.
-Rate overall: APPROVE or REQUEST_CHANGES."
+Rate overall: APPROVED, NEEDS_CHANGES, or BLOCKED."
 ```
 
 ### 4.2 Handle Review Feedback
 
-- If APPROVE: Proceed to completion
-- If REQUEST_CHANGES: Delegate fixes to `mobile-developer`, then re-review
-- If review has only WARNINGs: Proceed, noting the warnings for future improvement
+- **If APPROVED:** Proceed to completion.
+- **If NEEDS_CHANGES:** Delegate the review feedback to the **grind agent**:
+
+  ```
+  Task (subagent_type: general-purpose): "You are the grind agent. Read
+  agents/grind.md for your full instructions.
+
+  The reviewer requested these changes:
+  <paste full reviewer feedback here>
+
+  Apply the requested changes, then re-run quality gates:
+  1. npx tsc --noEmit
+  2. npm run lint
+  3. npm test
+
+  Max iterations: 10."
+  ```
+
+  After the grind agent converges, **re-run the review** (delegate to
+  mobile-code-reviewer again). If it fails to converge after the second review
+  cycle, stop and report to the user.
+
+- **If BLOCKED:** Stop autonomous execution and surface the concerns to the
+  user for a decision.
+- **If review has only WARNINGs:** Proceed, noting the warnings for future improvement.
 
 ---
 
