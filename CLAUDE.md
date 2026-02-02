@@ -40,10 +40,13 @@ agents/
       skills/               #     React skills (new-component, new-page, etc.)
       hooks/                #     React-specific hooks
       patterns/             #     React code patterns
+      styles/               #     TypeScript + React style guides
     react-native/           #   React Native stack
       agents/               #     RN-specific agent overrides
       skills/               #     RN skills (new-screen, new-store, etc.)
       hooks/                #     RN-specific hooks
+      patterns/             #     React Native code patterns
+      styles/               #     React Native style guides
     fullstack/              #   Fullstack (Rails + React) stack
       agents/               #     Fullstack-specific agent overrides
     python-fastapi/         #   Python FastAPI stack
