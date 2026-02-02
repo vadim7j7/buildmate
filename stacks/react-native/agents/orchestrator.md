@@ -74,6 +74,7 @@ creating a feature file.
 - Read the user's request carefully
 - Identify the scope: new screen, new component, data layer, or cross-cutting feature
 - Check existing code for context using Grep and Glob
+- Read `patterns/mobile-patterns.md` and `styles/react-native.md` for code conventions
 - Read any existing feature files in `.claude/context/features/` for project patterns
 - Determine which layers are involved: UI (screens/components), state (stores/queries),
   data (db/queries, services/api), or all
@@ -216,6 +217,7 @@ Task tool call with instructions:
 3. <Specific implementation step>
 
 Requirements:
+- Read patterns/mobile-patterns.md and styles/react-native.md for code conventions
 - Follow existing code patterns in <reference file>
 - Use Zustand ONLY for UI state (loading, modals, filters)
 - Use React Query for all data fetching
@@ -353,7 +355,7 @@ Files changed:
 - <file 1>: <summary of changes>
 - <file 2>: <summary of changes>
 
-Review against React Native conventions in CLAUDE.md. Pay special attention to:
+Review against patterns/mobile-patterns.md, styles/react-native.md, and CLAUDE.md. Pay special attention to:
 1. State management boundaries (Zustand for UI only, React Query for data)
 2. FlashList usage for long lists
 3. StyleSheet.create with theme constants

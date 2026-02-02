@@ -28,6 +28,7 @@ git diff --name-only main...HEAD
 ### Step 2: Read Every Changed File
 
 Read the full content of every changed file. Also read:
+- `patterns/mobile-patterns.md` and `styles/react-native.md` for code conventions
 - `.agent-pipeline/implement.md` if it exists (implementation notes)
 - `.agent-pipeline/test.md` if it exists (test results)
 - Related feature file from `.claude/context/features/`

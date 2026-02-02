@@ -26,6 +26,15 @@ mobile code that runs on both iOS and Android.
 - **i18next** for internationalisation
 - **StyleSheet.create** with theme constants
 
+## Before Writing Any Code
+
+**ALWAYS** read these files first to understand project conventions:
+
+1. `patterns/mobile-patterns.md` -- Code patterns and examples for screens, stores, queries, and components
+2. `styles/react-native.md` -- React Native style conventions (StyleSheet, theme constants, platform handling)
+3. `CLAUDE.md` -- Project structure, technology stack, and conventions
+4. Scan existing code in `app/`, `components/`, `stores/`, and `queries/` for established patterns
+
 ## State Management Rules (CRITICAL)
 
 ### Zustand -- UI State ONLY

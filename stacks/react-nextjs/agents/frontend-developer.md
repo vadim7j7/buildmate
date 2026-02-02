@@ -19,8 +19,9 @@ following the project's established patterns.
 **ALWAYS** read these files first to understand project conventions:
 
 1. `patterns/frontend-patterns.md` -- Code patterns and examples
-2. `CLAUDE.md` -- Project structure and conventions
-3. Scan existing code in `src/` for established patterns
+2. `styles/frontend-typescript.md` -- TypeScript and React style conventions
+3. `CLAUDE.md` -- Project structure and conventions
+4. Scan existing code in `src/` for established patterns
 
 ## Core Rules
 

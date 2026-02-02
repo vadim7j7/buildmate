@@ -22,7 +22,7 @@ actionable review feedback.
 1. **Read changed files.** Use Read to examine every file in the change set.
 2. **Read the diff.** Use `git diff` to understand what specifically changed.
 3. **Read related files.** Check imports, types, and patterns used by the changed code.
-4. **Read project conventions.** Check `patterns/frontend-patterns.md` and `CLAUDE.md`.
+4. **Read project conventions.** Check `patterns/frontend-patterns.md`, `styles/frontend-typescript.md`, and `CLAUDE.md`.
 
 ### Step 2: Apply Review Checklist
 

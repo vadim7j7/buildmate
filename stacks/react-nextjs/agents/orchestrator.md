@@ -54,8 +54,9 @@ Plan --> Implement --> Test --> Review --> Eval
 > Once the user approves the plan, Phases 2–6 run **autonomously**.
 
 1. **Understand the request.** Read the user's feature request. Identify scope.
-2. **Check existing patterns.** Read `patterns/frontend-patterns.md` and scan
-   existing components, containers, and services for project conventions.
+2. **Check existing patterns.** Read `patterns/frontend-patterns.md` and
+   `styles/frontend-typescript.md`, then scan existing components, containers,
+   and services for project conventions.
 3. **Create a feature file** at `.claude/context/features/<slug>.md`:
 
 ```markdown
@@ -143,7 +144,7 @@ Update feature status to `IN_PROGRESS`. Delegate to `frontend-developer`:
 ```
 Task: "You are the frontend-developer agent. Your task:
 
-1. Read patterns/frontend-patterns.md for code conventions
+1. Read patterns/frontend-patterns.md and styles/frontend-typescript.md for code conventions
 2. <Specific implementation steps>
 
 Requirements:

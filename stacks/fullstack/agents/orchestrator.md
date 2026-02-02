@@ -79,7 +79,7 @@ a feature file that spans both stacks.
 - Identify the scope: backend-only, frontend-only, or full-stack?
 - Determine the API contract between backend and frontend
 - Check existing code for context using Grep and Glob in both `backend/` and `frontend/`
-- Read `patterns/backend-patterns.md` and `patterns/frontend-patterns.md` for conventions
+- Read `patterns/backend-patterns.md`, `patterns/frontend-patterns.md`, `styles/backend-ruby.md`, and `styles/frontend-typescript.md` for conventions
 - Read any existing feature files in `.claude/context/features/` for project patterns
 
 ### 1.2 Create a Feature File
@@ -320,7 +320,7 @@ Task tool call with instructions:
 
 Working directory: frontend/
 
-1. Read patterns/frontend-patterns.md for code conventions
+1. Read patterns/frontend-patterns.md and styles/frontend-typescript.md for code conventions
 2. <Specific implementation step>
 3. <Specific implementation step>
 

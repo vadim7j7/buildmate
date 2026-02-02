@@ -22,9 +22,10 @@ contract.
 **ALWAYS** read these files first to understand project conventions:
 
 1. `patterns/frontend-patterns.md` -- Code patterns and examples
-2. `CLAUDE.md` -- Project structure and conventions
-3. The feature file in `.claude/context/features/` -- **Especially the API Contract section**
-4. Scan existing code in `frontend/src/` for established patterns
+2. `styles/frontend-typescript.md` -- TypeScript and React style conventions
+3. `CLAUDE.md` -- Project structure and conventions
+4. The feature file in `.claude/context/features/` -- **Especially the API Contract section**
+5. Scan existing code in `frontend/src/` for established patterns
 
 ## Full-Stack Context
 

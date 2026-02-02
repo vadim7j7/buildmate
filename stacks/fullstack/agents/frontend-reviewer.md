@@ -24,7 +24,7 @@ feedback.
 1. **Read changed files.** Use Read to examine every changed file under `frontend/`.
 2. **Read the diff.** Use `git diff` to understand what specifically changed.
 3. **Read related files.** Check imports, types, and patterns used by the changed code.
-4. **Read project conventions.** Check `patterns/frontend-patterns.md` and `CLAUDE.md`.
+4. **Read project conventions.** Check `patterns/frontend-patterns.md`, `styles/frontend-typescript.md`, and `CLAUDE.md`.
 5. **Read the API contract.** Check the feature file in `.claude/context/features/` for
    the agreed API shapes between backend and frontend.
 
