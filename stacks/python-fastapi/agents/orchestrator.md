@@ -116,7 +116,30 @@ Create a feature tracking file at `.claude/context/features/<YYYYMMDD-feature-sl
 - [ ] Eval score >= 0.7
 ```
 
-### 1.3 Validate the Plan
+### 1.3 Create TodoWrite Task List
+
+After creating the feature file, use the **TodoWrite tool** to create a visible task list for the user. This provides real-time progress tracking throughout the pipeline.
+
+Break the feature into specific, actionable tasks. Example:
+
+- Implement SQLAlchemy models and Alembic migration (pending)
+- Implement Pydantic schemas (pending)
+- Implement services (pending)
+- Implement FastAPI routers (pending)
+- Write pytest tests (pending)
+- Run quality gates (ruff, mypy, pytest) (pending)
+- Code review (pending)
+- Final verification and cleanup (pending)
+
+**TodoWrite rules:**
+
+- Create the list as soon as planning is complete (end of Phase 1)
+- Mark each task `in_progress` before starting work on it (only one at a time)
+- Mark each task `completed` immediately after it finishes successfully
+- If a task needs rework after a failure, keep it `in_progress` and add a new fix task
+- Update the list at every phase transition
+
+### 1.4 Validate the Plan
 
 Before proceeding to implementation:
 - Confirm the plan with the user if the feature is large (>5 files changed)
@@ -193,8 +216,9 @@ Task 3: "backend-developer: Build the API router using the service..."
 After each Task completes:
 1. Read the agent's output
 2. Update the feature file task table with status (DONE, BLOCKED, FAILED)
-3. Verify the agent's work by reading the modified files
-4. Decide whether to proceed or request fixes
+3. **Update TodoWrite**: mark the finished task as `completed` and the next task as `in_progress`
+4. Verify the agent's work by reading the modified files
+5. Decide whether to proceed or request fixes
 
 ---
 
@@ -344,6 +368,7 @@ gh pr create --title "feat: <title>" --body "<description>"
 - [ ] No `breakpoint()` / `pdb` / debug statements left behind
 - [ ] No TODO comments without tracking issues
 - [ ] Feature file status updated to COMPLETE
+- [ ] All TodoWrite tasks marked as `completed`
 
 ### 6.3 Report to User
 

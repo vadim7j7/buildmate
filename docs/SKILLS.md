@@ -46,7 +46,7 @@ These skills are available in every stack. They provide cross-cutting capabiliti
 | `/eval` | Run quality evaluation against scoring rubrics (5 dimensions, weighted formula) | Optional file path; `--dimension <name>` for a single dimension |
 | `/security` | Run a security audit scanning for OWASP Top 10 vulnerabilities | Optional file path; `--full` for entire codebase |
 | `/docs` | Generate or update documentation for changed files | Optional file path; `--update` for existing docs only |
-| `/resume` | Load saved session context and show a detailed status summary | None |
+| `/recap` | Load saved session context and show a detailed status summary | None |
 
 ---
 
@@ -212,12 +212,12 @@ Scans for OWASP Top 10 vulnerabilities:
 
 Returns findings classified by severity (CRITICAL, HIGH, MEDIUM, LOW, INFO).
 
-### /resume -- Session Resume
+### /recap -- Session Recap
 
 Loads saved context from a previous session and presents a structured status summary:
 
 ```
-/resume
+/recap
 ```
 
 This skill is **read-only** — it never modifies files or changes state. It checks:
@@ -230,7 +230,7 @@ This skill is **read-only** — it never modifies files or changes state. It che
 
 The output is a structured summary with suggested next steps based on the current state. Use this at the start of a session to quickly orient yourself, or whenever the session-load hook shows stale context.
 
-**Note:** Session context is automatically saved and loaded by hooks in `settings.json`. The `/resume` command provides a more detailed assessment than the automatic session-load.
+**Note:** Session context is automatically saved and loaded by hooks in `settings.json`. The `/recap` command provides a more detailed assessment than the automatic session-load.
 
 ### /docs -- Documentation Generation
 

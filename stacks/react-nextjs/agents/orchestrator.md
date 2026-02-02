@@ -85,7 +85,27 @@ Plan --> Implement --> Test --> Review --> Eval
 | 3 | Code review | frontend-reviewer | PENDING | |
 ```
 
-4. **Validate.** For large features (>5 files), confirm the plan with the user.
+4. **Create TodoWrite task list.** Use the **TodoWrite tool** to create a visible task
+   list for the user. This provides real-time progress tracking throughout the pipeline.
+   Break the feature into specific tasks:
+
+   - Implement components (pending)
+   - Implement containers (pending)
+   - Implement API services (pending)
+   - Implement pages (pending)
+   - Write tests (pending)
+   - Run quality gates (tsc, lint, tests) (pending)
+   - Code review (pending)
+   - Final verification and cleanup (pending)
+
+   **TodoWrite rules:**
+   - Create the list as soon as planning is complete (end of Phase 1)
+   - Mark each task `in_progress` before starting work on it (only one at a time)
+   - Mark each task `completed` immediately after it finishes successfully
+   - If a task needs rework after a failure, keep it `in_progress` and add a new fix task
+   - Update the list at every phase transition
+
+5. **Validate.** For large features (>5 files), confirm the plan with the user.
 
 ### Phase 2: Implementation
 
@@ -117,6 +137,13 @@ Report results."
 For independent tasks (e.g., separate components that don't depend on each
 other), delegate in parallel. For dependent tasks (e.g., service must exist
 before container uses it), delegate sequentially.
+
+After each Task completes:
+1. Read the agent's output
+2. Update the feature file task table with status (DONE, BLOCKED, FAILED)
+3. **Update TodoWrite**: mark the finished task as `completed` and the next task as `in_progress`
+4. Verify the agent's work by reading the modified files
+5. Decide whether to proceed or request fixes
 
 ### Phase 3: Testing
 
@@ -185,7 +212,7 @@ If any gate fails, delegate a fix to `frontend-developer` and re-run.
 
 ### Phase 6: Completion
 
-Update feature status to `COMPLETE`. Report to user:
+Update feature status to `COMPLETE`. Mark all TodoWrite tasks as `completed`. Report to user:
 
 ```markdown
 ## Feature Complete: <Name>

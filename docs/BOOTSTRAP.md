@@ -180,7 +180,7 @@ The bootstrap installs two hooks that provide automatic session persistence:
 - **`session-save.sh`** (Stop event): After each Claude response, this hook captures the current git state (branch, commits, uncommitted changes), in-progress feature files, and pipeline state. Everything is written to `.claude/context/active-work.md`. Because it runs after every response, the saved context is always up to date even if the session ends unexpectedly.
 - **`session-load.sh`** (SessionStart event): When a new session starts, this hook reads `active-work.md` and injects it into the conversation context. If the file is older than 7 days, a staleness warning is shown instead.
 
-Use the `/resume` skill for a more detailed status check at any time. See [SKILLS.md](SKILLS.md) for details.
+Use the `/recap` skill for a more detailed status check at any time. See [SKILLS.md](SKILLS.md) for details.
 
 ---
 

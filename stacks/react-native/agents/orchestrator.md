@@ -131,7 +131,31 @@ Create a feature tracking file at `.claude/context/features/<feature-slug>.md`:
 - [ ] Works on both iOS and Android
 ```
 
-### 1.3 Validate the Plan
+### 1.3 Create TodoWrite Task List
+
+After creating the feature file, use the **TodoWrite tool** to create a visible task list for the user. This provides real-time progress tracking throughout the pipeline.
+
+Break the feature into specific, actionable tasks. Example:
+
+- Implement Drizzle schema and DB queries (pending)
+- Implement Zustand store (pending)
+- Implement React Query hooks (pending)
+- Implement screen and components (pending)
+- Add i18n translation keys (pending)
+- Write tests (pending)
+- Run quality gates (tsc, lint, tests) (pending)
+- Code review (pending)
+- Final verification and cleanup (pending)
+
+**TodoWrite rules:**
+
+- Create the list as soon as planning is complete (end of Phase 1)
+- Mark each task `in_progress` before starting work on it (only one at a time)
+- Mark each task `completed` immediately after it finishes successfully
+- If a task needs rework after a failure, keep it `in_progress` and add a new fix task
+- Update the list at every phase transition
+
+### 1.4 Validate the Plan
 
 Before proceeding to implementation:
 - Confirm the plan with the user if the feature is large (>5 files changed)
@@ -221,8 +245,9 @@ Sequential execution is required when:
 After each Task completes:
 1. Read the agent's output
 2. Update the feature file task table with status (DONE, BLOCKED, FAILED)
-3. Verify the agent's work by reading the modified files
-4. Decide whether to proceed or request fixes
+3. **Update TodoWrite**: mark the finished task as `completed` and the next task as `in_progress`
+4. Verify the agent's work by reading the modified files
+5. Decide whether to proceed or request fixes
 
 ---
 
@@ -326,9 +351,10 @@ Once all gates pass and review is approved, finalize the feature.
 - [ ] All UI strings use i18n t() function
 - [ ] No TODO comments without tracking issues
 
-### 5.2 Update Feature File
+### 5.2 Update Feature File and TodoWrite
 
 Update the feature file status to `COMPLETE` and check off all completed requirements.
+Mark all remaining TodoWrite tasks as `completed`.
 
 ### 5.3 Report to User
 

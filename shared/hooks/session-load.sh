@@ -41,7 +41,7 @@ if command -v stat &>/dev/null; then
   AGE_DAYS="$(( (NOW_EPOCH - FILE_EPOCH) / 86400 ))"
 
   if [[ "${AGE_DAYS}" -gt 7 ]]; then
-    echo "[Session Memory] Previous work context is ${AGE_DAYS} days old and may be stale. Use /resume for a fresh assessment."
+    echo "[Session Memory] Previous work context is ${AGE_DAYS} days old and may be stale. Use /recap for a fresh assessment."
     exit 0
   fi
 fi
@@ -54,6 +54,6 @@ echo ""
 cat "${ACTIVE_WORK}"
 echo ""
 echo "---"
-echo "Use /resume for a detailed status check, or continue working where you left off."
+echo "Use /recap for a detailed status check, or continue working where you left off."
 
 exit 0

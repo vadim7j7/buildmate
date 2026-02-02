@@ -106,7 +106,7 @@ proceeding. The reviewer agent will reject work that has not passed all gates.
 | `/delegate`   | Smart delegation - auto-picks parallel or sequential       |
 | `/parallel`   | Run multiple tasks in parallel via git worktrees           |
 | `/sequential` | Run tasks through the pipeline in order                    |
-| `/resume`     | Load saved context and show a detailed status summary      |
+| `/recap`      | Load saved context and show a detailed status summary      |
 
 ## Parallel vs Sequential Execution
 
@@ -167,9 +167,9 @@ between Claude Code sessions.
   immediately knows where you left off. If the file is older than 7 days, a
   staleness warning is shown instead.
 
-### `/resume` Command
+### `/recap` Command
 
-For a more detailed status check, use the `/resume` skill. It reads:
+For a more detailed status check, use the `/recap` skill. It reads:
 
 1. `active-work.md` — last session's saved context
 2. Feature files in `.claude/context/features/` — in-progress features and
@@ -178,7 +178,7 @@ For a more detailed status check, use the `/resume` skill. It reads:
 4. Pipeline state — `.agent-pipeline/pipeline.json` if a pipeline was running
 5. Eval results — latest report in `.agent-eval-results/`
 
-`/resume` is **read-only** — it never modifies files or runs state-changing
+`/recap` is **read-only** — it never modifies files or runs state-changing
 commands. Use it at the start of a session or any time you want to orient
 yourself.
 
@@ -189,4 +189,4 @@ yourself.
 | `.claude/context/active-work.md` | Auto-saved session context (git state, features, pipeline) |
 | `.claude/hooks/session-save.sh` | Stop event hook — writes active-work.md |
 | `.claude/hooks/session-load.sh` | SessionStart event hook — loads active-work.md into context |
-| `.claude/skills/resume/SKILL.md` | `/resume` skill definition |
+| `.claude/skills/recap/SKILL.md` | `/recap` skill definition |

@@ -1,9 +1,9 @@
 ---
-name: resume
-description: Resume previous work by loading saved context, feature files, git state, and pipeline status. Use this at the start of a session to pick up where you left off.
+name: recap
+description: Load saved context, feature files, git state, and pipeline status. Use this at the start of a session to pick up where you left off.
 ---
 
-# /resume — Resume Previous Work
+# /recap — Session Recap
 
 Gathers all available context about work in progress and presents a clear
 "here's where you left off" summary so you can continue without losing momentum.
@@ -81,7 +81,7 @@ If found, read it and report the overall score and any NEEDS_FIXES items.
 Present the findings as a structured summary:
 
 ```markdown
-## Session Resume
+## Session Recap
 
 ### Last Session
 - **Saved:** <timestamp from active-work.md>

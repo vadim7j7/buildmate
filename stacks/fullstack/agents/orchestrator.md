@@ -173,7 +173,34 @@ Create a feature tracking file at `.claude/context/features/<YYYYMMDD-feature-sl
 - [ ] Eval score >= 0.7
 ```
 
-### 1.3 Define the API Contract
+### 1.3 Create TodoWrite Task List
+
+After creating the feature file, use the **TodoWrite tool** to create a visible task list for the user. This provides real-time progress tracking throughout the pipeline.
+
+Break the feature into specific, actionable tasks. Example:
+
+- Define API contract (pending)
+- Implement backend models and services (pending)
+- Implement backend controllers (pending)
+- Implement frontend API services (pending)
+- Implement frontend components and pages (pending)
+- Write backend tests (pending)
+- Write frontend tests (pending)
+- Run backend quality gates (rubocop, rspec) (pending)
+- Run frontend quality gates (tsc, lint, tests) (pending)
+- Backend code review (pending)
+- Frontend code review (pending)
+- Final verification and cleanup (pending)
+
+**TodoWrite rules:**
+
+- Create the list as soon as planning is complete (end of Phase 1)
+- Mark each task `in_progress` before starting work on it (only one at a time)
+- Mark each task `completed` immediately after it finishes successfully
+- If a task needs rework after a failure, keep it `in_progress` and add a new fix task
+- Update the list at every phase transition
+
+### 1.4 Define the API Contract
 
 **CRITICAL: Before starting parallel implementation, define the API contract.**
 
@@ -187,7 +214,7 @@ The API contract is the shared agreement between backend and frontend on:
 Write this into the feature file's "API Contract" section. Both backend and frontend
 agents will reference this contract during implementation.
 
-### 1.4 Validate the Plan
+### 1.5 Validate the Plan
 
 Before proceeding to implementation:
 - Confirm the plan with the user if the feature is large (>5 files changed per stack)
@@ -301,9 +328,10 @@ When complete:
 After each Task completes:
 1. Read the agent's output
 2. Update the feature file task table with status (DONE, BLOCKED, FAILED)
-3. Verify the agent's work by reading the modified files
-4. Decide whether to proceed or request fixes
-5. Verify both stacks align with the API contract
+3. **Update TodoWrite**: mark the finished task as `completed` and the next task as `in_progress`
+4. Verify the agent's work by reading the modified files
+5. Decide whether to proceed or request fixes
+6. Verify both stacks align with the API contract
 
 ---
 
@@ -519,6 +547,7 @@ gh pr create --title "feat: <title>" --body "<description covering both stacks>"
 - [ ] No `console.log` debug statements in frontend
 - [ ] No TODO comments without tracking issues
 - [ ] Feature file status updated to COMPLETE
+- [ ] All TodoWrite tasks marked as `completed`
 
 ### 6.3 Report to User
 
