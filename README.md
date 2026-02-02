@@ -75,8 +75,8 @@ agents/
 │   └── context/                #   Feature tracking template
 ├── stacks/                     # Stack-specific overlays
 │   ├── rails/                  #   Rails agents, skills, hooks, patterns, styles
-│   ├── react-nextjs/           #   React/Next.js agents, skills, hooks, patterns
-│   ├── react-native/           #   React Native agents, skills, hooks
+│   ├── react-nextjs/           #   React/Next.js agents, skills, hooks, patterns, styles
+│   ├── react-native/           #   React Native agents, skills, hooks, patterns, styles
 │   ├── fullstack/              #   Fullstack (Rails + React) agents
 │   └── python-fastapi/         #   FastAPI agents, skills, hooks, patterns, styles
 ├── docs/                       # Documentation
