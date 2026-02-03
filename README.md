@@ -16,13 +16,26 @@ For any supported stack, the generator installs:
 
 ## Supported Stacks
 
-| Stack | Command | Description |
-|-------|---------|-------------|
-| `rails` | `./bootstrap.sh rails /path/to/project` | Ruby on Rails (RSpec, Rubocop, Sidekiq) |
-| `react-nextjs` | `./bootstrap.sh react-nextjs /path/to/project` | React + Next.js (Playwright, ESLint, TypeScript) |
-| `react-native` | `./bootstrap.sh react-native /path/to/project` | React Native (Jest, ESLint, Zustand) |
-| `fullstack` | `./bootstrap.sh fullstack /path/to/project` | Rails API + React frontend combined |
-| `python-fastapi` | `./bootstrap.sh python-fastapi /path/to/project` | Python FastAPI (pytest, Ruff, mypy, SQLAlchemy, Celery) |
+| Stack | Description |
+|-------|-------------|
+| `rails` | Ruby on Rails (RSpec, Rubocop, Sidekiq) |
+| `react-nextjs` | React + Next.js (Playwright, ESLint, TypeScript) |
+| `react-native` | React Native (Jest, ESLint, Zustand) |
+| `fullstack` | Rails API + React frontend combined (legacy, use `rails,react-nextjs`) |
+| `python-fastapi` | Python FastAPI (pytest, Ruff, mypy, SQLAlchemy, Celery) |
+
+### Combining Stacks
+
+Stacks can be combined with commas to create custom configurations:
+
+```bash
+./bootstrap.sh rails,react-native /path/to/project           # API + mobile
+./bootstrap.sh rails,react-nextjs /path/to/project           # API + web
+./bootstrap.sh rails,react-nextjs,react-native /path/to/project  # API + web + mobile
+./bootstrap.sh python-fastapi,react-nextjs /path/to/project  # Python API + web
+```
+
+Stacks are layered in order: agents, skills, hooks, patterns, and styles from each stack are merged, with later stacks taking precedence for same-named files.
 
 ## Quick Start
 
@@ -31,8 +44,9 @@ For any supported stack, the generator installs:
 git clone <repo-url> agents
 cd agents
 
-# 2. Bootstrap a stack into your project
-./bootstrap.sh python-fastapi ~/Projects/my-api
+# 2. Bootstrap a stack (or combination) into your project
+./bootstrap.sh python-fastapi ~/Projects/my-api                    # Single stack
+./bootstrap.sh rails,react-native ~/Projects/my-mobile-app         # Combined stacks
 
 # 3. Open in Claude Code and start working
 cd ~/Projects/my-api
@@ -53,8 +67,12 @@ The generator runs a four-phase pipeline:
 Validate --> Compose --> Install --> Post-Install
 ```
 
-1. **Validate** — Checks the stack name, target path, git repo, and existing `.claude/`
-2. **Compose** — Copies `shared/` as the base, overlays `stacks/<stack>/` on top using merge rules (agents/skills/hooks replace by name, `CLAUDE.md` is concatenated, `settings.json` is deep-merged)
+1. **Validate** — Checks all stack names, target path, git repo, and existing `.claude/`
+2. **Compose** — Copies `shared/` as the base, then layers each stack in order:
+   - Agents/skills/hooks: later stacks replace same-named files
+   - Patterns/styles: accumulated from all stacks
+   - `CLAUDE.md`: concatenated from shared + all stacks
+   - `settings.json`: deep-merged (arrays concatenated, objects merged)
 3. **Install** — Copies the composed output to `<target>/.claude/` and `<target>/CLAUDE.md`
 4. **Post-Install** — Makes hooks executable, updates `.gitignore`, prints summary
 

@@ -11,21 +11,53 @@
 readonly VALID_STACKS_STR="rails react-nextjs react-native fullstack python-fastapi"
 
 # ---------------------------------------------------------------------------
-# validate_stack - Check that the stack name is valid
+# validate_stack - Check that a single stack name is valid
 # ---------------------------------------------------------------------------
 validate_stack() {
     local stack="$1"
 
     for valid in ${VALID_STACKS_STR}; do
         if [[ "${stack}" == "${valid}" ]]; then
-            log_substep "Stack '${stack}' is valid"
             return 0
         fi
     done
 
-    log_error "Invalid stack: '${stack}'"
-    log_error "Valid stacks are: ${VALID_STACKS_STR}"
-    exit 1
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# validate_stacks - Check that all stacks in a comma-separated list are valid
+# ---------------------------------------------------------------------------
+# Arguments:
+#   $1 - stacks (comma-separated, e.g., "rails,react-native")
+# ---------------------------------------------------------------------------
+validate_stacks() {
+    local stacks="$1"
+    local stack_count=0
+
+    # Replace commas with spaces for iteration
+    local stacks_spaced="${stacks//,/ }"
+
+    for stack in ${stacks_spaced}; do
+        if ! validate_stack "${stack}"; then
+            log_error "Invalid stack: '${stack}'"
+            log_error "Valid stacks are: ${VALID_STACKS_STR}"
+            exit 1
+        fi
+        stack_count=$((stack_count + 1))
+    done
+
+    if [[ ${stack_count} -eq 0 ]]; then
+        log_error "No stacks specified"
+        exit 1
+    fi
+
+    if [[ ${stack_count} -eq 1 ]]; then
+        log_substep "Stack '${stacks}' is valid"
+    else
+        local stacks_display="${stacks//,/, }"
+        log_substep "Stacks '${stacks_display}' are valid (${stack_count} stacks)"
+    fi
 }
 
 # ---------------------------------------------------------------------------

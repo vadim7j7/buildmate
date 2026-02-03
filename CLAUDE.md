@@ -75,14 +75,16 @@ The bootstrap script follows a four-phase pipeline:
 This is the core logic. It builds the final configuration by layering:
 
 1. **Copy shared/ as the base layer** into a temporary directory
-2. **Overlay stacks/<stack>/ on top** using these merge rules:
-   - **Agents**: Stack-specific agents replace shared ones with the same name; stack-only agents are added
-   - **Skills**: Stack-specific skills replace shared ones with the same name; stack-only skills are added
-   - **CLAUDE.md**: Shared CLAUDE.md concatenated with stack-specific CLAUDE.md (separated by a header)
-   - **settings.json**: Deep-merged using jq -- permission arrays are concatenated and deduplicated, other fields are recursively merged
-   - **Hooks**: Stack-specific hooks replace shared ones with the same name
-   - **Patterns/Styles**: Copied as-is from the stack overlay (no shared base)
-3. **Create context/ and context/features/** directories for feature tracking
+2. **Apply each stack in order** (for multi-stack, e.g., `rails,react-native`):
+   - **Agents**: Stack-specific agents replace shared/previous ones with the same name; new agents are added
+   - **Skills**: Stack-specific skills replace shared/previous ones with the same name; new skills are added
+   - **Hooks**: Stack-specific hooks replace shared/previous ones with the same name
+   - **Patterns/Styles**: Accumulated from all stacks (no replacement)
+3. **Merge CLAUDE.md** from shared + all stacks (concatenated with separators)
+4. **Deep-merge settings.json** from shared + all stacks (arrays concatenated, objects recursively merged)
+5. **Create context/ and context/features/** directories for feature tracking
+
+When combining multiple stacks, later stacks take precedence for same-named agents/skills/hooks.
 
 ### Phase 3: Install
 - Copies the composed temp directory to `<target>/.claude/`
@@ -102,8 +104,10 @@ This is the core logic. It builds the final configuration by layering:
 | `rails` | Ruby on Rails applications | new-model, new-controller, new-service, new-migration, db-migrate, new-job, new-presenter, new-spec |
 | `react-nextjs` | React + Next.js applications | new-component, new-page, new-container, new-context, new-form, new-api-service, component-gen |
 | `react-native` | React Native mobile apps | new-screen, new-rn-component, new-store, new-query, new-db-query, platform-check |
-| `fullstack` | Combined Rails API + React frontend | Combines rails + react-nextjs skills |
+| `fullstack` | Combined Rails API + React frontend | Combines rails + react-nextjs skills (legacy, use `rails,react-nextjs`) |
 | `python-fastapi` | Python FastAPI applications | new-router, new-schema, new-model, new-service, new-migration, db-migrate, new-test, new-task |
+
+**Multi-stack combinations:** Use commas to combine stacks (e.g., `rails,react-native` for API + mobile).
 
 ## How to Add a New Stack Template
 
@@ -150,18 +154,23 @@ The `.agent-pipeline/` directory (gitignored) holds transient pipeline state for
 ## Development Commands
 
 ```bash
-# Bootstrap a stack to a target project
+# Bootstrap a single stack to a target project
 ./bootstrap.sh rails /path/to/my-rails-app
 ./bootstrap.sh react-nextjs /path/to/my-react-app
 ./bootstrap.sh react-native /path/to/my-rn-app
-./bootstrap.sh fullstack /path/to/my-fullstack-app
 ./bootstrap.sh python-fastapi /path/to/my-fastapi-app
+
+# Combine multiple stacks (comma-separated, layered in order)
+./bootstrap.sh rails,react-native /path/to/my-mobile-app           # API + mobile
+./bootstrap.sh rails,react-nextjs /path/to/my-fullstack-app        # API + web
+./bootstrap.sh rails,react-nextjs,react-native /path/to/my-app     # API + web + mobile
+./bootstrap.sh python-fastapi,react-nextjs /path/to/my-python-app  # Python API + web
 
 # Force overwrite existing .claude/ directory
 ./bootstrap.sh rails /path/to/my-rails-app --force
 
 # Inspect what would be composed (use a temp directory)
-./bootstrap.sh rails /tmp/test-output
+./bootstrap.sh rails,react-native /tmp/test-output
 
 # Check shared base layer
 ls shared/agents/ shared/skills/ shared/hooks/

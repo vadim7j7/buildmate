@@ -118,13 +118,16 @@ _post_install_create_gitkeeps() {
 # ---------------------------------------------------------------------------
 _post_install_print_summary() {
     local target_path="$1"
-    local stack="$2"
+    local stacks="$2"
     local claude_dir="${target_path}/.claude"
+
+    # Format stacks display (replace commas with " + ")
+    local stacks_display="${stacks//,/ + }"
 
     echo ""
     echo -e "${BOLD}  Installation Summary${NC}"
     echo -e "${DIM}  ────────────────────────────────────────${NC}"
-    echo -e "  Stack:   ${CYAN}${stack}${NC}"
+    echo -e "  Stacks:  ${CYAN}${stacks_display}${NC}"
     echo -e "  Target:  ${CYAN}${target_path}${NC}"
     echo ""
 
@@ -191,7 +194,10 @@ _post_install_print_summary() {
 # ---------------------------------------------------------------------------
 _post_install_print_next_steps() {
     local target_path="$1"
-    local stack="$2"
+    local stacks="$2"
+
+    # Format stacks for commit message
+    local stacks_display="${stacks//,/ + }"
 
     echo -e "${BOLD}  Next Steps${NC}"
     echo -e "${DIM}  ────────────────────────────────────────${NC}"
@@ -214,6 +220,6 @@ _post_install_print_next_steps() {
     echo ""
     echo -e "  5. ${BOLD}Commit the configuration:${NC}"
     echo -e "     ${DIM}git add .claude/ CLAUDE.md .gitignore${NC}"
-    echo -e "     ${DIM}git commit -m \"Add Claude Code agent configuration (${stack} stack)\"${NC}"
+    echo -e "     ${DIM}git commit -m \"Add Claude Code agent configuration (${stacks_display})\"${NC}"
     echo ""
 }

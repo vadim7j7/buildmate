@@ -64,17 +64,24 @@ Clone or download this repository, then run `bootstrap.sh` with a stack name and
 ./bootstrap.sh react-native /path/to/my-rn-app
 ```
 
-### Full-Stack (Rails API + React Frontend)
-
-```bash
-./bootstrap.sh fullstack /path/to/my-fullstack-app
-```
-
 ### Python FastAPI
 
 ```bash
 ./bootstrap.sh python-fastapi /path/to/my-fastapi-app
 ```
+
+### Multi-Stack Combinations
+
+Combine multiple stacks with commas to create custom configurations:
+
+```bash
+./bootstrap.sh rails,react-native /path/to/my-mobile-app           # API + mobile
+./bootstrap.sh rails,react-nextjs /path/to/my-fullstack-app        # API + web
+./bootstrap.sh rails,react-nextjs,react-native /path/to/my-app     # API + web + mobile
+./bootstrap.sh python-fastapi,react-nextjs /path/to/my-python-app  # Python API + web
+```
+
+Stacks are layered in order: each stack's agents, skills, hooks, patterns, and styles are merged on top of the previous, with later stacks taking precedence for same-named files.
 
 Each command produces a complete `.claude/` directory and a `CLAUDE.md` file in the target project, ready for use with Claude Code.
 
@@ -83,16 +90,29 @@ Each command produces a complete `.claude/` directory and a `CLAUDE.md` file in 
 ## Detailed Usage
 
 ```
-./bootstrap.sh <stack> <target-path> [--force]
+./bootstrap.sh <stacks> <target-path> [--force]
 ```
 
 ### Arguments
 
 | Argument        | Required | Description                                                     |
 |-----------------|----------|-----------------------------------------------------------------|
-| `<stack>`       | Yes      | One of: `rails`, `react-nextjs`, `react-native`, `fullstack`, `python-fastapi` |
-| `<target-path>` | Yes     | Absolute or relative path to the target project directory       |
+| `<stacks>`      | Yes      | One or more stacks, comma-separated: `rails`, `react-nextjs`, `react-native`, `fullstack`, `python-fastapi` |
+| `<target-path>` | Yes      | Absolute or relative path to the target project directory       |
 | `--force`       | No       | Overwrite an existing `.claude/` directory in the target        |
+
+### Multi-Stack Examples
+
+```bash
+# Single stack
+./bootstrap.sh rails /path/to/project
+
+# Two stacks (backend + frontend)
+./bootstrap.sh rails,react-nextjs /path/to/project
+
+# Three stacks (backend + web + mobile)
+./bootstrap.sh rails,react-nextjs,react-native /path/to/project
+```
 
 ### Options
 
@@ -186,7 +206,7 @@ Use the `/recap` skill for a more detailed status check at any time. See [SKILLS
 
 ## Composition Rules
 
-The composition layer builds the final configuration by starting with the shared base (`shared/`) and overlaying the stack-specific layer (`stacks/<stack>/`) on top. Each type of file has its own merge strategy:
+The composition layer builds the final configuration by starting with the shared base (`shared/`) and then applying each stack in order. When combining multiple stacks (e.g., `rails,react-native`), each stack is layered on top of the previous. Each type of file has its own merge strategy:
 
 ### Agents
 
@@ -202,20 +222,22 @@ Stack-specific skill directories replace shared skills with the same directory n
 
 ### CLAUDE.md
 
-**Strategy:** Concatenated (shared + stack-specific).
+**Strategy:** Concatenated (shared + all stacks in order).
 
-The shared `CLAUDE.md` is placed first, followed by a separator (`---` with a comment), then the stack-specific `CLAUDE.md` is appended. This means the stack layer can extend the shared instructions without losing them.
+The shared `CLAUDE.md` is placed first, followed by each stack's `CLAUDE.md` in order, with separators (`---` with a comment) between them. For example, `rails,react-native` would concatenate: shared → rails → react-native.
 
 ### settings.json
 
-**Strategy:** Deep-merged with jq.
+**Strategy:** Deep-merged with jq (progressive).
 
-The shared and stack-specific `settings.json` files are deep-merged:
+All `settings.json` files (shared + each stack in order) are progressively deep-merged:
 - **Arrays** (such as `permissions.allow`) are concatenated and deduplicated
-- **Objects** are recursively merged, with the stack-specific value winning on conflicts
-- **Scalar values** from the stack override shared values
+- **Objects** are recursively merged, with later stacks winning on conflicts
+- **Scalar values** from later stacks override earlier values
 
-If `jq` is not available, the stack `settings.json` is used as-is (no merge) and a warning is printed.
+For example, `rails,react-native` merges: shared → rails → react-native.
+
+If `jq` is not available, the last stack's `settings.json` is used as-is (no merge) and a warning is printed.
 
 ### Hooks
 
@@ -225,21 +247,21 @@ Stack-specific hook scripts replace shared hooks with the same filename. For exa
 
 ### Patterns and Styles
 
-**Strategy:** Copied as-is from the stack layer only.
+**Strategy:** Accumulated from all stacks.
 
-The `patterns/` and `styles/` directories exist only in stack layers -- there is no shared base for them. They are copied directly from the stack overlay into the output.
+The `patterns/` and `styles/` directories exist only in stack layers -- there is no shared base for them. When combining multiple stacks, files from all stacks are accumulated (not replaced). For example, `rails,react-native` would include both `backend-patterns.md` and `mobile-patterns.md`.
 
 ### Summary Table
 
-| File Type      | Merge Strategy                                  |
-|----------------|-------------------------------------------------|
-| Agents         | Stack replaces shared by name; stack-only added |
-| Skills         | Stack replaces shared by name; stack-only added |
-| CLAUDE.md      | Concatenated (shared first, then stack)         |
-| settings.json  | Deep-merged via jq (arrays concatenated)        |
-| Hooks          | Stack replaces shared by name; stack-only added |
-| Patterns       | Copied as-is from stack (no shared base)        |
-| Styles         | Copied as-is from stack (no shared base)        |
+| File Type      | Merge Strategy                                            |
+|----------------|-----------------------------------------------------------|
+| Agents         | Later stacks replace earlier by name; new agents added    |
+| Skills         | Later stacks replace earlier by name; new skills added    |
+| CLAUDE.md      | Concatenated (shared first, then each stack in order)     |
+| settings.json  | Deep-merged via jq (arrays concatenated, objects merged)  |
+| Hooks          | Later stacks replace earlier by name; new hooks added     |
+| Patterns       | Accumulated from all stacks                               |
+| Styles         | Accumulated from all stacks                               |
 
 ---
 

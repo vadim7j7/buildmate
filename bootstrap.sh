@@ -4,10 +4,12 @@ set -euo pipefail
 # =============================================================================
 # Agents Template Generator - Bootstrap Script
 # =============================================================================
-# Usage: ./bootstrap.sh <stack> <target-path> [--force]
+# Usage: ./bootstrap.sh <stacks> <target-path> [--force]
 #
 # Bootstraps a .claude/ agent configuration into the target project by
 # composing shared infrastructure with stack-specific overlays.
+#
+# Stacks can be combined with commas: rails,react-native,react-nextjs
 #
 # Available stacks: rails, react-nextjs, react-native, fullstack, python-fastapi
 # =============================================================================
@@ -69,27 +71,35 @@ usage() {
 ${BOLD}Agents Template Generator v${VERSION}${NC}
 
 ${BOLD}Usage:${NC}
-    ./bootstrap.sh <stack> <target-path> [--force]
+    ./bootstrap.sh <stacks> <target-path> [--force]
 
 ${BOLD}Available stacks:${NC}
     rails            Ruby on Rails applications
     react-nextjs     React + Next.js applications
     react-native     React Native mobile applications
-    fullstack        Combined Rails API + React frontend
+    fullstack        Combined Rails API + React frontend (legacy, use rails,react-nextjs)
     python-fastapi   Python FastAPI applications
 
+${BOLD}Combining stacks:${NC}
+    Use commas to combine multiple stacks. They are layered in order:
+
+    ./bootstrap.sh rails,react-native /path/to/project      # API + mobile
+    ./bootstrap.sh rails,react-nextjs /path/to/project      # API + web (same as fullstack)
+    ./bootstrap.sh rails,react-nextjs,react-native /path/to/project  # API + web + mobile
+    ./bootstrap.sh python-fastapi,react-nextjs /path/to/project      # Python API + web
+
 ${BOLD}Options:${NC}
-    --force        Overwrite existing .claude/ directory in target
-    --help, -h     Show this help message
+    --force                    Overwrite existing .claude/ directory in target
+    --help, -h                 Show this help message
 
 ${BOLD}Examples:${NC}
     ./bootstrap.sh rails /path/to/my-rails-app
     ./bootstrap.sh react-nextjs /path/to/my-react-app --force
-    ./bootstrap.sh fullstack ~/projects/my-app
+    ./bootstrap.sh rails,react-native ~/projects/my-app
 
 ${BOLD}What it does:${NC}
     1. Validates inputs and target project
-    2. Composes shared + stack-specific agent configs
+    2. Composes shared + stack-specific agent configs (layered in order)
     3. Installs composed configs into target/.claude/
     4. Runs post-install setup (permissions, gitignore, etc.)
 EOF
@@ -135,38 +145,40 @@ main() {
     done
 
     # Parse arguments
-    local stack=""
+    local stacks=""
     local target_path=""
     local force=false
 
-    for arg in "$@"; do
-        case "${arg}" in
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             --force)
                 force=true
+                shift
                 ;;
             -*)
-                log_error "Unknown option: ${arg}"
+                log_error "Unknown option: $1"
                 echo ""
                 usage
                 exit 1
                 ;;
             *)
-                if [[ -z "${stack}" ]]; then
-                    stack="${arg}"
+                if [[ -z "${stacks}" ]]; then
+                    stacks="$1"
                 elif [[ -z "${target_path}" ]]; then
-                    target_path="${arg}"
+                    target_path="$1"
                 else
-                    log_error "Unexpected argument: ${arg}"
+                    log_error "Unexpected argument: $1"
                     echo ""
                     usage
                     exit 1
                 fi
+                shift
                 ;;
         esac
     done
 
     # Check required arguments
-    if [[ -z "${stack}" || -z "${target_path}" ]]; then
+    if [[ -z "${stacks}" || -z "${target_path}" ]]; then
         log_error "Missing required arguments."
         echo ""
         usage
@@ -176,10 +188,13 @@ main() {
     # Resolve target path to absolute
     target_path="$(cd "${target_path}" 2>/dev/null && pwd || echo "${target_path}")"
 
+    # Format stacks display (replace commas with " + ")
+    local stacks_display="${stacks//,/ + }"
+
     # Print banner
     echo ""
     echo -e "${BOLD}${MAGENTA}  Agents Template Generator v${VERSION}${NC}"
-    echo -e "${DIM}  Bootstrapping ${CYAN}${stack}${DIM} stack into ${CYAN}${target_path}${NC}"
+    echo -e "${DIM}  Bootstrapping ${CYAN}${stacks_display}${DIM} into ${CYAN}${target_path}${NC}"
     echo ""
 
     # Source library scripts
@@ -189,7 +204,8 @@ main() {
     source_lib "post-install.sh"
 
     # Export variables for library scripts
-    export STACK="${stack}"
+    # STACKS is the comma-separated list (e.g., "rails,react-native")
+    export STACKS="${stacks}"
     export TARGET_PATH="${target_path}"
     export FORCE="${force}"
     export SCRIPT_DIR
@@ -198,17 +214,17 @@ main() {
 
     # Phase 1: Validate
     log_step "Phase 1/4: Validating inputs"
-    validate_stack "${stack}"
+    validate_stacks "${stacks}"
     validate_target "${target_path}"
     validate_git_repo "${target_path}"
     validate_no_existing_claude "${target_path}" "${force}"
     log_success "Validation passed"
 
-    # Phase 2: Compose
+    # Phase 2: Compose (pass comma-separated stacks)
     log_step "Phase 2/4: Composing configuration"
     TEMP_DIR="$(mktemp -d)"
     export TEMP_DIR
-    compose_agents "${SHARED_DIR}" "${STACKS_DIR}/${stack}" "${TEMP_DIR}"
+    compose_multi_stack "${SHARED_DIR}" "${STACKS_DIR}" "${stacks}" "${TEMP_DIR}"
     log_success "Configuration composed in temp directory"
 
     # Phase 3: Install
@@ -218,7 +234,7 @@ main() {
 
     # Phase 4: Post-install
     log_step "Phase 4/4: Running post-install tasks"
-    post_install "${target_path}" "${stack}"
+    post_install "${target_path}" "${stacks}"
     log_success "Post-install complete"
 
     # Done
