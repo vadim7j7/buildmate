@@ -90,12 +90,14 @@ ${BOLD}Combining stacks:${NC}
 
 ${BOLD}Options:${NC}
     --force                    Overwrite existing .claude/ directory in target
+    --preserve-context         Keep context/ directory when using --force (preserves features, session memory)
     --help, -h                 Show this help message
 
 ${BOLD}Examples:${NC}
     ./bootstrap.sh rails /path/to/my-rails-app
     ./bootstrap.sh react-nextjs /path/to/my-react-app --force
     ./bootstrap.sh rails,react-native ~/projects/my-app
+    ./bootstrap.sh rails,react-nextjs,react-native ~/projects/my-app --force --preserve-context
 
 ${BOLD}What it does:${NC}
     1. Validates inputs and target project
@@ -148,11 +150,16 @@ main() {
     local stacks=""
     local target_path=""
     local force=false
+    local preserve_context=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force)
                 force=true
+                shift
+                ;;
+            --preserve-context)
+                preserve_context=true
                 shift
                 ;;
             -*)
@@ -208,6 +215,7 @@ main() {
     export STACKS="${stacks}"
     export TARGET_PATH="${target_path}"
     export FORCE="${force}"
+    export PRESERVE_CONTEXT="${preserve_context}"
     export SCRIPT_DIR
     export SHARED_DIR
     export STACKS_DIR

@@ -116,10 +116,11 @@ Each command produces a complete `.claude/` directory and a `CLAUDE.md` file in 
 
 ### Options
 
-| Option          | Description                                                      |
-|-----------------|------------------------------------------------------------------|
-| `--help`, `-h`  | Show usage information and exit                                  |
-| `--force`       | Remove any existing `.claude/` directory before installing        |
+| Option              | Description                                                      |
+|---------------------|------------------------------------------------------------------|
+| `--help`, `-h`      | Show usage information and exit                                  |
+| `--force`           | Remove any existing `.claude/` directory before installing        |
+| `--preserve-context`| Keep `context/` directory when using `--force` (preserves features, session memory) |
 
 ### Examples
 
@@ -129,6 +130,9 @@ Each command produces a complete `.claude/` directory and a `CLAUDE.md` file in 
 
 # Overwrite existing configuration
 ./bootstrap.sh react-nextjs ~/projects/my-app --force
+
+# Add a new stack while preserving your context/features
+./bootstrap.sh rails,react-nextjs,react-native ~/projects/my-app --force --preserve-context
 
 # Inspect output in a temporary directory
 ./bootstrap.sh rails /tmp/test-output

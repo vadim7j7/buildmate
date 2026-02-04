@@ -12,29 +12,46 @@
 #   $1 - temp_dir     (composed output directory)
 #   $2 - target_path  (target project root)
 #   $3 - force        ("true" or "false")
+# Environment:
+#   PRESERVE_CONTEXT  - "true" to keep context/ directory when using --force
 # ---------------------------------------------------------------------------
 install_to_target() {
     local temp_dir="$1"
     local target_path="$2"
     local force="$3"
+    local preserve_context="${PRESERVE_CONTEXT:-false}"
 
     # Handle existing .claude/ directory
     if [[ -d "${target_path}/.claude" ]]; then
         if [[ "${force}" == "true" ]]; then
-            log_substep "Removing existing .claude/ directory"
-            rm -rf "${target_path}/.claude"
+            if [[ "${preserve_context}" == "true" ]]; then
+                # Remove everything except context/
+                log_substep "Removing existing .claude/ (preserving context/)"
+                for item in "${target_path}/.claude"/*; do
+                    if [[ -e "${item}" ]]; then
+                        local item_name
+                        item_name="$(basename "${item}")"
+                        if [[ "${item_name}" != "context" ]]; then
+                            rm -rf "${item}"
+                        fi
+                    fi
+                done
+            else
+                log_substep "Removing existing .claude/ directory"
+                rm -rf "${target_path}/.claude"
+            fi
         else
             log_error "Target already has .claude/ directory. This should have been caught by validation."
             exit 1
         fi
     fi
 
-    # Create .claude/ directory
+    # Create .claude/ directory (if it doesn't exist)
     mkdir -p "${target_path}/.claude"
 
     # Copy all composed content into .claude/ (except CLAUDE.md which goes to root)
     log_substep "Copying agent configuration to .claude/"
-    _install_claude_directory "${temp_dir}" "${target_path}"
+    _install_claude_directory "${temp_dir}" "${target_path}" "${preserve_context}"
 
     # Handle CLAUDE.md (goes to project root, not inside .claude/)
     _install_claude_md "${temp_dir}" "${target_path}" "${force}"
@@ -49,6 +66,7 @@ install_to_target() {
 _install_claude_directory() {
     local temp_dir="$1"
     local target_path="$2"
+    local preserve_context="${3:-false}"
 
     local claude_dir="${target_path}/.claude"
 
@@ -62,6 +80,12 @@ _install_claude_directory() {
 
         # CLAUDE.md is handled separately (goes to project root)
         if [[ "${item_name}" == "CLAUDE.md" ]]; then
+            continue
+        fi
+
+        # Skip context/ if preserve_context is enabled (keep existing)
+        if [[ "${item_name}" == "context" && "${preserve_context}" == "true" ]]; then
+            log_substep "Skipping context/ (preserved)"
             continue
         fi
 
