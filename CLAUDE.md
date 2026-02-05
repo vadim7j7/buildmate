@@ -1,181 +1,274 @@
 # Agents Template Generator
 
-## Project Overview
+A template generator that bootstraps `.claude/` agent configurations for projects. It composes base agent infrastructure with stack-specific overlays to produce ready-to-use Claude Code agent setups.
 
-This is a template generator that bootstraps `.claude/` agent configurations for projects. It composes shared (cross-stack) agent infrastructure with stack-specific overlays to produce a complete, ready-to-use Claude Code agent setup.
+## Installation
 
-The generator produces:
-- **Named agents** with specific responsibilities (orchestrator, implementer, reviewer, etc.)
-- **Skills** (slash commands) for common development workflows
-- **Hooks** for pre/post-command automation
-- **Context files** for feature tracking and project state
-- **Settings** for permissions, allowed tools, and MCP configuration
-- **Patterns and styles** for code generation consistency
+```bash
+# Create virtual environment and install
+python3 -m venv .venv
+.venv/bin/pip install -e .
+
+# Or install with dev dependencies (for testing)
+.venv/bin/pip install -e ".[dev]"
+```
+
+## Quick Start
+
+```bash
+# Activate virtual environment
+source .venv/bin/activate
+
+# Bootstrap a project
+python bootstrap.py rails /path/to/my-rails-app
+python bootstrap.py nextjs /path/to/my-nextjs-app
+
+# Use a profile (pre-defined stack combination)
+python bootstrap.py --profile saas /path/to/my-saas-app
+python bootstrap.py --profile landing /path/to/my-landing-page
+
+# Customize with options
+python bootstrap.py nextjs /path/to/app --ui=tailwind --state=zustand
+python bootstrap.py rails /path/to/app --jobs=good_job --db=postgresql
+
+# Combine stacks manually
+python bootstrap.py rails+nextjs /path/to/my-fullstack-app
+```
+
+See `README.md` for complete documentation.
+
+## Available Stacks
+
+| Stack | Description | Agents |
+|-------|-------------|--------|
+| `rails` | Ruby on Rails API | backend-developer, backend-tester, backend-reviewer |
+| `nextjs` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer |
+| `react-native` | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer |
+| `fastapi` | Python FastAPI | backend-developer, backend-tester, backend-reviewer |
+
+## Profiles
+
+Profiles are pre-defined stack combinations with recommended options:
+
+| Profile | Stacks | Use Case |
+|---------|--------|----------|
+| `landing` | nextjs | Marketing sites, landing pages |
+| `saas` | rails + nextjs | SaaS applications |
+| `api-only` | rails | API backends |
+| `mobile-backend` | rails + react-native | Mobile apps with API |
+
+```bash
+python bootstrap.py --profiles              # List available profiles
+python bootstrap.py --profile saas /path/to/app  # Use a profile
+```
+
+## Stack Options
+
+Stacks can have configurable options (UI library, state management, etc.):
+
+```bash
+python bootstrap.py --options nextjs        # Show available options
+python bootstrap.py nextjs /path/to/app --ui=tailwind --state=zustand
+```
+
+## Stack Composition
+
+Combine stacks with `+` for fullstack applications:
+
+```bash
+# Rails API + Next.js frontend
+.venv/bin/python bootstrap.py rails+nextjs /path/to/app
+
+# FastAPI + React Native mobile
+.venv/bin/python bootstrap.py fastapi+react-native /path/to/app
+```
 
 ## Directory Structure
 
 ```
 agents/
-  bootstrap.sh              # Main entry point - run this to generate configs
-  bootstrap-lib/            # Library scripts used by bootstrap.sh
-    validate.sh             #   Input validation (stack, path, git, conflicts)
-    compose.sh              #   Composition logic (shared + stack overlay)
-    install.sh              #   Copy composed output to target project
-    post-install.sh         #   Post-install tasks (permissions, gitignore, summary)
-  shared/                   # Cross-stack base layer (copied first)
-    agents/                 #   Agent definitions shared across all stacks
-    skills/                 #   Shared skills (delegate, docs, eval, parallel, etc.)
-    context/                #   Context directory template
-      features/             #   Feature tracking directory
-    hooks/                  #   Shared hook scripts
-  stacks/                   # Stack-specific overlays (applied on top of shared)
-    rails/                  #   Ruby on Rails stack
-      agents/               #     Rails-specific agent overrides
-      skills/               #     Rails skills (new-model, new-controller, etc.)
-      hooks/                #     Rails-specific hooks
-      patterns/             #     Rails code patterns
-      styles/               #     Rails code style guides
-    react-nextjs/           #   React + Next.js stack
-      agents/               #     React/Next-specific agent overrides
-      skills/               #     React skills (new-component, new-page, etc.)
-      hooks/                #     React-specific hooks
-      patterns/             #     React code patterns
-      styles/               #     TypeScript + React style guides
-    react-native/           #   React Native stack
-      agents/               #     RN-specific agent overrides
-      skills/               #     RN skills (new-screen, new-store, etc.)
-      hooks/                #     RN-specific hooks
-      patterns/             #     React Native code patterns
-      styles/               #     React Native style guides
-    fullstack/              #   Fullstack (Rails + React) stack
-      agents/               #     Fullstack-specific agent overrides
-    python-fastapi/         #   Python FastAPI stack
-      agents/               #     FastAPI-specific agent overrides
-      skills/               #     FastAPI skills (new-router, new-schema, etc.)
-      hooks/                #     FastAPI-specific hooks
-      patterns/             #     FastAPI code patterns
-      styles/               #     Python style guides
-  docs/                     # Documentation for the generator itself
-  evals/                    # Evaluation configs and test cases
-  CLAUDE.md                 # This file - project-level instructions
-  .gitignore                # Git ignore rules for the generator
+├── bootstrap.py              # Main CLI entry point
+├── README.md                 # Complete documentation
+├── schemas/                  # JSON Schema for validation
+├── profiles/                 # Pre-defined stack combinations
+├── lib/                      # Python library modules
+├── base/                     # Base agents, skills, templates
+├── stacks/                   # Stack-specific configurations
+│   ├── rails/
+│   ├── nextjs/
+│   ├── react-native/
+│   └── fastapi/
+├── tests/                    # Test suite
+├── evals/                    # Evaluation configs
+└── CLAUDE.md                 # This file
 ```
 
-## How bootstrap.sh Works
+## Architecture
 
-The bootstrap script follows a four-phase pipeline:
+### Stack Configuration (stack.yaml)
 
-### Phase 1: Validate
-- Checks that the requested stack name is one of: `rails`, `react-nextjs`, `react-native`, `fullstack`, `python-fastapi`
-- Verifies the target path exists and is a directory
-- Warns if the target is not a git repository
-- Checks for existing `.claude/` directory (fails unless `--force` is passed)
+Each stack is defined by a YAML configuration:
 
-### Phase 2: Compose
-This is the core logic. It builds the final configuration by layering:
+```yaml
+name: rails
+display_name: Ruby on Rails API
+description: Backend development with Ruby on Rails
 
-1. **Copy shared/ as the base layer** into a temporary directory
-2. **Apply each stack in order** (for multi-stack, e.g., `rails,react-native`):
-   - **Agents**: Stack-specific agents replace shared/previous ones with the same name; new agents are added
-   - **Skills**: Stack-specific skills replace shared/previous ones with the same name; new skills are added
-   - **Hooks**: Stack-specific hooks replace shared/previous ones with the same name
-   - **Patterns/Styles**: Accumulated from all stacks (no replacement)
-3. **Merge CLAUDE.md** from shared + all stacks (concatenated with separators)
-4. **Deep-merge settings.json** from shared + all stacks (arrays concatenated, objects recursively merged)
-5. **Create context/ and context/features/** directories for feature tracking
+default_model: opus
 
-When combining multiple stacks, later stacks take precedence for same-named agents/skills/hooks.
+compatible_with:
+  - nextjs
+  - react-native
 
-### Phase 3: Install
-- Copies the composed temp directory to `<target>/.claude/`
-- Copies or appends the composed CLAUDE.md to `<target>/CLAUDE.md`
-- Creates `.claude/settings.local.json` from template if it does not exist
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    model: opus
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
 
-### Phase 4: Post-Install
-- Makes all `.sh` files in `.claude/` executable
-- Adds `.agent-status/`, `.agent-pipeline/`, `.agent-eval-results/` to the target's `.gitignore`
-- Creates `context/features/.gitkeep` for empty directory tracking
-- Prints a summary of what was installed and next steps
+skills:
+  - test
+  - review
+  - new-model
+  - new-controller
 
-## Available Stacks
+quality_gates:
+  lint:
+    command: bundle exec rubocop
+    fix_command: bundle exec rubocop -A
+  tests:
+    command: bundle exec rspec
 
-| Stack | Description | Key Skills |
-|-------|-------------|------------|
-| `rails` | Ruby on Rails applications | new-model, new-controller, new-service, new-migration, db-migrate, new-job, new-presenter, new-spec |
-| `react-nextjs` | React + Next.js applications | new-component, new-page, new-container, new-context, new-form, new-api-service, component-gen |
-| `react-native` | React Native mobile apps | new-screen, new-rn-component, new-store, new-query, new-db-query, platform-check |
-| `fullstack` | Combined Rails API + React frontend | Combines rails + react-nextjs skills (legacy, use `rails,react-nextjs`) |
-| `python-fastapi` | Python FastAPI applications | new-router, new-schema, new-model, new-service, new-migration, db-migrate, new-test, new-task |
+patterns:
+  - patterns/backend-patterns.md
 
-**Multi-stack combinations:** Use commas to combine stacks (e.g., `rails,react-native` for API + mobile).
+styles:
+  - styles/backend-ruby.md
 
-## How to Add a New Stack Template
+variables:
+  framework: Ruby on Rails 7+
+  language: Ruby
+  test_framework: RSpec
+```
 
-1. Create a new directory under `stacks/`:
-   ```
-   mkdir -p stacks/my-stack/{agents,skills,hooks,patterns,styles}
-   ```
+### Jinja2 Templates
 
-2. Add stack-specific agents in `stacks/my-stack/agents/`. Use the same filenames as shared agents to override them, or new filenames to add stack-only agents.
+Agent templates use Jinja2 for dynamic content:
 
-3. Add stack-specific skills in `stacks/my-stack/skills/`. Each skill is a directory containing its markdown instructions and optional `references/` subdirectory.
+```jinja2
+---
+name: {{ agent.name }}
+tools: {{ agent.tools | join(', ') }}
+model: {{ agent.model or default_model }}
+---
 
-4. Optionally add:
-   - `stacks/my-stack/CLAUDE.md` -- stack-specific instructions (appended to shared CLAUDE.md)
-   - `stacks/my-stack/settings.json` -- stack-specific settings (deep-merged with shared)
-   - `stacks/my-stack/hooks/` -- stack-specific hook scripts
-   - `stacks/my-stack/patterns/` -- code pattern references
-   - `stacks/my-stack/styles/` -- code style guides
+# {{ agent.name | title }} Agent
 
-5. Add the stack name to the `VALID_STACKS` array in `bootstrap-lib/validate.sh` and `bootstrap.sh`.
+You are a {{ variables.framework }} developer.
 
-6. Test by running:
-   ```bash
-   ./bootstrap.sh my-stack /path/to/test-project
-   ```
+## Quality Gates
 
-## Key Patterns
+{% for gate_name, gate in stack.quality_gates.items() %}
+- **{{ gate_name }}**: `{{ gate.command }}`
+{% endfor %}
+```
 
-### Orchestrator is a Workflow Guide, Not Spawnable
-The orchestrator agent is a workflow guide that coordinates feature development. It is read by the human or by Claude as context -- it does not spawn sub-agents. It defines the sequence of steps, quality gates, and handoff points.
+### Adding a New Stack
 
-### Named Agents
-Each agent has a specific name and responsibility. Agent files are markdown documents that define the agent's role, capabilities, constraints, and workflows. Examples: orchestrator, implementer, reviewer, tester.
+1. Create `stacks/my-stack/stack.yaml`
+2. Create agent templates in `stacks/my-stack/agents/`
+3. Add patterns and styles
+4. Copy or create skills
+5. Test: `python bootstrap.py --validate my-stack`
 
-### Feature Tracking
-The `context/features/` directory holds per-feature state files that track progress through the development pipeline. Features move through stages: planned, in-progress, review, complete.
+See `README.md` for detailed instructions.
+
+## Output Structure
+
+After bootstrapping, the target project will have:
+
+```
+my-project/
+├── .claude/
+│   ├── agents/           # Agent definitions
+│   │   ├── orchestrator.md
+│   │   ├── grind.md
+│   │   ├── eval-agent.md
+│   │   ├── security-auditor.md
+│   │   └── <stack-specific>.md
+│   ├── skills/           # Slash commands
+│   ├── patterns/         # Code pattern references
+│   ├── styles/           # Style guide references
+│   ├── context/
+│   │   └── features/     # Feature tracking
+│   ├── settings.json
+│   └── README.md
+└── CLAUDE.md
+```
+
+## Key Concepts
+
+### Orchestrator
+The orchestrator agent coordinates feature development through a pipeline: Plan → Implement → Test → Review → Eval. It delegates to specialized agents for each stage.
 
 ### Quality Gates
-Agents enforce quality gates at stage transitions. Code must pass linting, type checking, and tests before moving from implementation to review. Reviews must be approved before marking complete.
+Each stack defines quality gates (lint, test, typecheck) that must pass before code review. The grind agent runs fix-verify loops until all gates pass.
 
-### Agent Pipeline
-The `.agent-pipeline/` directory (gitignored) holds transient pipeline state for multi-agent workflows. This includes handoff files, intermediate results, and coordination state.
+### Skills
+Skills are slash commands (e.g., `/test`, `/review`, `/new-model`) that invoke specific workflows. Core skills are shared across all stacks; stack-specific skills add domain functionality.
 
-## Development Commands
+### Feature Tracking
+Features are tracked in `.claude/context/features/` as markdown files with status, requirements, and progress.
+
+## CLI Commands
 
 ```bash
-# Bootstrap a single stack to a target project
-./bootstrap.sh rails /path/to/my-rails-app
-./bootstrap.sh react-nextjs /path/to/my-react-app
-./bootstrap.sh react-native /path/to/my-rn-app
-./bootstrap.sh python-fastapi /path/to/my-fastapi-app
+# List available stacks
+python bootstrap.py --list
 
-# Combine multiple stacks (comma-separated, layered in order)
-./bootstrap.sh rails,react-native /path/to/my-mobile-app           # API + mobile
-./bootstrap.sh rails,react-nextjs /path/to/my-fullstack-app        # API + web
-./bootstrap.sh rails,react-nextjs,react-native /path/to/my-app     # API + web + mobile
-./bootstrap.sh python-fastapi,react-nextjs /path/to/my-python-app  # Python API + web
+# List available profiles
+python bootstrap.py --profiles
 
-# Force overwrite existing .claude/ directory
-./bootstrap.sh rails /path/to/my-rails-app --force
+# Show options for a stack
+python bootstrap.py --options nextjs
 
-# Inspect what would be composed (use a temp directory)
-./bootstrap.sh rails,react-native /tmp/test-output
+# Validate a stack configuration
+python bootstrap.py --validate rails
 
-# Check shared base layer
-ls shared/agents/ shared/skills/ shared/hooks/
+# Bootstrap with options
+python bootstrap.py rails /path/to/app              # Normal install
+python bootstrap.py rails /path/to/app --force      # Overwrite existing
+python bootstrap.py rails /path/to/app --dry-run    # Preview only
+python bootstrap.py rails /path/to/app --preserve   # Keep existing files
 
-# Check stack-specific overlays
-ls stacks/rails/skills/
-ls stacks/react-nextjs/patterns/
+# Use profiles
+python bootstrap.py --profile saas /path/to/app
+python bootstrap.py --profile saas /path/to/app --jobs=good_job  # Override profile options
+
+# Multi-stack
+python bootstrap.py rails+nextjs /path/to/app
+```
+
+## Development
+
+```bash
+# Run tests
+.venv/bin/python -m pytest tests/ -v
+
+# Test all stacks validation
+for stack in rails nextjs react-native fastapi; do
+  python bootstrap.py --validate $stack
+done
+
+# Test bootstrap
+mkdir -p /tmp/test-app
+python bootstrap.py rails /tmp/test-app
+ls -la /tmp/test-app/.claude/
+
+# Test multi-stack
+mkdir -p /tmp/test-fullstack
+python bootstrap.py rails+nextjs /tmp/test-fullstack
+
+# Test profiles
+python bootstrap.py --profile saas /tmp/test-saas
 ```

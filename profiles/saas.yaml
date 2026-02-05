@@ -1,0 +1,20 @@
+name: saas
+display_name: SaaS Application
+description: Full-stack SaaS with Rails API + Next.js frontend + Sidekiq + PostgreSQL
+
+stacks:
+  - rails
+  - nextjs
+
+options:
+  rails:
+    jobs: sidekiq
+    db: postgresql
+  nextjs:
+    ui: mantine
+    state: zustand
+
+variables:
+  project_type: saas
+  has_authentication: true
+  has_billing: true

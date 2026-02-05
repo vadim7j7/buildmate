@@ -1,0 +1,17 @@
+name: mobile-backend
+display_name: Mobile App Backend
+description: FastAPI backend + React Native mobile app
+
+stacks:
+  - fastapi
+  - react-native
+
+options:
+  fastapi:
+    db: postgresql
+  react-native:
+    state: zustand
+
+variables:
+  project_type: mobile
+  has_push_notifications: true

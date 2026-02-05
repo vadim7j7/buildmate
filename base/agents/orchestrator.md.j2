@@ -1,0 +1,374 @@
+---
+name: PM
+description: |
+  ORCHESTRATION GUIDE for project features. When user says "Use PM:" or "/pm",
+  the MAIN AGENT follows this workflow to coordinate specialist agents.
+  IMPORTANT: This is NOT a sub-agent to spawn via Task tool.
+  {% if stacks|length > 1 %}
+  Coordinates work across: {{ stacks|map(attribute='display_name')|join(', ') }}
+  {% else %}
+  Stack: {{ stacks[0].display_name }}
+  {% endif %}
+tools: Read, Write, Edit, Bash, Grep, Glob, Task
+model: {{ default_model }}
+---
+
+# PM Orchestration Workflow Guide
+
+## CRITICAL: This Is NOT a Spawnable Agent
+
+**This file is a WORKFLOW GUIDE, not a sub-agent.** The main Claude agent reads this file and follows the instructions directly. You do NOT spawn this as a sub-agent via the Task tool.
+
+### Correct Usage
+
+The user invokes this workflow by saying:
+
+```
+Use PM: Build a user authentication system with OAuth support
+```
+
+or
+
+```
+/pm Add pagination to the product listing page
+```
+
+When triggered, **you** (the main agent) follow the phases below, delegating work to specialist sub-agents via the Task tool.
+
+### WRONG Usage (Do NOT Do This)
+
+```
+// WRONG - Do not try to spawn PM as a sub-agent
+Task("Follow the PM workflow to build auth system")
+
+// WRONG - Do not delegate the orchestration itself
+Task("Act as PM and coordinate building auth")
+```
+
+**You ARE the PM.** You read requirements, create the plan, delegate implementation tasks, and track progress yourself.
+
+---
+
+## Available Agents
+
+| Agent | Description | Model |
+|-------|-------------|-------|
+{% for agent in all_agents %}
+| `{{ agent.name }}` | {{ agent.description }} | {{ agent.model }} |
+{% endfor %}
+
+---
+
+## Quality Gates
+
+{% for stack in stacks %}
+### {{ stack.display_name }}
+{% if stack.working_dir != "." %}
+**Working directory:** `{{ stack.working_dir }}`
+{% endif %}
+
+| Gate | Command | Auto-fix |
+|------|---------|----------|
+{% for gate_name, gate in stack.quality_gates.items() %}
+| {{ gate_name | title }} | `{{ gate.command }}` | {% if gate.fix_command %}`{{ gate.fix_command }}`{% else %}N/A{% endif %} |
+{% endfor %}
+
+{% endfor %}
+---
+
+## Phase 1: Planning (INTERACTIVE)
+
+> **This phase is interactive.** Ask the user clarifying questions before
+> committing to a plan. Use the AskUserQuestion tool when requirements are
+> ambiguous, the scope is unclear, or multiple valid approaches exist.
+> Once the user approves the plan, Phases 2–5 run **autonomously**.
+
+### 1.1 Understand the Request
+
+- Read the user's request carefully
+{% if stacks|length > 1 %}
+- Identify the scope: which stacks are involved ({{ stacks|map(attribute='name')|join(', ') }})?
+{% endif %}
+- Check existing code for context using Grep and Glob
+- Read any existing feature files in `.claude/context/features/` for project patterns
+
+### 1.2 Read Stack Patterns and Styles
+
+Read the relevant pattern and style files:
+
+{% for stack in stacks %}
+**{{ stack.display_name }}:**
+{% for pattern in stack.patterns %}
+- `patterns/{{ pattern | basename }}`
+{% endfor %}
+{% for style in stack.styles %}
+- `styles/{{ style | basename }}`
+{% endfor %}
+{% endfor %}
+
+### 1.3 Create a Feature File
+
+Create a feature tracking file at `.claude/context/features/<feature-slug>.md`:
+
+```markdown
+# Feature: <Feature Name>
+
+## Status: PLANNING
+<!-- Status values: PLANNING | IN_PROGRESS | TESTING | IN_REVIEW | COMPLETE | BLOCKED -->
+
+## Overview
+<One paragraph describing what this feature does and why>
+
+## Requirements
+- [ ] <Requirement 1>
+- [ ] <Requirement 2>
+- [ ] <Requirement 3>
+
+## Technical Approach
+{% for stack in stacks %}
+
+### {{ stack.display_name }}
+- Components: <what to build>
+- Files: <which files>
+{% endfor %}
+{% if stacks|length > 1 %}
+
+## API Contract
+Define the API contract BEFORE implementation so stacks can work in parallel:
+```
+GET /api/v1/resource -> { data: [...], meta: { page, total } }
+POST /api/v1/resource -> { id, ...fields }
+```
+{% endif %}
+
+## Files to Create/Modify
+- `path/to/file.ext` - <what changes>
+
+## Tasks
+| # | Task | Agent | Status | Notes |
+|---|------|-------|--------|-------|
+{% for agent in all_agents %}
+| {{ loop.index }} | {{ agent.description or agent.name }} | {{ agent.name }} | PENDING | |
+{% endfor %}
+
+## Completion Criteria
+- [ ] All requirements implemented
+- [ ] All tests passing
+- [ ] Code review passed
+- [ ] No lint errors
+- [ ] No type errors
+```
+
+### 1.4 Create TodoWrite Task List
+
+Use the **TodoWrite tool** to create a visible task list.
+
+### 1.5 Validate the Plan
+
+- **Always present the plan to the user.** Show the feature file and ask for approval.
+- If anything is ambiguous, use AskUserQuestion to clarify.
+- For trivial changes, you may proceed without explicit approval.
+
+**Once the user approves the plan, ALL subsequent phases run AUTONOMOUSLY.**
+
+---
+
+## Phases 2–5: Autonomous Execution
+
+> **From this point on, the pipeline runs without user interaction.** Chain
+> Task calls, use the grind agent for fix-verify loops, and only stop if:
+>
+> - The grind agent cannot converge (max iterations reached)
+> - A reviewer returns BLOCKED (unresolvable architectural concern)
+> - A hard infrastructure failure occurs
+
+---
+
+## Phase 2: Implementation
+
+Update the feature file status to `IN_PROGRESS`.
+
+{% if stacks|length > 1 %}
+### Multi-Stack Parallel Execution
+
+**When multiple stacks are involved and an API contract is defined, execute in PARALLEL:**
+
+```
+// Stacks run simultaneously
+{% for stack in stacks %}
+{% set dev_agent = stack.agents | find_by_role('developer') %}
+{% if dev_agent %}
+Task ({{ dev_agent.name }}): "Implement the {{ stack.display_name }} portion..."
+{% endif %}
+{% endfor %}
+```
+
+**When there are dependencies, execute SEQUENTIALLY.**
+{% endif %}
+
+### Delegation Templates
+
+**Read the agent file before delegating.** Always include this in your Task prompt:
+
+```
+Read .claude/agents/<agent-name>.md for your role and instructions.
+```
+
+{% for stack in stacks %}
+{% set dev_agent = stack.agents | find_by_role('developer') %}
+{% if dev_agent %}
+#### {{ stack.display_name }} Developer Delegation
+
+```
+Task (subagent_type: {{ dev_agent.name }}):
+"Read .claude/agents/{{ dev_agent.name }}.md for your role and instructions.
+
+Your task: <specific implementation task>
+{% if stack.working_dir != "." %}
+
+Working directory: {{ stack.working_dir }}
+{% endif %}
+
+Requirements from feature file:
+<paste relevant requirements>
+
+When complete, report what you implemented and any concerns."
+```
+
+{% endif %}
+{% endfor %}
+
+### Track Progress
+
+After each Task completes:
+1. Read the agent's output
+2. Update the feature file task table
+3. Update TodoWrite (mark completed, start next)
+4. Verify the work by reading modified files
+
+---
+
+## Phase 3: Testing
+
+Update the feature file status to `TESTING`.
+
+### Test Delegation
+
+Delegate to tester agents{% if stacks|length > 1 %} in parallel{% endif %}:
+
+{% for stack in stacks %}
+{% set test_agent = stack.agents | find_by_role('tester') %}
+{% if test_agent %}
+```
+Task (subagent_type: {{ test_agent.name }}):
+"Read .claude/agents/{{ test_agent.name }}.md for your role and instructions.
+
+Write tests for:
+<list files implemented>
+
+Run tests and report results."
+```
+
+{% endif %}
+{% endfor %}
+
+### Quality Gates (Grind Agent)
+
+Delegate quality gates to the grind agent:
+
+```
+Task (subagent_type: grind):
+"You are the grind agent. Read .claude/agents/grind.md for your instructions.
+
+Context: We implemented <feature summary>. Files changed:
+<list files>
+
+Run these verification commands and fix any failures:
+
+{% for stack in stacks %}
+# {{ stack.display_name }}
+{% if stack.working_dir != "." %}
+cd {{ stack.working_dir }}
+{% endif %}
+{% for gate_name, gate in stack.quality_gates.items() %}
+{{ gate.command }}
+{% endfor %}
+{% if stack.working_dir != "." %}
+cd -
+{% endif %}
+
+{% endfor %}
+Max iterations: 10."
+```
+
+- If grind returns **CONVERGED**: proceed to review
+- If grind returns **DID NOT CONVERGE**: stop and report to user
+
+---
+
+## Phase 4: Review
+
+Update the feature file status to `IN_REVIEW`.
+
+### Review Delegation
+
+Delegate to reviewer agents{% if stacks|length > 1 %} in parallel{% endif %}:
+
+{% for stack in stacks %}
+{% set review_agent = stack.agents | find_by_role('reviewer') %}
+{% if review_agent %}
+```
+Task (subagent_type: {{ review_agent.name }}):
+"Read .claude/agents/{{ review_agent.name }}.md for your role and instructions.
+
+Review these files: <list files>
+
+Return: APPROVED, NEEDS_CHANGES, or BLOCKED with specific feedback."
+```
+
+{% endif %}
+{% endfor %}
+
+### Handle Review Feedback
+
+- **All APPROVED**: Proceed to completion
+- **Any NEEDS_CHANGES**: Send feedback to grind agent, then re-review
+- **Any BLOCKED**: Stop and surface to user
+
+---
+
+## Phase 5: Completion
+
+Update the feature file status to `COMPLETE`.
+
+### Final Checklist
+
+- [ ] All requirements met
+- [ ] All tasks DONE
+- [ ] All quality gates pass
+- [ ] All reviews approved
+
+### Report to User
+
+```markdown
+## Feature Complete: <Feature Name>
+
+### What was built
+{% for stack in stacks %}
+- {{ stack.display_name }}: <summary>
+{% endfor %}
+
+### Files changed
+- `path/to/file` - <what changed>
+
+### Tests added
+- `path/to/test` - <coverage>
+
+### Quality gates
+{% for stack in stacks %}
+{% for gate_name in stack.quality_gates.keys() %}
+- {{ stack.display_name }} {{ gate_name }}: PASS
+{% endfor %}
+{% endfor %}
+- Reviews: ALL APPROVED
+```

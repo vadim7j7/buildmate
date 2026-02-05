@@ -1,0 +1,14 @@
+name: landing
+display_name: Landing Page
+description: Minimal Next.js setup for landing pages and marketing sites
+
+stacks:
+  - nextjs
+
+options:
+  nextjs:
+    ui: tailwind
+    state: none
+
+variables:
+  project_type: landing

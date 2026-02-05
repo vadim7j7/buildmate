@@ -1,0 +1,141 @@
+name: rails
+display_name: Ruby on Rails API
+description: Backend API development with Ruby on Rails
+
+default_model: opus
+
+compatible_with:
+  - nextjs
+  - react-native
+
+options:
+  jobs:
+    description: Background job processor
+    default: sidekiq
+    choices:
+      sidekiq:
+        description: Redis-backed job processor (most popular)
+        patterns:
+          - patterns/sidekiq.md
+        variables:
+          background_jobs: Sidekiq
+          job_adapter: sidekiq
+      good_job:
+        description: Postgres-backed job processor (no Redis needed)
+        patterns:
+          - patterns/good_job.md
+        variables:
+          background_jobs: GoodJob
+          job_adapter: good_job
+      solid_queue:
+        description: Database-backed job processor (Rails 8+)
+        patterns:
+          - patterns/solid_queue.md
+        variables:
+          background_jobs: SolidQueue
+          job_adapter: solid_queue
+      active_job:
+        description: In-process jobs only (development)
+        variables:
+          background_jobs: ActiveJob (async)
+          job_adapter: async
+
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL (recommended for production)
+        variables:
+          database: PostgreSQL
+          db_adapter: postgresql
+      mysql:
+        description: MySQL / MariaDB
+        variables:
+          database: MySQL
+          db_adapter: mysql2
+      sqlite:
+        description: SQLite (development only)
+        variables:
+          database: SQLite
+          db_adapter: sqlite3
+      mongodb:
+        description: MongoDB with Mongoid ODM
+        patterns:
+          - patterns/mongoid.md
+        variables:
+          database: MongoDB
+          db_adapter: mongoid
+          orm: Mongoid
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Senior Rails developer for production code
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: RSpec testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Rails code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - new-model
+  - new-controller
+  - new-service
+  - new-migration
+  - new-job
+  - new-presenter
+  - new-spec
+  - db-migrate
+
+quality_gates:
+  lint:
+    command: bundle exec rubocop
+    fix_command: bundle exec rubocop -A
+    description: Ruby style and lint checks
+  tests:
+    command: bundle exec rspec
+    description: RSpec test suite
+
+working_dir: "."
+
+patterns:
+  - patterns/backend-patterns.md
+
+styles:
+  - styles/backend-ruby.md
+
+variables:
+  framework: Rails 7+
+  language: Ruby
+  test_framework: RSpec
+  orm: ActiveRecord
+  linter: RuboCop

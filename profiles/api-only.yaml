@@ -1,0 +1,15 @@
+name: api-only
+display_name: API Backend
+description: Rails API-only backend with Sidekiq for background jobs
+
+stacks:
+  - rails
+
+options:
+  rails:
+    jobs: sidekiq
+    db: postgresql
+
+variables:
+  project_type: api
+  api_only: true

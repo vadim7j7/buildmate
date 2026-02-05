@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anthropics/agents/schemas/stack.schema.json",
+  "title": "Stack Configuration",
+  "description": "Configuration schema for agent stack definitions",
+  "type": "object",
+  "required": ["name", "display_name", "agents", "skills", "quality_gates"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Unique identifier for the stack (lowercase, hyphens allowed)"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name for the stack"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of what this stack is for"
+    },
+    "default_model": {
+      "type": "string",
+      "enum": ["opus", "sonnet", "haiku"],
+      "default": "sonnet",
+      "description": "Default model for agents in this stack"
+    },
+    "compatible_with": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "uniqueItems": true,
+      "description": "List of stack names that can be combined with this one"
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/option"
+      },
+      "description": "Configurable options for this stack (e.g., state management, UI library)"
+    },
+    "agents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/agent"
+      },
+      "description": "Agent definitions for this stack"
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Skills provided by this stack (directory names in skills/)"
+    },
+    "quality_gates": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/quality_gate"
+      },
+      "description": "Quality gate definitions (lint, test, typecheck, etc.)"
+    },
+    "working_dir": {
+      "type": "string",
+      "default": ".",
+      "description": "Working directory relative to project root"
+    },
+    "patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Pattern files to include (relative paths)"
+    },
+    "styles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Style guide files to include (relative paths)"
+    },
+    "variables": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Custom variables available in Jinja2 templates"
+    }
+  },
+  "$defs": {
+    "agent": {
+      "type": "object",
+      "required": ["name", "template", "tools"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Unique agent identifier"
+        },
+        "template": {
+          "type": "string",
+          "description": "Path to Jinja2 template file"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description of agent's role"
+        },
+        "model": {
+          "type": "string",
+          "enum": ["opus", "sonnet", "haiku"],
+          "description": "Model to use for this agent (overrides stack default)"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "Task", "WebFetch", "WebSearch"]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Tools available to this agent"
+        }
+      }
+    },
+    "quality_gate": {
+      "type": "object",
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run for this quality gate"
+        },
+        "fix_command": {
+          "type": "string",
+          "description": "Command to auto-fix issues (optional)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what this gate checks"
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": ["description", "default", "choices"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this option"
+        },
+        "default": {
+          "type": "string",
+          "description": "Default choice if not specified"
+        },
+        "choices": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/option_choice"
+          },
+          "minProperties": 1,
+          "description": "Available choices for this option"
+        }
+      }
+    },
+    "option_choice": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this choice"
+        },
+        "patterns": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Additional pattern files for this choice"
+        },
+        "styles": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Additional style files for this choice"
+        },
+        "skills": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Additional skills for this choice"
+        },
+        "variables": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Variables to add/override for this choice"
+        }
+      }
+    }
+  }
+}

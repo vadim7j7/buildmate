@@ -1,0 +1,170 @@
+name: nextjs
+display_name: React + Next.js
+description: Frontend development with React and Next.js App Router
+
+default_model: opus
+
+compatible_with:
+  - rails
+  - fastapi
+
+options:
+  ui:
+    description: UI component library
+    default: mantine
+    choices:
+      mantine:
+        description: Full-featured React component library
+        styles:
+          - styles/mantine.md
+        variables:
+          ui_library: Mantine v7+
+      tailwind:
+        description: Utility-first CSS framework
+        styles:
+          - styles/tailwind.md
+        variables:
+          ui_library: Tailwind CSS
+      shadcn:
+        description: Re-usable components built with Radix + Tailwind
+        styles:
+          - styles/shadcn.md
+        variables:
+          ui_library: shadcn/ui
+      chakra:
+        description: Simple, modular and accessible component library
+        styles:
+          - styles/chakra.md
+        variables:
+          ui_library: Chakra UI
+      mui:
+        description: Material Design components (Material UI)
+        styles:
+          - styles/mui.md
+        variables:
+          ui_library: Material UI (MUI)
+      antd:
+        description: Enterprise-class UI design language
+        styles:
+          - styles/antd.md
+        variables:
+          ui_library: Ant Design
+
+  state:
+    description: State management solution
+    default: zustand
+    choices:
+      zustand:
+        description: Lightweight, hooks-based state management
+        patterns:
+          - patterns/zustand.md
+        skills:
+          - new-store
+        variables:
+          state_library: Zustand
+      redux:
+        description: Predictable state container with Redux Toolkit
+        patterns:
+          - patterns/redux.md
+        skills:
+          - new-store
+        variables:
+          state_library: Redux Toolkit
+      mobx:
+        description: Observable-based reactive state management
+        patterns:
+          - patterns/mobx.md
+        skills:
+          - new-store
+        variables:
+          state_library: MobX
+      jotai:
+        description: Primitive and flexible atomic state management
+        patterns:
+          - patterns/jotai.md
+        skills:
+          - new-store
+        variables:
+          state_library: Jotai
+      context:
+        description: Built-in React Context API
+        patterns:
+          - patterns/context.md
+        variables:
+          state_library: React Context
+      none:
+        description: No global state management
+        variables:
+          state_library: None
+
+agents:
+  - name: frontend-developer
+    template: agents/frontend-developer.md.j2
+    description: Senior Next.js developer for production code
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: frontend-tester
+    template: agents/frontend-tester.md.j2
+    description: Jest + Playwright testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: frontend-reviewer
+    template: agents/frontend-reviewer.md.j2
+    description: React/Next.js code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - new-component
+  - new-page
+  - new-container
+  - new-context
+  - new-form
+  - new-api-service
+
+quality_gates:
+  typecheck:
+    command: npx tsc --noEmit
+    description: TypeScript type checking
+  lint:
+    command: npm run lint
+    fix_command: npm run lint -- --fix
+    description: ESLint checks
+  tests:
+    command: npm test
+    description: Jest test suite
+
+working_dir: "."
+
+patterns:
+  - patterns/frontend-patterns.md
+
+styles:
+  - styles/frontend-typescript.md
+
+variables:
+  framework: Next.js 14+ (App Router)
+  language: TypeScript
+  test_framework: Jest + React Testing Library
+  linter: ESLint + Prettier

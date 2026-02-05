@@ -1,0 +1,128 @@
+name: react-native
+display_name: React Native + Expo
+description: Mobile development with React Native and Expo SDK
+
+default_model: opus
+
+compatible_with:
+  - rails
+  - fastapi
+
+options:
+  state:
+    description: State management solution
+    default: zustand
+    choices:
+      zustand:
+        description: Lightweight, hooks-based state management
+        patterns:
+          - patterns/zustand.md
+        skills:
+          - new-store
+        variables:
+          state_library: Zustand
+      mobx:
+        description: Observable-based reactive state management
+        patterns:
+          - patterns/mobx.md
+        skills:
+          - new-store
+        variables:
+          state_library: MobX
+      redux:
+        description: Predictable state container with Redux Toolkit
+        patterns:
+          - patterns/redux.md
+        skills:
+          - new-store
+        variables:
+          state_library: Redux Toolkit
+      jotai:
+        description: Primitive and flexible atomic state management
+        patterns:
+          - patterns/jotai.md
+        skills:
+          - new-store
+        variables:
+          state_library: Jotai
+      none:
+        description: No global state management (React Query only)
+        variables:
+          state_library: None
+
+agents:
+  - name: mobile-developer
+    template: agents/mobile-developer.md.j2
+    description: React Native + Expo implementation specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: mobile-tester
+    template: agents/mobile-tester.md.j2
+    description: Jest + React Native Testing Library specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: mobile-code-reviewer
+    template: agents/mobile-code-reviewer.md.j2
+    description: React Native code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - new-screen
+  - new-rn-component
+  - new-store
+  - new-query
+  - new-db-query
+  - platform-check
+
+quality_gates:
+  typecheck:
+    command: npx tsc --noEmit
+    description: TypeScript type checking
+  lint:
+    command: npm run lint
+    fix_command: npm run lint -- --fix
+    description: ESLint checks
+  tests:
+    command: npm test
+    description: Jest test suite
+
+working_dir: "."
+
+patterns:
+  - patterns/mobile-patterns.md
+
+styles:
+  - styles/react-native.md
+
+variables:
+  framework: React Native 0.81+ with Expo SDK 54
+  language: TypeScript (strict mode)
+  test_framework: Jest + React Native Testing Library
+  ui_state: Zustand
+  server_state: React Query (TanStack Query v5)
+  database: Drizzle ORM (SQLite)
+  navigation: expo-router v4
+  lists: FlashList
+  i18n: i18next

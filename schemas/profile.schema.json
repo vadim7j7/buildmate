@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/anthropics/agents/schemas/profile.schema.json",
+  "title": "Profile Configuration",
+  "description": "Pre-defined stack combinations with default options",
+  "type": "object",
+  "required": ["name", "display_name", "description", "stacks"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Unique identifier for the profile (lowercase, hyphens allowed)"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name for the profile"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of what this profile is for and what it includes"
+    },
+    "stacks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "List of stacks to include in this profile"
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "description": "Option selections per stack. Format: {stack_name: {option_name: choice}}"
+    },
+    "variables": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional variables to set for this profile"
+    }
+  }
+}
