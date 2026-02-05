@@ -343,6 +343,8 @@
 - [x] `--dry-run` - Preview without writing
 - [ ] `--interactive` - Interactive mode with prompts
 - [ ] `--upgrade` - Upgrade existing .claude/ directory
+- [ ] `--add-stack <stack>` - Add a stack to existing project
+- [ ] `--set-option <stack.option=value>` - Change option for existing stack
 
 ### Features
 - [x] Stack composition (multi-stack)
@@ -351,6 +353,68 @@
 - [ ] Custom variables via CLI (`--var key=value`)
 - [ ] Local overrides (`~/.agents/overrides/`)
 - [ ] Plugin system for custom stacks
+- [ ] **Extensible projects** (see below)
+
+---
+
+## Extensibility Feature (High Priority)
+
+Currently bootstrap is one-time only. Need ability to extend existing projects.
+
+### Use Cases
+
+1. **Add stack to existing project**
+   ```bash
+   # Initial setup
+   python bootstrap.py rails+nextjs ./myapp --ui=mantine
+
+   # Later: add React Native
+   python bootstrap.py --add-stack react-native ./myapp --state=zustand
+   ```
+
+2. **Change options for existing stack**
+   ```bash
+   # Change UI library
+   python bootstrap.py --set-option nextjs.ui=tailwind ./myapp
+
+   # Change job processor
+   python bootstrap.py --set-option rails.jobs=good_job ./myapp
+   ```
+
+3. **Upgrade all stacks**
+   ```bash
+   # Re-render all agents with latest templates
+   python bootstrap.py --upgrade ./myapp
+   ```
+
+### Implementation Requirements
+
+1. **Track installed config** - Save `.claude/bootstrap.lock` or similar:
+   ```yaml
+   version: 2.0.0
+   installed_at: 2024-01-15T10:30:00Z
+   stacks:
+     rails:
+       options:
+         jobs: sidekiq
+         db: postgresql
+     nextjs:
+       options:
+         ui: mantine
+         state: zustand
+   ```
+
+2. **Merge logic** for:
+   - Agents: Add new, update existing, don't remove custom
+   - Skills: Add new, preserve customized
+   - Patterns/Styles: Add new from option changes
+   - Settings: Deep merge
+   - CLAUDE.md: Re-render with all stacks
+
+3. **Preserve customizations**:
+   - Detect if user modified generated files
+   - Prompt before overwriting modified files
+   - Keep `.claude/custom/` directory untouched
 
 ---
 
