@@ -93,7 +93,47 @@
 
 ---
 
-### Priority 2: Forms & Validation
+### Priority 2: Backend-as-a-Service (BaaS)
+
+#### Next.js `--baas`
+- [ ] `none` - No BaaS, use custom backend (default)
+- [ ] `firebase` - Google Firebase (Auth, Firestore, Storage)
+- [ ] `supabase` - Supabase (PostgreSQL, Auth, Storage, Edge Functions)
+- [ ] `appwrite` - Appwrite (Auth, Database, Storage, Functions)
+- [ ] `pocketbase` - PocketBase (single-file backend)
+- [ ] `convex` - Convex (real-time backend)
+- [ ] `amplify` - AWS Amplify (Cognito, DynamoDB, S3)
+- [ ] `nhost` - Nhost (GraphQL, Auth, Storage)
+
+**Files needed:**
+- `stacks/nextjs/patterns/firebase.md`
+- `stacks/nextjs/patterns/supabase.md`
+- `stacks/nextjs/patterns/appwrite.md`
+- `stacks/nextjs/patterns/pocketbase.md`
+- `stacks/nextjs/patterns/convex.md`
+- `stacks/nextjs/patterns/amplify.md`
+- `stacks/nextjs/patterns/nhost.md`
+
+#### React Native `--baas`
+- [ ] `none` - No BaaS, use custom backend (default)
+- [ ] `firebase` - React Native Firebase (Auth, Firestore, Storage, FCM)
+- [ ] `supabase` - Supabase JS client
+- [ ] `appwrite` - Appwrite React Native SDK
+- [ ] `amplify` - AWS Amplify React Native
+- [ ] `convex` - Convex React Native
+
+**Files needed:**
+- `stacks/react-native/patterns/firebase.md`
+- `stacks/react-native/patterns/supabase.md`
+- `stacks/react-native/patterns/appwrite.md`
+- `stacks/react-native/patterns/amplify.md`
+- `stacks/react-native/patterns/convex.md`
+
+**Note:** When `--baas` is selected, auth/storage/db options may be ignored since BaaS provides these.
+
+---
+
+### Priority 3: Forms & Validation (moved from 2)
 
 #### Next.js `--forms`
 - [ ] `react-hook-form` - Popular form library (default)
@@ -252,11 +292,18 @@
 |---------|--------|---------|----------|--------|
 | `blog` | nextjs | ui=tailwind, state=none | High | [ ] |
 | `startup` | rails + nextjs | auth=devise, ui=shadcn, jobs=sidekiq | High | [ ] |
+| `firebase-web` | nextjs | baas=firebase, ui=tailwind, state=zustand | High | [ ] |
+| `firebase-mobile` | react-native | baas=firebase, state=zustand | High | [ ] |
+| `supabase-web` | nextjs | baas=supabase, ui=shadcn, state=zustand | High | [ ] |
+| `supabase-mobile` | react-native | baas=supabase, state=zustand | High | [ ] |
+| `supabase-fullstack` | nextjs + react-native | baas=supabase, ui=tailwind | High | [ ] |
 | `ecommerce` | rails + nextjs | auth=devise, db=postgresql | Medium | [ ] |
 | `admin` | rails + nextjs | auth=devise, ui=mantine | Medium | [ ] |
 | `realtime` | rails + nextjs | cache=redis, jobs=sidekiq | Medium | [ ] |
 | `microservice` | fastapi | db=postgresql, tasks=celery | Medium | [ ] |
 | `mobile-only` | react-native | state=zustand, push=expo-notifications | Medium | [ ] |
+| `serverless` | nextjs | baas=supabase, ui=tailwind | Medium | [ ] |
+| `indie-hacker` | nextjs | baas=pocketbase, ui=tailwind, state=none | Medium | [ ] |
 | `enterprise` | rails + nextjs | auth=devise, ui=antd, search=meilisearch | Low | [ ] |
 
 ---
