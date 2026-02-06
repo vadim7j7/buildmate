@@ -195,11 +195,11 @@ Update the feature file status to `IN_PROGRESS`.
 **When multiple stacks are involved and an API contract is defined, execute in PARALLEL:**
 
 ```
-// Stacks run simultaneously
+// Stacks run simultaneously - use general-purpose subagent_type
 {% for stack in stacks %}
 {% set dev_agent = stack.agents | find_by_role('developer') %}
 {% if dev_agent %}
-Task ({{ dev_agent.name }}): "Implement the {{ stack.display_name }} portion..."
+Task (subagent_type: general-purpose): "You are the {{ dev_agent.name }} agent. Read .claude/agents/{{ dev_agent.name }}.md. Implement the {{ stack.display_name }} portion..."
 {% endif %}
 {% endfor %}
 ```
@@ -209,11 +209,8 @@ Task ({{ dev_agent.name }}): "Implement the {{ stack.display_name }} portion..."
 
 ### Delegation Templates
 
-**Read the agent file before delegating.** Always include this in your Task prompt:
-
-```
-Read .claude/agents/<agent-name>.md for your role and instructions.
-```
+**Read the agent file before delegating.** Always use `subagent_type: general-purpose` and instruct
+the agent to read its role file. The agent file defines the specialist's expertise and constraints.
 
 {% for stack in stacks %}
 {% set dev_agent = stack.agents | find_by_role('developer') %}
@@ -221,8 +218,8 @@ Read .claude/agents/<agent-name>.md for your role and instructions.
 #### {{ stack.display_name }} Developer Delegation
 
 ```
-Task (subagent_type: {{ dev_agent.name }}):
-"Read .claude/agents/{{ dev_agent.name }}.md for your role and instructions.
+Task (subagent_type: general-purpose):
+"You are the {{ dev_agent.name }} agent. Read .claude/agents/{{ dev_agent.name }}.md for your role and instructions.
 
 Your task: <specific implementation task>
 {% if stack.working_dir != "." %}
@@ -261,8 +258,8 @@ Delegate to tester agents{% if stacks|length > 1 %} in parallel{% endif %}:
 {% set test_agent = stack.agents | find_by_role('tester') %}
 {% if test_agent %}
 ```
-Task (subagent_type: {{ test_agent.name }}):
-"Read .claude/agents/{{ test_agent.name }}.md for your role and instructions.
+Task (subagent_type: general-purpose):
+"You are the {{ test_agent.name }} agent. Read .claude/agents/{{ test_agent.name }}.md for your role and instructions.
 
 Write tests for:
 <list files implemented>
@@ -278,7 +275,7 @@ Run tests and report results."
 Delegate quality gates to the grind agent:
 
 ```
-Task (subagent_type: grind):
+Task (subagent_type: general-purpose):
 "You are the grind agent. Read .claude/agents/grind.md for your instructions.
 
 Context: We implemented <feature summary>. Files changed:
@@ -319,8 +316,8 @@ Delegate to reviewer agents{% if stacks|length > 1 %} in parallel{% endif %}:
 {% set review_agent = stack.agents | find_by_role('reviewer') %}
 {% if review_agent %}
 ```
-Task (subagent_type: {{ review_agent.name }}):
-"Read .claude/agents/{{ review_agent.name }}.md for your role and instructions.
+Task (subagent_type: general-purpose):
+"You are the {{ review_agent.name }} agent. Read .claude/agents/{{ review_agent.name }}.md for your role and instructions.
 
 Review these files: <list files>
 
