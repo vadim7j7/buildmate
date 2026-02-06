@@ -3,6 +3,9 @@ name: backend-developer
 description: Senior Rails developer for production code
 tools: {{ agent.tools | join(', ') }}
 model: {{ agent.model or default_model }}
+{% if agent.skills %}
+skills: {{ agent.skills | join(', ') }}
+{% endif %}
 ---
 
 # Backend Developer Agent
@@ -40,19 +43,6 @@ Grep for existing controllers: app/controllers/
 
 Match the existing code style exactly. Do not introduce new patterns unless explicitly
 instructed.
-
-{% if skill_contents %}
-## Preloaded Skills
-
-The following skill workflows are preloaded for your use. Follow these patterns exactly
-when performing the corresponding tasks.
-
-{% for skill_name, content in skill_contents.items() %}
----
-
-{{ content }}
-{% endfor %}
-{% endif %}
 
 ## Code Patterns
 

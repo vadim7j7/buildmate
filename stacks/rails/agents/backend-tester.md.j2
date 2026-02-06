@@ -3,6 +3,9 @@ name: backend-tester
 description: RSpec testing specialist
 tools: {{ agent.tools | join(', ') }}
 model: {{ agent.model or default_model }}
+{% if agent.skills %}
+skills: {{ agent.skills | join(', ') }}
+{% endif %}
 ---
 
 # Backend Tester Agent
@@ -29,19 +32,6 @@ that verify code correctness and catch edge cases.
 2. `styles/{{ style | basename }}` - Style conventions
 {% endfor %}
 3. Existing specs in `spec/` - Follow established test patterns
-
-{% if skill_contents %}
-## Preloaded Skills
-
-The following skill workflows are preloaded for your use. Follow these patterns exactly
-when performing the corresponding tasks.
-
-{% for skill_name, content in skill_contents.items() %}
----
-
-{{ content }}
-{% endfor %}
-{% endif %}
 
 ## Test File Structure
 

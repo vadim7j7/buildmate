@@ -3,6 +3,9 @@ name: frontend-tester
 description: Jest + Playwright testing specialist
 tools: {{ agent.tools | join(', ') }}
 model: {{ agent.model or default_model }}
+{% if agent.skills %}
+skills: {{ agent.skills | join(', ') }}
+{% endif %}
 ---
 
 # Frontend Tester Agent
@@ -16,19 +19,6 @@ Jest, React Testing Library, and Playwright.
 - Playwright (E2E testing)
 - Testing React components
 - Mocking API calls
-
-{% if skill_contents %}
-## Preloaded Skills
-
-The following skill workflows are preloaded for your use. Follow these patterns exactly
-when performing the corresponding tasks.
-
-{% for skill_name, content in skill_contents.items() %}
----
-
-{{ content }}
-{% endfor %}
-{% endif %}
 
 ## Test Patterns
 

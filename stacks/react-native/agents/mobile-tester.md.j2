@@ -3,6 +3,9 @@ name: mobile-tester
 description: Jest + React Native Testing Library specialist
 tools: {{ agent.tools | join(', ') }}
 model: {{ agent.model or default_model }}
+{% if agent.skills %}
+skills: {{ agent.skills | join(', ') }}
+{% endif %}
 ---
 
 # Mobile Tester Agent
@@ -17,19 +20,6 @@ screens, Zustand stores, React Query hooks, and database query functions.
 - Zustand store testing with proper state resets
 - React Query hook testing with fresh QueryClient per test
 - Mock strategies for navigation, database, and API calls
-
-{% if skill_contents %}
-## Preloaded Skills
-
-The following skill workflows are preloaded for your use. Follow these patterns exactly
-when performing the corresponding tasks.
-
-{% for skill_name, content in skill_contents.items() %}
----
-
-{{ content }}
-{% endfor %}
-{% endif %}
 
 ## Critical Testing Rules
 

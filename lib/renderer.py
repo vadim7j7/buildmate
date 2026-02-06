@@ -116,7 +116,6 @@ def render_stack_agents(
     env: Environment,
     context: dict[str, Any],
     stack: StackConfig,
-    config: ComposedConfig,
 ) -> dict[str, str]:
     """
     Render stack-specific agent templates.
@@ -125,7 +124,6 @@ def render_stack_agents(
         env: Jinja2 environment
         context: Template context
         stack: Stack configuration
-        config: Full composed configuration for loading skills
 
     Returns:
         Dictionary of filename -> rendered content
@@ -135,15 +133,11 @@ def render_stack_agents(
     for agent in stack.agents:
         template_path = f"stacks/{stack.name}/{agent.template}"
 
-        # Load skill contents for this agent
-        skill_contents = load_agent_skills(agent, config)
-
         # Add agent-specific context
         agent_context = {
             **context,
             "agent": agent,
             "stack": stack,
-            "skill_contents": skill_contents,  # Injected skill content
         }
 
         try:
@@ -217,50 +211,6 @@ def collect_skills(config: ComposedConfig) -> dict[str, Path]:
     return skills
 
 
-def load_skill_content(skill_name: str, config: ComposedConfig) -> str | None:
-    """
-    Load the content of a skill's SKILL.md file.
-
-    Args:
-        skill_name: Name of the skill
-        config: Composed configuration
-
-    Returns:
-        Content of the SKILL.md file, or None if not found
-    """
-    # Check stack-specific skills first
-    for stack in config.stacks:
-        skill_path = stack.stack_path / "skills" / skill_name / "SKILL.md"
-        if skill_path.exists():
-            return skill_path.read_text()
-
-    # Check base skills
-    base_skill_path = BASE_DIR / "skills" / skill_name / "SKILL.md"
-    if base_skill_path.exists():
-        return base_skill_path.read_text()
-
-    return None
-
-
-def load_agent_skills(agent: Agent, config: ComposedConfig) -> dict[str, str]:
-    """
-    Load all skill contents for an agent.
-
-    Args:
-        agent: Agent configuration with skills list
-        config: Composed configuration
-
-    Returns:
-        Dictionary of skill_name -> skill content
-    """
-    skill_contents = {}
-    for skill_name in agent.skills:
-        content = load_skill_content(skill_name, config)
-        if content:
-            skill_contents[skill_name] = content
-    return skill_contents
-
-
 def collect_hooks(config: ComposedConfig) -> tuple[dict[str, str], dict[str, Path]]:
     """
     Collect hook files, rendering templates and collecting static files.
@@ -319,7 +269,7 @@ def render_all(config: ComposedConfig) -> RenderedOutput:
 
     # Render stack-specific agents
     for stack in config.stacks:
-        output.agents.update(render_stack_agents(env, context, stack, config))
+        output.agents.update(render_stack_agents(env, context, stack))
 
     # Render CLAUDE.md and README
     output.claude_md = render_claude_md(env, context)
