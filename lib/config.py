@@ -36,6 +36,7 @@ class Agent:
     description: str = ""
     model: str | None = None  # None means use stack default
     skills: list[str] = field(default_factory=list)  # Skills this agent can use
+    memory: str | None = None  # Memory scope: user, project, or local
 
 
 @dataclass
@@ -115,6 +116,7 @@ class StackConfig:
                 description=a.get("description", ""),
                 model=a.get("model"),
                 skills=a.get("skills", []),
+                memory=a.get("memory"),
             )
             for a in data.get("agents", [])
         ]

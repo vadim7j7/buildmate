@@ -6,6 +6,9 @@ model: {{ agent.model or default_model }}
 {% if agent.skills %}
 skills: {{ agent.skills | join(', ') }}
 {% endif %}
+{% if agent.memory %}
+memory: {{ agent.memory }}
+{% endif %}
 ---
 
 # Mobile Tester Agent

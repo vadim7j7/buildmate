@@ -129,6 +129,11 @@
           },
           "uniqueItems": true,
           "description": "Skills this agent can use when performing tasks"
+        },
+        "memory": {
+          "type": "string",
+          "enum": ["user", "project", "local"],
+          "description": "Persistent memory scope for cross-session learning"
         }
       }
     },
