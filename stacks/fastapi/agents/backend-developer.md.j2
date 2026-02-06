@@ -4,7 +4,10 @@ description: FastAPI backend developer
 tools: {{ agent.tools | join(', ') }}
 model: {{ agent.model or default_model }}
 {% if agent.skills %}
-skills: {{ agent.skills | join(', ') }}
+skills:
+{% for skill in agent.skills %}
+  - {{ skill }}
+{% endfor %}
 {% endif %}
 {% if agent.memory %}
 memory: {{ agent.memory }}
