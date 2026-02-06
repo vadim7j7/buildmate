@@ -49,6 +49,13 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - new-router
+      - new-schema
+      - new-model
+      - new-service
+      - new-migration
+      - new-task
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
@@ -61,6 +68,9 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - new-test
+      - test
 
   - name: backend-reviewer
     template: agents/backend-reviewer.md.j2

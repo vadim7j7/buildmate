@@ -62,6 +62,12 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - new-screen
+      - new-rn-component
+      - new-store
+      - new-query
+      - new-db-query
 
   - name: mobile-tester
     template: agents/mobile-tester.md.j2
@@ -74,6 +80,8 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - test
 
   - name: mobile-code-reviewer
     template: agents/mobile-code-reviewer.md.j2

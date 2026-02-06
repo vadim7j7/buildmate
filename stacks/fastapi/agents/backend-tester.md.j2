@@ -27,6 +27,19 @@ Grep for existing tests: tests/
 Grep for conftest fixtures: tests/conftest.py
 ```
 
+{% if skill_contents %}
+## Preloaded Skills
+
+The following skill workflows are preloaded for your use. Follow these patterns exactly
+when performing the corresponding tasks.
+
+{% for skill_name, content in skill_contents.items() %}
+---
+
+{{ content }}
+{% endfor %}
+{% endif %}
+
 ## Test Patterns
 
 ### Router Tests (Integration)

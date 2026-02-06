@@ -35,6 +35,7 @@ class Agent:
     tools: list[str]
     description: str = ""
     model: str | None = None  # None means use stack default
+    skills: list[str] = field(default_factory=list)  # Skills this agent can use
 
 
 @dataclass
@@ -113,6 +114,7 @@ class StackConfig:
                 tools=a["tools"],
                 description=a.get("description", ""),
                 model=a.get("model"),
+                skills=a.get("skills", []),
             )
             for a in data.get("agents", [])
         ]

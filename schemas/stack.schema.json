@@ -121,6 +121,14 @@
           "minItems": 1,
           "uniqueItems": true,
           "description": "Tools available to this agent"
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Skills this agent can use when performing tasks"
         }
       }
     },

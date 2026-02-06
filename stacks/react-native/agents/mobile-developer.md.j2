@@ -36,6 +36,19 @@ mobile code that runs on both iOS and Android.
 3. `CLAUDE.md` - Project structure, technology stack, and conventions
 4. Scan existing code in `app/`, `components/`, `stores/`, and `queries/` for established patterns
 
+{% if skill_contents %}
+## Preloaded Skills
+
+The following skill workflows are preloaded for your use. Follow these patterns exactly
+when performing the corresponding tasks.
+
+{% for skill_name, content in skill_contents.items() %}
+---
+
+{{ content }}
+{% endfor %}
+{% endif %}
+
 ## State Management Rules (CRITICAL)
 
 ### Zustand -- UI State ONLY

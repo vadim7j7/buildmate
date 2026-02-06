@@ -109,6 +109,13 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - new-component
+      - new-page
+      - new-container
+      - new-context
+      - new-form
+      - new-api-service
 
   - name: frontend-tester
     template: agents/frontend-tester.md.j2
@@ -121,6 +128,8 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - test
 
   - name: frontend-reviewer
     template: agents/frontend-reviewer.md.j2
