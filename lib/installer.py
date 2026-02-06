@@ -90,6 +90,8 @@ def update_gitignore(target_path: Path) -> None:
         ".agent-pipeline/",
         ".agent-eval-results/",
         ".claude/settings.local.json",
+        ".claude/context/agent-activity.log",
+        ".claude/context/session-summary.md",
     ]
 
     existing_lines = set()
