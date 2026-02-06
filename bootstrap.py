@@ -34,6 +34,13 @@ from lib.config import (
 from lib.schema import validate_stack_file, ValidationError
 from lib.renderer import render_all
 from lib.installer import install, print_summary
+from lib.lockfile import (
+    load_lock,
+    save_lock,
+    merge_locks,
+    get_modified_files,
+    compute_checksums,
+)
 
 
 def print_header():
@@ -315,6 +322,8 @@ def cmd_bootstrap(
         force=force,
         preserve_context=preserve_context,
         dry_run=dry_run,
+        selected_options=config.selected_options,
+        profile_name=profile_name,
     )
 
     if result.errors:
@@ -338,6 +347,332 @@ def cmd_bootstrap(
     return 0
 
 
+def cmd_add_stack(
+    target_path: Path,
+    stack_name: str,
+    dry_run: bool = False,
+    extra_args: list[str] | None = None,
+):
+    """Add a new stack to an existing project."""
+    print_header()
+
+    # Check that target has a lock file
+    lock = load_lock(target_path)
+    if not lock:
+        print(f"Error: No bootstrap installation found at {target_path}")
+        print("This command can only be used on projects bootstrapped with agents.")
+        return 1
+
+    # Check stack not already installed
+    if lock.has_stack(stack_name):
+        print(f"Error: Stack '{stack_name}' is already installed")
+        print(f"Installed stacks: {', '.join(lock.get_stack_names())}")
+        return 1
+
+    # Validate the new stack
+    try:
+        new_stack = load_stack(stack_name)
+    except FileNotFoundError:
+        print(f"Error: Stack not found: {stack_name}")
+        return 1
+
+    # Parse options for the new stack
+    cli_options = {}
+    if extra_args:
+        cli_options = parse_option_args(extra_args, [stack_name])
+
+    print(f"Adding stack: {stack_name}")
+    print(f"Target: {target_path}")
+    print(f"Existing stacks: {', '.join(lock.get_stack_names())}")
+    if dry_run:
+        print("Mode: DRY RUN")
+    print()
+
+    # Check for modified files
+    modified = get_modified_files(target_path, lock)
+    if modified:
+        print("Warning: The following files have been modified since installation:")
+        for f in modified:
+            print(f"  - {f}")
+        print()
+        print("These files will be preserved. Only new stack files will be added.")
+        print()
+
+    # Compose all stacks (existing + new)
+    all_stacks = lock.get_stack_names() + [stack_name]
+    existing_options = lock.get_options()
+
+    # Merge existing options with CLI options
+    merged_options = {**existing_options, **cli_options}
+
+    print("Loading stack configurations...")
+    try:
+        config = compose_stacks(
+            all_stacks,
+            options=merged_options,
+        )
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+        return 1
+
+    print(f"  All stacks: {', '.join(s.display_name for s in config.stacks)}")
+    print()
+
+    # Render templates
+    print("Rendering templates...")
+    try:
+        output = render_all(config)
+    except Exception as e:
+        print(f"Error rendering templates: {e}")
+        return 1
+
+    # Install (with force to update existing files, preserving context)
+    print("Installing to target...")
+    result = install(
+        output=output,
+        target_path=target_path,
+        stacks=all_stacks,
+        force=True,
+        preserve_context=True,
+        dry_run=dry_run,
+        selected_options=config.selected_options,
+        profile_name=lock.profile,
+    )
+
+    if result.errors:
+        print()
+        print("Errors:")
+        for error in result.errors:
+            print(f"  - {error}")
+        return 1
+
+    # Print summary
+    print_summary(result, all_stacks)
+
+    if not dry_run:
+        print()
+        print(f"Successfully added '{stack_name}' to project!")
+        print()
+
+    return 0
+
+
+def cmd_set_option(
+    target_path: Path,
+    option_spec: str,
+    dry_run: bool = False,
+):
+    """Change an option for an existing stack."""
+    print_header()
+
+    # Parse option_spec: "stack.option=value"
+    if "=" not in option_spec:
+        print("Error: Option format should be: stack.option=value")
+        print("Example: nextjs.ui=tailwind")
+        return 1
+
+    key_part, value = option_spec.split("=", 1)
+    if "." not in key_part:
+        print("Error: Option format should be: stack.option=value")
+        print("Example: nextjs.ui=tailwind")
+        return 1
+
+    stack_name, option_name = key_part.split(".", 1)
+
+    # Check that target has a lock file
+    lock = load_lock(target_path)
+    if not lock:
+        print(f"Error: No bootstrap installation found at {target_path}")
+        return 1
+
+    # Check stack is installed
+    if not lock.has_stack(stack_name):
+        print(f"Error: Stack '{stack_name}' is not installed")
+        print(f"Installed stacks: {', '.join(lock.get_stack_names())}")
+        return 1
+
+    # Validate the option exists
+    try:
+        stack_opts = get_stack_options(stack_name)
+    except FileNotFoundError:
+        print(f"Error: Stack not found: {stack_name}")
+        return 1
+
+    if option_name not in stack_opts:
+        print(f"Error: Option '{option_name}' not found for stack '{stack_name}'")
+        print(f"Available options: {', '.join(stack_opts.keys())}")
+        return 1
+
+    # Validate the value is valid
+    option_def = stack_opts[option_name]
+    if value not in option_def.choices:
+        print(f"Error: Invalid value '{value}' for option '{option_name}'")
+        print(f"Valid choices: {', '.join(option_def.choices.keys())}")
+        return 1
+
+    print(f"Setting option: {stack_name}.{option_name}={value}")
+    print(f"Target: {target_path}")
+    if dry_run:
+        print("Mode: DRY RUN")
+    print()
+
+    # Check for modified files
+    modified = get_modified_files(target_path, lock)
+    if modified:
+        print("Warning: The following files have been modified since installation:")
+        for f in modified:
+            print(f"  - {f}")
+        print()
+
+    # Build options with the new value
+    all_stacks = lock.get_stack_names()
+    updated_options = lock.get_options()
+
+    if stack_name not in updated_options:
+        updated_options[stack_name] = {}
+    updated_options[stack_name][option_name] = value
+
+    print("Loading stack configurations...")
+    try:
+        config = compose_stacks(
+            all_stacks,
+            options=updated_options,
+        )
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+        return 1
+
+    print()
+
+    # Render templates
+    print("Rendering templates...")
+    try:
+        output = render_all(config)
+    except Exception as e:
+        print(f"Error rendering templates: {e}")
+        return 1
+
+    # Install (with force, preserving context)
+    print("Installing to target...")
+    result = install(
+        output=output,
+        target_path=target_path,
+        stacks=all_stacks,
+        force=True,
+        preserve_context=True,
+        dry_run=dry_run,
+        selected_options=config.selected_options,
+        profile_name=lock.profile,
+    )
+
+    if result.errors:
+        print()
+        print("Errors:")
+        for error in result.errors:
+            print(f"  - {error}")
+        return 1
+
+    # Print summary
+    print_summary(result, all_stacks)
+
+    if not dry_run:
+        print()
+        print(f"Successfully changed {stack_name}.{option_name} to '{value}'!")
+        print()
+
+    return 0
+
+
+def cmd_upgrade(
+    target_path: Path,
+    dry_run: bool = False,
+):
+    """Upgrade an existing project to the latest templates."""
+    print_header()
+
+    # Check that target has a lock file
+    lock = load_lock(target_path)
+    if not lock:
+        print(f"Error: No bootstrap installation found at {target_path}")
+        return 1
+
+    print(f"Upgrading: {target_path}")
+    print(f"Installed stacks: {', '.join(lock.get_stack_names())}")
+    print(f"Original version: {lock.version}")
+    print(f"Current version: {__version__}")
+    if lock.profile:
+        print(f"Profile: {lock.profile}")
+    if dry_run:
+        print("Mode: DRY RUN")
+    print()
+
+    # Check for modified files
+    modified = get_modified_files(target_path, lock)
+    if modified:
+        print("Warning: The following files have been modified since installation:")
+        for f in modified:
+            print(f"  - {f}")
+        print()
+        print("These files will be overwritten with the latest templates.")
+        print("Consider backing them up first.")
+        print()
+
+    # Rebuild with the same stacks and options
+    all_stacks = lock.get_stack_names()
+    all_options = lock.get_options()
+
+    print("Loading stack configurations...")
+    try:
+        config = compose_stacks(
+            all_stacks,
+            options=all_options,
+        )
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+        return 1
+
+    print(f"  Stacks: {', '.join(s.display_name for s in config.stacks)}")
+    print()
+
+    # Render templates
+    print("Rendering templates...")
+    try:
+        output = render_all(config)
+    except Exception as e:
+        print(f"Error rendering templates: {e}")
+        return 1
+
+    # Install (with force, preserving context)
+    print("Installing to target...")
+    result = install(
+        output=output,
+        target_path=target_path,
+        stacks=all_stacks,
+        force=True,
+        preserve_context=True,
+        dry_run=dry_run,
+        selected_options=config.selected_options,
+        profile_name=lock.profile,
+    )
+
+    if result.errors:
+        print()
+        print("Errors:")
+        for error in result.errors:
+            print(f"  - {error}")
+        return 1
+
+    # Print summary
+    print_summary(result, all_stacks)
+
+    if not dry_run:
+        print()
+        print(f"Successfully upgraded from v{lock.version} to v{__version__}!")
+        print()
+
+    return 0
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -354,6 +689,11 @@ Examples:
   python bootstrap.py --profiles
   python bootstrap.py --options nextjs
   python bootstrap.py --validate rails
+
+Extend existing projects:
+  python bootstrap.py --add-stack react-native ./my-app --state=zustand
+  python bootstrap.py --set-option nextjs.ui=tailwind ./my-app
+  python bootstrap.py --upgrade ./my-app
         """,
     )
 
@@ -392,6 +732,21 @@ Examples:
         "--validate",
         metavar="STACK",
         help="Validate a stack configuration",
+    )
+    parser.add_argument(
+        "--add-stack",
+        metavar="STACK",
+        help="Add a stack to an existing project",
+    )
+    parser.add_argument(
+        "--set-option",
+        metavar="STACK.OPT=VAL",
+        help="Change an option for an existing stack (e.g., nextjs.ui=tailwind)",
+    )
+    parser.add_argument(
+        "--upgrade",
+        action="store_true",
+        help="Upgrade an existing project to the latest templates",
     )
     parser.add_argument(
         "--force",
@@ -437,6 +792,39 @@ Examples:
     # Handle --validate
     if args.validate:
         return cmd_validate(args.validate)
+
+    # Handle --add-stack
+    if args.add_stack:
+        target = args.target or (Path(args.stack) if args.stack else None)
+        if not target:
+            parser.error("--add-stack requires a target path")
+        return cmd_add_stack(
+            target_path=target,
+            stack_name=args.add_stack,
+            dry_run=args.dry_run,
+            extra_args=unknown_args,
+        )
+
+    # Handle --set-option
+    if args.set_option:
+        target = args.target or (Path(args.stack) if args.stack else None)
+        if not target:
+            parser.error("--set-option requires a target path")
+        return cmd_set_option(
+            target_path=target,
+            option_spec=args.set_option,
+            dry_run=args.dry_run,
+        )
+
+    # Handle --upgrade
+    if args.upgrade:
+        target = args.target or (Path(args.stack) if args.stack else None)
+        if not target:
+            parser.error("--upgrade requires a target path")
+        return cmd_upgrade(
+            target_path=target,
+            dry_run=args.dry_run,
+        )
 
     # Handle case where profile is used: first positional becomes target
     target = args.target

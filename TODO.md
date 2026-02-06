@@ -342,9 +342,9 @@
 - [x] `--validate <stack>` - Validate stack config
 - [x] `--dry-run` - Preview without writing
 - [ ] `--interactive` - Interactive mode with prompts
-- [ ] `--upgrade` - Upgrade existing .claude/ directory
-- [ ] `--add-stack <stack>` - Add a stack to existing project
-- [ ] `--set-option <stack.option=value>` - Change option for existing stack
+- [x] `--upgrade` - Upgrade existing .claude/ directory
+- [x] `--add-stack <stack>` - Add a stack to existing project
+- [x] `--set-option <stack.option=value>` - Change option for existing stack
 
 ### Features
 - [x] Stack composition (multi-stack)
@@ -353,13 +353,13 @@
 - [ ] Custom variables via CLI (`--var key=value`)
 - [ ] Local overrides (`~/.agents/overrides/`)
 - [ ] Plugin system for custom stacks
-- [ ] **Extensible projects** (see below)
+- [x] **Extensible projects** (`--add-stack`, `--set-option`, `--upgrade`)
 
 ---
 
-## Extensibility Feature (High Priority)
+## Extensibility Feature (DONE)
 
-Currently bootstrap is one-time only. Need ability to extend existing projects.
+Implemented in v2.0.0. Projects can now be extended after initial bootstrap.
 
 ### Use Cases
 
@@ -426,7 +426,13 @@ Currently bootstrap is one-time only. Need ability to extend existing projects.
 - Stack options (ui, state, jobs, db)
 - Profiles (landing, saas, api-only, mobile-backend)
 - JSON Schema validation
-- 137 tests with content validation
+- **Extensibility features:**
+  - `--add-stack` - Add new stacks to existing projects
+  - `--set-option` - Change options for installed stacks
+  - `--upgrade` - Upgrade to latest templates
+  - Lock file (`.claude/bootstrap.lock`) tracks installed configuration
+  - Checksum-based detection of user modifications
+- 185 tests with content validation
 
 ### v1.0.0 (Deprecated)
 - Shell-based bootstrap

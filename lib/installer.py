@@ -11,6 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from .renderer import RenderedOutput
+from .lockfile import (
+    BootstrapLock,
+    create_lock,
+    save_lock,
+    load_lock,
+    compute_checksums,
+    merge_locks,
+    get_modified_files,
+)
 
 
 @dataclass
@@ -25,6 +34,8 @@ class InstallResult:
     files_written: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     dry_run: bool = False
+    lock: BootstrapLock | None = None
+    modified_files: list[str] = field(default_factory=list)
 
 
 def ensure_directory(path: Path) -> None:
@@ -124,6 +135,8 @@ def install(
     force: bool = False,
     preserve_context: bool = False,
     dry_run: bool = False,
+    selected_options: dict[str, dict[str, str]] | None = None,
+    profile_name: str | None = None,
 ) -> InstallResult:
     """
     Install rendered output to target directory.
@@ -135,6 +148,8 @@ def install(
         force: Overwrite existing .claude/ directory
         preserve_context: Keep context/ directory when using force
         dry_run: Only print what would be done, don't write files
+        selected_options: Options selected for each stack {stack: {option: value}}
+        profile_name: Profile name used for installation
 
     Returns:
         InstallResult with counts and any errors
@@ -297,6 +312,38 @@ def install(
         # Make all .sh files executable
         for sh_file in claude_dir.rglob("*.sh"):
             make_executable(sh_file)
+
+        # Create and save lock file
+        lock = create_lock(
+            stack_names=stacks,
+            selected_options=selected_options or {},
+            profile_name=profile_name,
+        )
+
+        # Compute checksums for installed files
+        installed_files = []
+        # Track relative paths from target_path
+        for filename in output.agents:
+            installed_files.append(f".claude/agents/{filename}")
+        for skill_name in output.skills:
+            # Add skill directory files
+            skill_dir = claude_dir / "skills" / skill_name
+            if skill_dir.exists():
+                for f in skill_dir.rglob("*"):
+                    if f.is_file():
+                        installed_files.append(str(f.relative_to(target_path)))
+        for filename in output.hook_files:
+            installed_files.append(f".claude/hooks/{filename}")
+        for filename in output.patterns:
+            installed_files.append(f".claude/patterns/{filename}")
+        for filename in output.styles:
+            installed_files.append(f".claude/styles/{filename}")
+        installed_files.append(".claude/settings.json")
+        installed_files.append("CLAUDE.md")
+
+        lock.file_checksums = compute_checksums(target_path, installed_files)
+        save_lock(target_path, lock)
+        result.lock = lock
 
     return result
 
