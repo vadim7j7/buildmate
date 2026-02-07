@@ -44,6 +44,48 @@ def print_header():
     print()
 
 
+def cmd_credits():
+    """Show credits and about information."""
+    print()
+    print("  ▖▄ ▗▖")
+    print("  ▌█ ▐▌   Buildmate v" + __version__)
+    print("  ▙█▄▟▌   Bootstrap Claude Code agents")
+    print("  ▀▀ ▀▀")
+    print()
+    print("  ─────────────────────────────────────────────────────")
+    print()
+    print("  Composes base agent infrastructure with stack-specific")
+    print("  overlays to produce ready-to-use Claude Code setups.")
+    print()
+    print("  ─────────────────────────────────────────────────────")
+    print()
+    print("  📚 Stacks")
+    print("     ├── rails         Ruby on Rails API")
+    print("     ├── nextjs        React + Next.js")
+    print("     ├── react-native  React Native + Expo")
+    print("     └── fastapi       Python FastAPI")
+    print()
+    print("  ─────────────────────────────────────────────────────")
+    print()
+    print("  🤖 Powered by Claude Code")
+    print()
+    print("     Built with:")
+    print("     • Python 3.12+")
+    print("     • Jinja2 templates")
+    print("     • YAML configurations")
+    print()
+    print("  ─────────────────────────────────────────────────────")
+    print()
+    print("  🚀 Quick Start")
+    print("     $ buildmate rails ./my-app")
+    print("     $ buildmate --profile saas ./my-app")
+    print("     $ buildmate rails+nextjs ./my-fullstack-app")
+    print()
+    print("  License: MIT")
+    print()
+    return 0
+
+
 def cmd_list():
     """List available stacks."""
     print_header()
@@ -773,9 +815,18 @@ Extend existing projects:
         action="version",
         version=f"%(prog)s {__version__}",
     )
+    parser.add_argument(
+        "--credits",
+        action="store_true",
+        help="Show credits and about information",
+    )
 
     # Parse known args and collect unknown args (for dynamic options)
     args, unknown_args = parser.parse_known_args()
+
+    # Handle --credits
+    if args.credits:
+        return cmd_credits()
 
     # Handle --list
     if args.list:
