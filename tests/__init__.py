@@ -1,1 +1,1 @@
-# Tests for Agents Bootstrap v2
+# Tests for Buildmate

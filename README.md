@@ -1,8 +1,9 @@
-# Agents Bootstrap v2
+# Buildmate
 
-A Python-based template generator that bootstraps `.claude/` agent configurations for projects. It composes base agent infrastructure with stack-specific overlays to produce ready-to-use Claude Code agent setups.
+Bootstrap Claude Code agent configurations for your projects. Composes base agent infrastructure with stack-specific overlays to produce ready-to-use setups.
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/vadim7j7)
+[![CI](https://github.com/vadim7j7/buildmate/actions/workflows/ci.yml/badge.svg)](https://github.com/vadim7j7/buildmate/actions/workflows/ci.yml)
 
 ## Features
 

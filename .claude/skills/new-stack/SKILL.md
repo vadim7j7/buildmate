@@ -1,11 +1,11 @@
 ---
 name: new-stack
-description: Add a new stack to the agents bootstrap system. Generates all required files (stack.yaml, agents, skills, patterns, styles) and updates documentation.
+description: Add a new stack to Buildmate. Generates all required files (stack.yaml, agents, skills, patterns, styles) and updates documentation.
 ---
 
 # /new-stack — Add New Stack
 
-Creates a complete, fully-integrated stack for the agents bootstrap system.
+Creates a complete, fully-integrated stack for Buildmate.
 
 ## Usage
 

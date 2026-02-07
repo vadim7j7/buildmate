@@ -1,6 +1,6 @@
-# Agents Template Generator
+# Buildmate
 
-A template generator that bootstraps `.claude/` agent configurations for projects. It composes base agent infrastructure with stack-specific overlays to produce ready-to-use Claude Code agent setups.
+Bootstrap Claude Code agent configurations for your projects. Composes base agent infrastructure with stack-specific overlays to produce ready-to-use setups.
 
 ## Installation
 

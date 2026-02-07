@@ -1,14 +1,14 @@
 [project]
-name = "agents-bootstrap"
+name = "buildmate"
 version = "2.0.0"
-description = "Template generator for Claude Code agent configurations"
+description = "Bootstrap Claude Code agent configurations for your projects"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "Polyform Noncommercial 1.0.0"}
 authors = [
     {name = "Vadim Karnopelev"}
 ]
-keywords = ["claude", "agents", "bootstrap", "template"]
+keywords = ["claude", "claude-code", "ai-agents", "bootstrap", "developer-tools", "cli"]
 
 dependencies = [
     "pyyaml>=6.0",
@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-agents-bootstrap = "bootstrap:main"
+buildmate = "bootstrap:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

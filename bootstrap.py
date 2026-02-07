@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Bootstrap v2 - Python + Jinja2 + YAML config-driven agent system.
+Buildmate - Bootstrap Claude Code agent configurations for your projects.
 
 Usage:
-    python bootstrap.py <stack> <target_path>
-    python bootstrap.py rails ./my-rails-app
-    python bootstrap.py rails+nextjs ./my-fullstack-app
-    python bootstrap.py --profile saas ./my-app
-    python bootstrap.py nextjs ./app --ui=tailwind --state=zustand
-    python bootstrap.py --list
-    python bootstrap.py --profiles
-    python bootstrap.py --options nextjs
-    python bootstrap.py --validate rails
+    buildmate <stack> <target_path>
+    buildmate rails ./my-rails-app
+    buildmate rails+nextjs ./my-fullstack-app
+    buildmate --profile saas ./my-app
+    buildmate nextjs ./app --ui=tailwind --state=zustand
+    buildmate --list
+    buildmate --profiles
+    buildmate --options nextjs
+    buildmate --validate rails
 """
 
 import argparse
@@ -43,7 +43,7 @@ from lib.schema import validate_stack_file
 def print_header():
     """Print the CLI header."""
     print()
-    print(f"  Agents Bootstrap v{__version__}")
+    print(f"  Buildmate v{__version__}")
     print()
 
 
