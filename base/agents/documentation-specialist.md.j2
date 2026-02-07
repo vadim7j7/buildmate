@@ -93,6 +93,7 @@ def self.by_subscription_status(status, limit: 100)
 - Include usage examples for complex components
 - Document hooks with their return types
 
+{% raw %}
 ```typescript
 /**
  * A card component that displays user information.
@@ -114,6 +115,7 @@ interface UserCardProps {
   isLoading?: boolean;
 }
 ```
+{% endraw %}
 
 {% elif 'fastapi' in stack.name or 'python' in stack.name %}
 **Python Documentation:**

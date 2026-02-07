@@ -21,7 +21,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/track-changes.sh"
+            "command": ".claude/hooks/track-changes.sh",
+            "blocking": false
           }
         ]
       },
@@ -30,7 +31,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/task-complete.sh"
+            "command": ".claude/hooks/task-complete.sh",
+            "blocking": false
           }
         ]
       }
@@ -40,7 +42,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/session-end.sh"
+            "command": ".claude/hooks/session-end.sh",
+            "blocking": false
           }
         ]
       }

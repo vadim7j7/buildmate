@@ -5,6 +5,23 @@
 
 set -e
 
+# Find project root by looking for .claude directory
+find_project_root() {
+    local dir="$PWD"
+    while [ "$dir" != "/" ]; do
+        if [ -d "$dir/.claude" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    # Fallback to current directory (git hooks run from repo root anyway)
+    echo "$PWD"
+}
+
+PROJECT_ROOT=$(find_project_root)
+cd "$PROJECT_ROOT"
+
 echo "Running pre-commit quality gates..."
 
 # Check for quality gate commands in CLAUDE.md

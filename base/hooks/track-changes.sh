@@ -9,7 +9,22 @@
 # Don't use set -e - we want to be non-blocking
 # Hooks should not fail the main operation
 
-CONTEXT_DIR=".claude/context"
+# Find project root by looking for .claude directory
+find_project_root() {
+    local dir="$PWD"
+    while [ "$dir" != "/" ]; do
+        if [ -d "$dir/.claude" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    # Fallback to current directory
+    echo "$PWD"
+}
+
+PROJECT_ROOT=$(find_project_root)
+CONTEXT_DIR="$PROJECT_ROOT/.claude/context"
 ACTIVITY_LOG="$CONTEXT_DIR/agent-activity.log"
 
 # Check if jq is available

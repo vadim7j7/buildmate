@@ -8,7 +8,22 @@
 # Don't use set -e - we want to be non-blocking
 # Hooks should not fail the main operation
 
-CONTEXT_DIR=".claude/context"
+# Find project root by looking for .claude directory
+find_project_root() {
+    local dir="$PWD"
+    while [ "$dir" != "/" ]; do
+        if [ -d "$dir/.claude" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir=$(dirname "$dir")
+    done
+    # Fallback to current directory
+    echo "$PWD"
+}
+
+PROJECT_ROOT=$(find_project_root)
+CONTEXT_DIR="$PROJECT_ROOT/.claude/context"
 ACTIVITY_LOG="$CONTEXT_DIR/agent-activity.log"
 SUMMARY_FILE="$CONTEXT_DIR/session-summary.md"
 
@@ -38,8 +53,8 @@ else
 fi
 
 # Get git status
-GIT_STATUS=$(git status --short 2>/dev/null | head -10 || echo "Not a git repository")
-UNCOMMITTED_COUNT=$(git status --short 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+GIT_STATUS=$(git -C "$PROJECT_ROOT" status --short 2>/dev/null | head -10 || echo "Not a git repository")
+UNCOMMITTED_COUNT=$(git -C "$PROJECT_ROOT" status --short 2>/dev/null | wc -l | tr -d ' ' || echo "0")
 
 # Write session summary
 cat > "$SUMMARY_FILE" 2>/dev/null << EOF
