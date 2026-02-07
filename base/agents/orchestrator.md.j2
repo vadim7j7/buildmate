@@ -201,6 +201,13 @@ Use the **TodoWrite tool** to create a visible task list.
 
 Update the feature file status to `IN_PROGRESS`.
 
+> **CRITICAL: YOU MUST DELEGATE ALL IMPLEMENTATION WORK.**
+>
+> As the PM, you coordinate and delegate — you do NOT write code yourself.
+> Use the Task tool to spawn specialist agents for ALL implementation tasks.
+> Never run `rails new`, `npm create`, write models, components, or any code directly.
+> The specialist agents have the expertise and context to do this correctly.
+
 {% if stacks|length > 1 %}
 ### Multi-Stack Parallel Execution
 
@@ -262,6 +269,8 @@ After each Task completes:
 
 Update the feature file status to `TESTING`.
 
+> **CRITICAL: Delegate testing to specialist agents. Do NOT write tests yourself.**
+
 ### Test Delegation
 
 Delegate to tester agents{% if stacks|length > 1 %} in parallel{% endif %}:
@@ -319,6 +328,8 @@ Max iterations: 10."
 ## Phase 4: Review
 
 Update the feature file status to `IN_REVIEW`.
+
+> **CRITICAL: Delegate code review to specialist agents. Do NOT review code yourself.**
 
 ### Review Delegation
 
