@@ -2,6 +2,8 @@
 
 A Python-based template generator that bootstraps `.claude/` agent configurations for projects. It composes base agent infrastructure with stack-specific overlays to produce ready-to-use Claude Code agent setups.
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/vadim7j7)
+
 ## Features
 
 - **YAML-driven configuration** - Each stack is defined by a `stack.yaml` file
@@ -544,4 +546,10 @@ ls -la /tmp/test-app/.claude/
 
 ## License
 
-MIT
+[Polyform Noncommercial 1.0.0](LICENSE) - Free for personal and non-commercial use.
+
+## Support
+
+If you find this project useful, consider supporting its development:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/vadim7j7)
