@@ -14,26 +14,26 @@ from pathlib import Path
 import pytest
 import yaml
 
+from lib.config import compose_stacks
+from lib.installer import install
 from lib.lockfile import (
     BootstrapLock,
     StackLockInfo,
-    create_lock,
-    load_lock,
-    save_lock,
-    get_lock_path,
-    compute_file_checksum,
     compute_checksums,
+    compute_file_checksum,
+    create_lock,
+    get_lock_path,
     get_modified_files,
+    load_lock,
     merge_locks,
+    save_lock,
 )
-from lib.config import compose_stacks
 from lib.renderer import render_all
-from lib.installer import install
-
 
 # =============================================================================
 # Lock File Unit Tests
 # =============================================================================
+
 
 class TestStackLockInfo:
     """Tests for StackLockInfo dataclass."""
@@ -155,7 +155,10 @@ class TestLockFilePersistence:
             target = Path(tmpdir)
             lock = create_lock(
                 stack_names=["rails", "nextjs"],
-                selected_options={"rails": {"jobs": "sidekiq"}, "nextjs": {"ui": "tailwind"}},
+                selected_options={
+                    "rails": {"jobs": "sidekiq"},
+                    "nextjs": {"ui": "tailwind"},
+                },
                 profile_name="saas",
             )
             save_lock(target, lock)
@@ -213,7 +216,9 @@ class TestChecksums:
             (target / "file1.txt").write_text("content1")
             (target / "file2.txt").write_text("content2")
 
-            checksums = compute_checksums(target, ["file1.txt", "file2.txt", "missing.txt"])
+            checksums = compute_checksums(
+                target, ["file1.txt", "file2.txt", "missing.txt"]
+            )
             assert "file1.txt" in checksums
             assert "file2.txt" in checksums
             assert "missing.txt" not in checksums
@@ -269,6 +274,7 @@ class TestMergeLocks:
 
     def test_merge_updates_version(self):
         from lib import __version__
+
         existing = BootstrapLock(version="1.0.0", installed_at="2024-01-15T10:30:00Z")
         existing.add_stack("rails")
 
@@ -281,6 +287,7 @@ class TestMergeLocks:
 # Integration Tests for CLI Commands
 # =============================================================================
 
+
 class TestInstallCreatesLockFile:
     """Tests that install creates a lock file."""
 
@@ -290,7 +297,7 @@ class TestInstallCreatesLockFile:
             config = compose_stacks(["rails"])
             output = render_all(config)
 
-            result = install(
+            install(
                 output=output,
                 target_path=target,
                 stacks=["rails"],
@@ -381,8 +388,7 @@ class TestAddStackCommand:
 
             # Add nextjs with options
             result = self._run_bootstrap(
-                "--add-stack", "nextjs", str(target),
-                "--ui=tailwind", "--state=redux"
+                "--add-stack", "nextjs", str(target), "--ui=tailwind", "--state=redux"
             )
             assert result.returncode == 0
 
@@ -450,7 +456,9 @@ class TestSetOptionCommand:
             assert lock.stacks["nextjs"].options.get("ui") == "mantine"
 
             # Change to tailwind
-            result = self._run_bootstrap("--set-option", "nextjs.ui=tailwind", str(target))
+            result = self._run_bootstrap(
+                "--set-option", "nextjs.ui=tailwind", str(target)
+            )
             assert result.returncode == 0
 
             lock = load_lock(target)
@@ -480,7 +488,9 @@ class TestSetOptionCommand:
             self._run_bootstrap("rails", str(target))
 
             # Try to set option for nextjs (not installed)
-            result = self._run_bootstrap("--set-option", "nextjs.ui=tailwind", str(target))
+            result = self._run_bootstrap(
+                "--set-option", "nextjs.ui=tailwind", str(target)
+            )
             assert result.returncode == 1
             assert "not installed" in result.stdout
 
@@ -492,7 +502,9 @@ class TestSetOptionCommand:
             self._run_bootstrap("nextjs", str(target))
 
             # Try to set invalid option
-            result = self._run_bootstrap("--set-option", "nextjs.invalid=value", str(target))
+            result = self._run_bootstrap(
+                "--set-option", "nextjs.invalid=value", str(target)
+            )
             assert result.returncode == 1
             assert "not found" in result.stdout
 
@@ -504,7 +516,9 @@ class TestSetOptionCommand:
             self._run_bootstrap("nextjs", str(target))
 
             # Try to set invalid value
-            result = self._run_bootstrap("--set-option", "nextjs.ui=invalid", str(target))
+            result = self._run_bootstrap(
+                "--set-option", "nextjs.ui=invalid", str(target)
+            )
             assert result.returncode == 1
             assert "Invalid value" in result.stdout
 
@@ -526,9 +540,11 @@ class TestUpgradeCommand:
             target = Path(tmpdir)
 
             # Bootstrap with rails and specific options
-            self._run_bootstrap("rails", str(target), "--jobs=good_job", "--db=postgresql")
+            self._run_bootstrap(
+                "rails", str(target), "--jobs=good_job", "--db=postgresql"
+            )
 
-            original_lock = load_lock(target)
+            load_lock(target)
 
             # Upgrade
             result = self._run_bootstrap("--upgrade", str(target))
@@ -559,6 +575,7 @@ class TestUpgradeCommand:
             # Verify version updated
             lock = load_lock(target)
             from lib import __version__
+
             assert lock.version == __version__
 
     def test_upgrade_fails_without_lock_file(self):
@@ -623,10 +640,12 @@ class TestDryRunExtensibility:
             # Bootstrap with rails
             self._run_bootstrap("rails", str(target))
 
-            original_lock = load_lock(target)
+            load_lock(target)
 
             # Dry run add nextjs
-            result = self._run_bootstrap("--add-stack", "nextjs", str(target), "--dry-run")
+            result = self._run_bootstrap(
+                "--add-stack", "nextjs", str(target), "--dry-run"
+            )
             assert result.returncode == 0
             assert "DRY RUN" in result.stdout
 
@@ -642,7 +661,9 @@ class TestDryRunExtensibility:
             self._run_bootstrap("nextjs", str(target), "--ui=mantine")
 
             # Dry run set option
-            result = self._run_bootstrap("--set-option", "nextjs.ui=tailwind", str(target), "--dry-run")
+            result = self._run_bootstrap(
+                "--set-option", "nextjs.ui=tailwind", str(target), "--dry-run"
+            )
             assert result.returncode == 0
             assert "DRY RUN" in result.stdout
 
@@ -707,7 +728,9 @@ class TestMultiStackExtensibility:
             target = Path(tmpdir)
 
             # Bootstrap with rails + nextjs
-            self._run_bootstrap("rails+nextjs", str(target), "--ui=mantine", "--jobs=sidekiq")
+            self._run_bootstrap(
+                "rails+nextjs", str(target), "--ui=mantine", "--jobs=sidekiq"
+            )
 
             # Change nextjs ui
             self._run_bootstrap("--set-option", "nextjs.ui=tailwind", str(target))

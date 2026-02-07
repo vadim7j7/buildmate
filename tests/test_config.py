@@ -1,21 +1,19 @@
 """Tests for config loading module."""
 
-import pytest
-from pathlib import Path
-import tempfile
-import yaml
-
 import sys
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.config import (
-    load_stack,
-    compose_stacks,
-    parse_stack_arg,
-    StackConfig,
     Agent,
-    QualityGate,
     ComposedConfig,
+    QualityGate,
+    compose_stacks,
+    load_stack,
+    parse_stack_arg,
 )
 
 

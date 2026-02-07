@@ -1,12 +1,13 @@
 """Tests for schema validation module."""
 
-import pytest
+import sys
 from pathlib import Path
 
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from lib.schema import validate_stack_config, check_compatibility, check_agent_conflicts
+from lib.schema import check_agent_conflicts, check_compatibility, validate_stack_config
 
 
 class TestValidateStackConfig:

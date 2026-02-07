@@ -3,28 +3,24 @@ Install rendered output to target directory.
 """
 
 import json
-import os
 import shutil
 import stat
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
-from .renderer import RenderedOutput
 from .lockfile import (
     BootstrapLock,
+    compute_checksums,
     create_lock,
     save_lock,
-    load_lock,
-    compute_checksums,
-    merge_locks,
-    get_modified_files,
 )
+from .renderer import RenderedOutput
 
 
 @dataclass
 class InstallResult:
     """Results from installation."""
+
     target_path: Path
     agents_count: int = 0
     skills_count: int = 0
@@ -119,12 +115,7 @@ def create_settings_local_template(claude_dir: Path) -> None:
     """
     settings_local = claude_dir / "settings.local.json"
     if not settings_local.exists():
-        template = {
-            "permissions": {
-                "allow": [],
-                "deny": []
-            }
-        }
+        template = {"permissions": {"allow": [], "deny": []}}
         with open(settings_local, "w") as f:
             json.dump(template, f, indent=2)
             f.write("\n")
@@ -172,9 +163,7 @@ def install(
     # Handle existing .claude/
     if claude_dir.exists():
         if not force:
-            result.errors.append(
-                f".claude/ already exists. Use --force to overwrite."
-            )
+            result.errors.append(".claude/ already exists. Use --force to overwrite.")
             return result
 
         if not dry_run:

@@ -1,13 +1,13 @@
 """Integration tests for the full bootstrap pipeline."""
 
-import pytest
-from pathlib import Path
-import tempfile
-import subprocess
-import os
 import shutil
-
+import subprocess
 import sys
+import tempfile
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
@@ -227,8 +227,8 @@ class TestBootstrapOutput:
     def bootstrapped_rails(self):
         """Create a bootstrapped rails project."""
         from lib.config import compose_stacks
-        from lib.renderer import render_all
         from lib.installer import install
+        from lib.renderer import render_all
 
         composed = compose_stacks(["rails"])
         output = render_all(composed)
@@ -292,6 +292,7 @@ class TestBootstrapOutput:
     def test_output_settings_valid_json(self, bootstrapped_rails):
         """settings.json should be valid JSON."""
         import json
+
         settings = bootstrapped_rails / ".claude" / "settings.json"
         content = settings.read_text()
 

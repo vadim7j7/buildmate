@@ -8,8 +8,7 @@ from typing import Any
 
 import yaml
 
-from .schema import validate_stack_config, check_compatibility, check_agent_conflicts
-
+from .schema import check_agent_conflicts, check_compatibility, validate_stack_config
 
 # Paths
 V2_ROOT = Path(__file__).parent.parent
@@ -21,6 +20,7 @@ PROFILES_DIR = V2_ROOT / "profiles"
 @dataclass
 class QualityGate:
     """Quality gate configuration."""
+
     name: str
     command: str
     fix_command: str | None = None
@@ -30,6 +30,7 @@ class QualityGate:
 @dataclass
 class Agent:
     """Agent configuration."""
+
     name: str
     template: str
     tools: list[str]
@@ -42,6 +43,7 @@ class Agent:
 @dataclass
 class OptionChoice:
     """A single choice within a stack option."""
+
     name: str
     description: str = ""
     patterns: list[str] = field(default_factory=list)
@@ -65,6 +67,7 @@ class OptionChoice:
 @dataclass
 class StackOption:
     """A configurable option for a stack (e.g., state management, UI library)."""
+
     name: str
     description: str
     default: str
@@ -88,6 +91,7 @@ class StackOption:
 @dataclass
 class StackConfig:
     """Complete stack configuration."""
+
     name: str
     display_name: str
     description: str
@@ -157,6 +161,7 @@ class StackConfig:
 @dataclass
 class Profile:
     """Pre-defined stack combination with options."""
+
     name: str
     display_name: str
     description: str
@@ -180,15 +185,20 @@ class Profile:
 @dataclass
 class ComposedConfig:
     """Composed configuration from multiple stacks."""
+
     stacks: list[StackConfig]
     all_agents: list[Agent]
     all_skills: list[str]
-    all_quality_gates: dict[str, dict[str, QualityGate]]  # stack_name -> gate_name -> gate
+    all_quality_gates: dict[
+        str, dict[str, QualityGate]
+    ]  # stack_name -> gate_name -> gate
     all_patterns: dict[str, Path]  # filename -> full path
     all_styles: dict[str, Path]  # filename -> full path
     variables: dict[str, Any]
     default_model: str
-    selected_options: dict[str, dict[str, str]] = field(default_factory=dict)  # stack -> option -> choice
+    selected_options: dict[str, dict[str, str]] = field(
+        default_factory=dict
+    )  # stack -> option -> choice
 
 
 def list_available_stacks() -> list[str]:

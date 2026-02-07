@@ -1,13 +1,12 @@
 """Tests for renderer module."""
 
-import pytest
+import sys
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.config import compose_stacks
-from lib.renderer import render_all, RenderedOutput
+from lib.renderer import RenderedOutput, render_all
 
 
 class TestRenderAll:
@@ -57,7 +56,9 @@ class TestRenderAll:
 
         # Orchestrator should mention both stacks
         orchestrator_content = output.agents["orchestrator.md"]
-        assert "rails" in orchestrator_content.lower() or "Rails" in orchestrator_content
+        assert (
+            "rails" in orchestrator_content.lower() or "Rails" in orchestrator_content
+        )
 
     def test_render_includes_base_agents(self):
         """Should include base agents (orchestrator, grind, eval, security)."""

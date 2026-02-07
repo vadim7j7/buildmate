@@ -23,24 +23,21 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from lib import __version__
 from lib.config import (
-    list_available_stacks,
-    list_available_profiles,
-    load_stack,
-    load_profile,
     compose_stacks,
-    parse_stack_arg,
     get_stack_options,
+    list_available_profiles,
+    list_available_stacks,
+    load_profile,
+    load_stack,
+    parse_stack_arg,
 )
-from lib.schema import validate_stack_file, ValidationError
-from lib.renderer import render_all
 from lib.installer import install, print_summary
 from lib.lockfile import (
-    load_lock,
-    save_lock,
-    merge_locks,
     get_modified_files,
-    compute_checksums,
+    load_lock,
 )
+from lib.renderer import render_all
+from lib.schema import validate_stack_file
 
 
 def print_header():
@@ -133,7 +130,7 @@ def cmd_options(stack_name: str):
         print(f"  --{opt_name}=<choice>")
         print(f"      {option.description}")
         print(f"      Default: {option.default}")
-        print(f"      Choices:")
+        print("      Choices:")
         for choice_name, choice in option.choices.items():
             default_marker = " (default)" if choice_name == option.default else ""
             desc = f" - {choice.description}" if choice.description else ""
@@ -141,7 +138,9 @@ def cmd_options(stack_name: str):
         print()
 
     print("Usage:")
-    print(f"  python bootstrap.py {stack_name} ./app --{list(options.keys())[0]}=<choice>")
+    print(
+        f"  python bootstrap.py {stack_name} ./app --{list(options.keys())[0]}=<choice>"
+    )
     print()
     return 0
 
@@ -153,6 +152,7 @@ def cmd_validate(stack_name: str):
     print()
 
     from lib.config import STACKS_DIR
+
     stack_file = STACKS_DIR / stack_name / "stack.yaml"
 
     try:
@@ -173,7 +173,9 @@ def cmd_validate(stack_name: str):
         return 1
 
 
-def parse_option_args(args: list[str], stack_names: list[str]) -> dict[str, dict[str, str]]:
+def parse_option_args(
+    args: list[str], stack_names: list[str]
+) -> dict[str, dict[str, str]]:
     """
     Parse option arguments like --ui=tailwind --state=zustand.
 
@@ -307,6 +309,7 @@ def cmd_bootstrap(
     except Exception as e:
         print(f"Error rendering templates: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -371,7 +374,7 @@ def cmd_add_stack(
 
     # Validate the new stack
     try:
-        new_stack = load_stack(stack_name)
+        load_stack(stack_name)
     except FileNotFoundError:
         print(f"Error: Stack not found: {stack_name}")
         return 1

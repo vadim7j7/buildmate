@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import jsonschema
     from jsonschema import Draft202012Validator, ValidationError
+
     HAS_JSONSCHEMA = True
 except ImportError:
     HAS_JSONSCHEMA = False
@@ -28,7 +28,9 @@ def load_schema() -> dict[str, Any]:
         return json.load(f)
 
 
-def validate_stack_config(config: dict[str, Any], raise_on_error: bool = True) -> list[str]:
+def validate_stack_config(
+    config: dict[str, Any], raise_on_error: bool = True
+) -> list[str]:
     """
     Validate a stack configuration against the JSON schema.
 
@@ -56,7 +58,11 @@ def validate_stack_config(config: dict[str, Any], raise_on_error: bool = True) -
     errors: list[str] = []
 
     for error in validator.iter_errors(config):
-        error_path = " -> ".join(str(p) for p in error.absolute_path) if error.absolute_path else "root"
+        error_path = (
+            " -> ".join(str(p) for p in error.absolute_path)
+            if error.absolute_path
+            else "root"
+        )
         error_msg = f"[{error_path}] {error.message}"
         errors.append(error_msg)
 

@@ -9,7 +9,6 @@ The lock file (.claude/bootstrap.lock) tracks:
 """
 
 import hashlib
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +22,7 @@ from . import __version__
 @dataclass
 class StackLockInfo:
     """Information about an installed stack."""
+
     name: str
     options: dict[str, str] = field(default_factory=dict)
 
@@ -43,6 +43,7 @@ class StackLockInfo:
 @dataclass
 class BootstrapLock:
     """Lock file data structure."""
+
     version: str
     installed_at: str
     stacks: dict[str, StackLockInfo] = field(default_factory=dict)
@@ -210,7 +211,11 @@ def get_modified_files(target_path: Path, lock: BootstrapLock) -> list[str]:
     return modified
 
 
-def merge_locks(existing: BootstrapLock, new_stacks: list[str], new_options: dict[str, dict[str, str]]) -> BootstrapLock:
+def merge_locks(
+    existing: BootstrapLock,
+    new_stacks: list[str],
+    new_options: dict[str, dict[str, str]],
+) -> BootstrapLock:
     """
     Merge new stacks/options into existing lock.
 
@@ -236,6 +241,8 @@ def merge_locks(existing: BootstrapLock, new_stacks: list[str], new_options: dic
 
     # Update metadata
     existing.version = __version__
-    existing.installed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    existing.installed_at = (
+        datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
 
     return existing

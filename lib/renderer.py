@@ -9,12 +9,13 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from .config import ComposedConfig, StackConfig, Agent, V2_ROOT, BASE_DIR
+from .config import BASE_DIR, V2_ROOT, ComposedConfig, StackConfig
 
 
 @dataclass
 class RenderedOutput:
     """Container for all rendered output."""
+
     agents: dict[str, str] = field(default_factory=dict)  # filename -> content
     claude_md: str = ""
     readme: str = ""
@@ -22,8 +23,12 @@ class RenderedOutput:
     patterns: dict[str, Path] = field(default_factory=dict)  # filename -> source path
     styles: dict[str, Path] = field(default_factory=dict)  # filename -> source path
     skills: dict[str, Path] = field(default_factory=dict)  # skill_name -> source dir
-    hooks: dict[str, str] = field(default_factory=dict)  # filename -> content (or path if not template)
-    hook_files: dict[str, Path] = field(default_factory=dict)  # filename -> source path (non-template)
+    hooks: dict[str, str] = field(
+        default_factory=dict
+    )  # filename -> content (or path if not template)
+    hook_files: dict[str, Path] = field(
+        default_factory=dict
+    )  # filename -> source path (non-template)
 
 
 def create_jinja_env(template_dirs: list[Path]) -> Environment:
@@ -76,14 +81,12 @@ def build_template_context(config: ComposedConfig) -> dict[str, Any]:
         # Stack information
         "stacks": config.stacks,
         "stack": config.stacks[0] if len(config.stacks) == 1 else None,
-
         # Merged data
         "all_agents": config.all_agents,
         "all_skills": config.all_skills,
         "all_quality_gates": config.all_quality_gates,
         "all_patterns": config.all_patterns,
         "all_styles": config.all_styles,
-
         # Global settings
         "default_model": config.default_model,
         "variables": config.variables,
@@ -287,6 +290,7 @@ def render_all(config: ComposedConfig) -> RenderedOutput:
 
     # Load base settings
     import json
+
     settings_file = BASE_DIR / "settings.json"
     if settings_file.exists():
         with open(settings_file) as f:

@@ -1,16 +1,14 @@
 """Tests for installer module."""
 
-import pytest
-from pathlib import Path
-import tempfile
-import shutil
-
 import sys
+import tempfile
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.config import compose_stacks
-from lib.renderer import render_all, RenderedOutput
-from lib.installer import install, InstallResult
+from lib.installer import InstallResult, install
+from lib.renderer import render_all
 
 
 class TestInstall:
@@ -23,7 +21,7 @@ class TestInstall:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             target = Path(tmpdir)
-            result = install(output, target, ["rails"])
+            install(output, target, ["rails"])
 
             assert (target / ".claude").exists()
             assert (target / ".claude").is_dir()

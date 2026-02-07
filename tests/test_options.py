@@ -1,17 +1,15 @@
 """Tests for stack options and profiles."""
 
-import pytest
+import sys
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.config import (
-    load_stack,
-    load_profile,
     compose_stacks,
     get_stack_options,
     list_available_profiles,
+    load_profile,
 )
 from lib.renderer import render_all
 
@@ -163,21 +161,27 @@ class TestOptionsApplyPatterns:
 
     def test_react_native_redux_includes_redux_pattern(self):
         """React-native with redux option should include redux pattern."""
-        composed = compose_stacks(["react-native"], options={"react-native": {"state": "redux"}})
+        composed = compose_stacks(
+            ["react-native"], options={"react-native": {"state": "redux"}}
+        )
         output = render_all(composed)
 
         assert "redux.md" in output.patterns
 
     def test_react_native_mobx_includes_mobx_pattern(self):
         """React-native with mobx option should include mobx pattern."""
-        composed = compose_stacks(["react-native"], options={"react-native": {"state": "mobx"}})
+        composed = compose_stacks(
+            ["react-native"], options={"react-native": {"state": "mobx"}}
+        )
         output = render_all(composed)
 
         assert "mobx.md" in output.patterns
 
     def test_react_native_jotai_includes_jotai_pattern(self):
         """React-native with jotai option should include jotai pattern."""
-        composed = compose_stacks(["react-native"], options={"react-native": {"state": "jotai"}})
+        composed = compose_stacks(
+            ["react-native"], options={"react-native": {"state": "jotai"}}
+        )
         output = render_all(composed)
 
         assert "jotai.md" in output.patterns
@@ -306,9 +310,7 @@ class TestOptionsOverrideProfile:
         profile = load_profile("saas")
         # Profile uses mantine, but we override with tailwind
         composed = compose_stacks(
-            profile.stacks,
-            profile=profile,
-            options={"nextjs": {"ui": "tailwind"}}
+            profile.stacks, profile=profile, options={"nextjs": {"ui": "tailwind"}}
         )
         output = render_all(composed)
 
@@ -510,7 +512,14 @@ class TestPatternFilesExist:
         """All nextjs UI style files should exist."""
         from lib.config import STACKS_DIR
 
-        ui_styles = ["mantine.md", "tailwind.md", "shadcn.md", "chakra.md", "mui.md", "antd.md"]
+        ui_styles = [
+            "mantine.md",
+            "tailwind.md",
+            "shadcn.md",
+            "chakra.md",
+            "mui.md",
+            "antd.md",
+        ]
         for style in ui_styles:
             path = STACKS_DIR / "nextjs" / "styles" / style
             assert path.exists(), f"Missing style file: {path}"
