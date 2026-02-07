@@ -16,23 +16,20 @@ python3 -m venv .venv
 ## Quick Start
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate
-
 # Bootstrap a project
-python bootstrap.py rails /path/to/my-rails-app
-python bootstrap.py nextjs /path/to/my-nextjs-app
+buildmate rails /path/to/my-rails-app
+buildmate nextjs /path/to/my-nextjs-app
 
 # Use a profile (pre-defined stack combination)
-python bootstrap.py --profile saas /path/to/my-saas-app
-python bootstrap.py --profile landing /path/to/my-landing-page
+buildmate --profile saas /path/to/my-saas-app
+buildmate --profile landing /path/to/my-landing-page
 
 # Customize with options
-python bootstrap.py nextjs /path/to/app --ui=tailwind --state=zustand
-python bootstrap.py rails /path/to/app --jobs=good_job --db=postgresql
+buildmate nextjs /path/to/app --ui=tailwind --state=zustand
+buildmate rails /path/to/app --jobs=good_job --db=postgresql
 
 # Combine stacks manually
-python bootstrap.py rails+nextjs /path/to/my-fullstack-app
+buildmate rails+nextjs /path/to/my-fullstack-app
 ```
 
 See `README.md` for complete documentation.
@@ -58,8 +55,8 @@ Profiles are pre-defined stack combinations with recommended options:
 | `mobile-backend` | rails + react-native | Mobile apps with API |
 
 ```bash
-python bootstrap.py --profiles              # List available profiles
-python bootstrap.py --profile saas /path/to/app  # Use a profile
+buildmate --profiles              # List available profiles
+buildmate --profile saas /path/to/app  # Use a profile
 ```
 
 ## Stack Options
@@ -67,8 +64,8 @@ python bootstrap.py --profile saas /path/to/app  # Use a profile
 Stacks can have configurable options (UI library, state management, etc.):
 
 ```bash
-python bootstrap.py --options nextjs        # Show available options
-python bootstrap.py nextjs /path/to/app --ui=tailwind --state=zustand
+buildmate --options nextjs        # Show available options
+buildmate nextjs /path/to/app --ui=tailwind --state=zustand
 ```
 
 ## Stack Composition
@@ -77,17 +74,17 @@ Combine stacks with `+` for fullstack applications:
 
 ```bash
 # Rails API + Next.js frontend
-.venv/bin/python bootstrap.py rails+nextjs /path/to/app
+buildmate rails+nextjs /path/to/app
 
 # FastAPI + React Native mobile
-.venv/bin/python bootstrap.py fastapi+react-native /path/to/app
+buildmate fastapi+react-native /path/to/app
 ```
 
 ## Directory Structure
 
 ```
-agents/
-├── bootstrap.py              # Main CLI entry point
+buildmate/
+├── bootstrap.py              # CLI entry point (also lib/cli.py)
 ├── README.md                 # Complete documentation
 ├── schemas/                  # JSON Schema for validation
 ├── profiles/                 # Pre-defined stack combinations
@@ -179,7 +176,7 @@ You are a {{ variables.framework }} developer.
 2. Create agent templates in `stacks/my-stack/agents/`
 3. Add patterns and styles
 4. Copy or create skills
-5. Test: `python bootstrap.py --validate my-stack`
+5. Test: `buildmate --validate my-stack`
 
 See `README.md` for detailed instructions.
 
@@ -224,29 +221,29 @@ Features are tracked in `.claude/context/features/` as markdown files with statu
 
 ```bash
 # List available stacks
-python bootstrap.py --list
+buildmate --list
 
 # List available profiles
-python bootstrap.py --profiles
+buildmate --profiles
 
 # Show options for a stack
-python bootstrap.py --options nextjs
+buildmate --options nextjs
 
 # Validate a stack configuration
-python bootstrap.py --validate rails
+buildmate --validate rails
 
 # Bootstrap with options
-python bootstrap.py rails /path/to/app              # Normal install
-python bootstrap.py rails /path/to/app --force      # Overwrite existing
-python bootstrap.py rails /path/to/app --dry-run    # Preview only
-python bootstrap.py rails /path/to/app --preserve   # Keep existing files
+buildmate rails /path/to/app              # Normal install
+buildmate rails /path/to/app --force      # Overwrite existing
+buildmate rails /path/to/app --dry-run    # Preview only
+buildmate rails /path/to/app --preserve   # Keep existing files
 
 # Use profiles
-python bootstrap.py --profile saas /path/to/app
-python bootstrap.py --profile saas /path/to/app --jobs=good_job  # Override profile options
+buildmate --profile saas /path/to/app
+buildmate --profile saas /path/to/app --jobs=good_job  # Override profile options
 
 # Multi-stack
-python bootstrap.py rails+nextjs /path/to/app
+buildmate rails+nextjs /path/to/app
 ```
 
 ## Development
@@ -257,18 +254,18 @@ python bootstrap.py rails+nextjs /path/to/app
 
 # Test all stacks validation
 for stack in rails nextjs react-native fastapi; do
-  python bootstrap.py --validate $stack
+  buildmate --validate $stack
 done
 
 # Test bootstrap
 mkdir -p /tmp/test-app
-python bootstrap.py rails /tmp/test-app
+buildmate rails /tmp/test-app
 ls -la /tmp/test-app/.claude/
 
 # Test multi-stack
 mkdir -p /tmp/test-fullstack
-python bootstrap.py rails+nextjs /tmp/test-fullstack
+buildmate rails+nextjs /tmp/test-fullstack
 
 # Test profiles
-python bootstrap.py --profile saas /tmp/test-saas
+buildmate --profile saas /tmp/test-saas
 ```
