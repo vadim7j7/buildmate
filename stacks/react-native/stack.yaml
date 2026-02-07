@@ -132,6 +132,8 @@ skills:
   - platform-check
   - new-hook
   - new-navigation
+  - clone-page
+  - analyze-site
 
 quality_gates:
   typecheck:
@@ -153,6 +155,7 @@ patterns:
   - patterns/push-notifications.md
   - patterns/logging.md
   - patterns/error-tracking.md
+  - patterns/browser-cloning.md
 
 styles:
   - styles/react-native.md

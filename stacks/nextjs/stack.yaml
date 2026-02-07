@@ -154,6 +154,8 @@ skills:
   - new-server-action
   - new-hook
   - new-layout
+  - clone-page
+  - analyze-site
 
 quality_gates:
   typecheck:
@@ -176,6 +178,7 @@ patterns:
   - patterns/i18n.md
   - patterns/logging.md
   - patterns/error-tracking.md
+  - patterns/browser-cloning.md
 
 styles:
   - styles/frontend-typescript.md

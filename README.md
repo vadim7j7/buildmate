@@ -16,6 +16,7 @@ Bootstrap Claude Code agent configurations for your projects. Composes base agen
 - **Compatibility checking** - Warns about incompatible stack combinations
 - **Dry-run mode** - Preview what will be installed without making changes
 - **Quality gates** - Stack-specific linting, testing, and type checking commands
+- **Browser cloning** - Analyze and clone websites using MCP browser tools (frontend stacks)
 
 ## Installation
 
@@ -516,6 +517,84 @@ The orchestrator's Phase 1.0 automatically checks for previous session context b
 | `context/active-work.md` | Branch, uncommitted changes, in-progress features | No |
 | `context/session-summary.md` | Session stats, recent activity | Yes |
 | `context/agent-activity.log` | Timestamped file edits and task completions | Yes |
+
+## Browser Cloning (Frontend Stacks)
+
+Frontend stacks (nextjs, react-native) include browser automation tools for analyzing and cloning websites.
+
+### Skills
+
+| Skill | Usage | Description |
+|-------|-------|-------------|
+| `/analyze-site` | `/analyze-site https://example.com` | Deep analysis of site structure, components, design tokens |
+| `/clone-page` | `/clone-page https://example.com` | Clone a webpage into your project using your UI library |
+
+### Agents
+
+| Agent | Purpose |
+|-------|---------|
+| `site-analyzer` | Extracts structure, components, colors, typography, spacing |
+| `ui-cloner` | Generates production-ready code matching the visual design |
+
+### MCP Browser Setup
+
+The bootstrap includes Puppeteer MCP configuration for browser automation:
+
+```json
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-puppeteer"]
+    }
+  }
+}
+```
+
+After bootstrapping, restart Claude Code to connect the MCP server.
+
+### Example Workflow
+
+```bash
+# 1. Analyze a site first
+/analyze-site https://linear.app
+
+# Review the analysis in .agent-pipeline/site-analysis.md
+
+# 2. Clone the page
+/clone-page https://linear.app
+
+# Generated files:
+# - src/styles/theme.ts (design tokens)
+# - src/components/sections/HeroSection.tsx
+# - src/components/sections/FeaturesSection.tsx
+# - etc.
+```
+
+### Available Tools (via MCP)
+
+| Tool | Purpose |
+|------|---------|
+| `browser_navigate` | Load a URL |
+| `browser_screenshot` | Capture page or element |
+| `browser_get_html` | Extract DOM structure |
+| `browser_evaluate` | Run JavaScript to extract styles |
+| `browser_click` | Click elements |
+| `browser_type` | Fill form inputs |
+
+### Use Cases
+
+- **Rapid prototyping** - Clone a competitor's layout in minutes
+- **Learning** - Study how top sites structure their components
+- **Migration** - Convert legacy sites to modern stacks
+- **Design system extraction** - Pull colors, fonts, spacing into your theme
+
+### Limitations
+
+- Cannot clone auth-gated pages
+- JavaScript-heavy SPAs need MCP browser (WebFetch alone won't work)
+- Assets (images, fonts) need separate handling
+- Use for learning/inspiration - respect copyright
 
 ## Development
 

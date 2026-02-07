@@ -217,6 +217,29 @@ Skills are slash commands (e.g., `/test`, `/review`, `/new-model`) that invoke s
 ### Feature Tracking
 Features are tracked in `.claude/context/features/` as markdown files with status, requirements, and progress.
 
+### Browser Cloning (Frontend Stacks)
+Frontend stacks (nextjs, react-native) include browser automation tools for analyzing and cloning website designs. Uses MCP browser servers (Puppeteer/Playwright) to capture screenshots, extract HTML/CSS, and generate stack-specific components.
+
+**Skills:**
+- `/analyze-site <url>` - Deep analysis of website structure and design tokens
+- `/clone-page <url>` - Clone a webpage using the project's UI library
+
+**Agents:**
+- `site-analyzer` - Extracts structure, components, design tokens
+- `ui-cloner` - Generates stack-specific code (Mantine, Tailwind, React Native)
+
+**Setup:** Requires MCP browser server configured in `.claude/settings.json`:
+```json
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-puppeteer"]
+    }
+  }
+}
+```
+
 ## CLI Commands
 
 ```bash
