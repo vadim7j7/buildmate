@@ -21,8 +21,8 @@ Bootstrap Claude Code agent configurations for your projects. Composes base agen
 
 ```bash
 # Clone the repository
-git clone <repo-url> agents
-cd agents
+git clone https://github.com/vadim7j7/buildmate.git
+cd buildmate
 
 # Create virtual environment and install
 python3 -m venv .venv
@@ -35,23 +35,20 @@ python3 -m venv .venv
 ## Quick Start
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-
 # Bootstrap a project
-python bootstrap.py rails /path/to/my-rails-app
-python bootstrap.py nextjs /path/to/my-nextjs-app
+buildmate rails /path/to/my-rails-app
+buildmate nextjs /path/to/my-nextjs-app
 
 # Use a profile (pre-defined stack combination)
-python bootstrap.py --profile saas /path/to/my-saas-app
-python bootstrap.py --profile landing /path/to/my-landing-page
+buildmate --profile saas /path/to/my-saas-app
+buildmate --profile landing /path/to/my-landing-page
 
 # Customize with options
-python bootstrap.py nextjs /path/to/app --ui=tailwind --state=zustand
-python bootstrap.py rails /path/to/app --jobs=good_job --db=postgresql
+buildmate nextjs /path/to/app --ui=tailwind --state=zustand
+buildmate rails /path/to/app --jobs=good_job --db=postgresql
 
 # Combine stacks manually
-python bootstrap.py rails+nextjs /path/to/my-fullstack-app
+buildmate rails+nextjs /path/to/my-fullstack-app
 ```
 
 ## Available Stacks
@@ -76,13 +73,13 @@ Profiles are pre-defined stack combinations with recommended options:
 
 ```bash
 # List available profiles
-python bootstrap.py --profiles
+buildmate --profiles
 
 # Use a profile
-python bootstrap.py --profile saas /path/to/app
+buildmate --profile saas /path/to/app
 
 # Override profile options
-python bootstrap.py --profile saas /path/to/app --jobs=good_job
+buildmate --profile saas /path/to/app --jobs=good_job
 ```
 
 ## Stack Options
@@ -90,7 +87,7 @@ python bootstrap.py --profile saas /path/to/app --jobs=good_job
 Stacks can have configurable options. View available options with `--options`:
 
 ```bash
-python bootstrap.py --options nextjs
+buildmate --options nextjs
 ```
 
 ### Next.js Options
@@ -111,33 +108,33 @@ python bootstrap.py --options nextjs
 
 ```bash
 # List available stacks
-python bootstrap.py --list
+buildmate --list
 
 # List available profiles
-python bootstrap.py --profiles
+buildmate --profiles
 
 # Show options for a stack
-python bootstrap.py --options nextjs
+buildmate --options nextjs
 
 # Validate a stack configuration
-python bootstrap.py --validate rails
+buildmate --validate rails
 
 # Bootstrap with options
-python bootstrap.py rails /path/to/app              # Normal install
-python bootstrap.py rails /path/to/app --force      # Overwrite existing .claude/
-python bootstrap.py rails /path/to/app --dry-run    # Preview without installing
-python bootstrap.py rails /path/to/app --preserve   # Keep existing files, add new ones
+buildmate rails /path/to/app              # Normal install
+buildmate rails /path/to/app --force      # Overwrite existing .claude/
+buildmate rails /path/to/app --dry-run    # Preview without installing
+buildmate rails /path/to/app --preserve   # Keep existing files, add new ones
 
 # Multi-stack composition
-python bootstrap.py rails+nextjs /path/to/app       # Fullstack Rails + Next.js
-python bootstrap.py fastapi+react-native /path/to/app  # API + Mobile
+buildmate rails+nextjs /path/to/app       # Fullstack Rails + Next.js
+buildmate fastapi+react-native /path/to/app  # API + Mobile
 ```
 
 ## Directory Structure
 
 ```
-agents/
-├── bootstrap.py              # Main CLI entry point
+buildmate/
+├── bootstrap.py              # CLI entry point (also lib/cli.py)
 ├── pyproject.toml            # Package configuration
 ├── README.md                 # This file
 ├── CLAUDE.md                 # Project instructions for Claude
@@ -416,8 +413,8 @@ See `.claude/skills/new-stack/SKILL.md` for the complete workflow.
 
 6. **Test:**
    ```bash
-   python bootstrap.py --validate my-stack
-   python bootstrap.py my-stack /tmp/test-my-stack
+   buildmate --validate my-stack
+   buildmate my-stack /tmp/test-my-stack
    ```
 
 ## Stack Composition
@@ -534,14 +531,14 @@ pip install -e ".[dev]"
 pytest tests/ -v
 
 # Validate all stacks
-python bootstrap.py --validate rails
-python bootstrap.py --validate nextjs
-python bootstrap.py --validate react-native
-python bootstrap.py --validate fastapi
+buildmate --validate rails
+buildmate --validate nextjs
+buildmate --validate react-native
+buildmate --validate fastapi
 
 # Test bootstrap
 mkdir -p /tmp/test-app
-python bootstrap.py rails /tmp/test-app
+buildmate rails /tmp/test-app
 ls -la /tmp/test-app/.claude/
 ```
 
