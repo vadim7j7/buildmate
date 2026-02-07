@@ -5,21 +5,26 @@
 # Input: JSON via stdin with session_id, transcript_path
 # Output: Creates .claude/context/session-summary.md
 
-set -e
+# Don't use set -e - we want to be non-blocking
+# Hooks should not fail the main operation
 
 CONTEXT_DIR=".claude/context"
 ACTIVITY_LOG="$CONTEXT_DIR/agent-activity.log"
 SUMMARY_FILE="$CONTEXT_DIR/session-summary.md"
 
 # Read JSON input from stdin
-INPUT=$(cat)
+INPUT=$(cat 2>/dev/null) || INPUT="{}"
 
-# Extract session info
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Extract session info (check if jq is available)
+if command -v jq &> /dev/null; then
+    SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null) || SESSION_ID="unknown"
+else
+    SESSION_ID="unknown"
+fi
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null) || TIMESTAMP="unknown"
 
 # Ensure context directory exists
-mkdir -p "$CONTEXT_DIR"
+mkdir -p "$CONTEXT_DIR" 2>/dev/null || exit 0
 
 # Count activities from this session (if log exists)
 if [ -f "$ACTIVITY_LOG" ]; then
@@ -37,7 +42,7 @@ GIT_STATUS=$(git status --short 2>/dev/null | head -10 || echo "Not a git reposi
 UNCOMMITTED_COUNT=$(git status --short 2>/dev/null | wc -l | tr -d ' ' || echo "0")
 
 # Write session summary
-cat > "$SUMMARY_FILE" << EOF
+cat > "$SUMMARY_FILE" 2>/dev/null << EOF
 # Session Summary
 
 **Session ID:** $SESSION_ID
@@ -62,4 +67,4 @@ $GIT_STATUS
 \`\`\`
 EOF
 
-echo "Session summary saved to $SUMMARY_FILE"
+exit 0
