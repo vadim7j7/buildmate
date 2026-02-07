@@ -313,6 +313,26 @@ const store = create<State>()((set) => ({
 
 ## Adding a New Stack
 
+### Option 1: Use /new-stack Skill (Recommended)
+
+When working in this repo, use the `/new-stack` skill to generate a complete stack:
+
+```
+/new-stack django
+/new-stack laravel
+/new-stack flutter
+```
+
+This will:
+- Prompt for stack details (framework, language, quality gates, etc.)
+- Generate all required files following existing patterns
+- Update README.md with the new stack
+- Validate the stack configuration
+
+See `.claude/skills/new-stack/SKILL.md` for the complete workflow.
+
+### Option 2: Manual Creation
+
 1. **Create the stack directory:**
    ```bash
    mkdir -p stacks/my-stack/{agents,skills,patterns,styles}
