@@ -94,6 +94,8 @@ skills:
   - db-migrate
   - new-test
   - new-task
+  - new-middleware
+  - new-dependency
 
 quality_gates:
   format:
@@ -115,9 +117,16 @@ working_dir: "."
 
 patterns:
   - patterns/backend-patterns.md
+  - patterns/oauth.md
+  - patterns/pagination.md
+  - patterns/rate-limiting.md
+  - patterns/caching.md
+  - patterns/logging.md
+  - patterns/error-tracking.md
 
 styles:
   - styles/backend-python.md
+  - styles/async-patterns.md
 
 variables:
   framework: FastAPI

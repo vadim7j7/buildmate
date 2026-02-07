@@ -9,6 +9,33 @@ compatible_with:
   - fastapi
 
 options:
+  ui:
+    description: UI styling approach
+    default: none
+    choices:
+      none:
+        description: Plain StyleSheet (default)
+        variables:
+          ui_library: StyleSheet
+      nativewind:
+        description: Tailwind CSS for React Native
+        styles:
+          - styles/nativewind.md
+        variables:
+          ui_library: NativeWind
+      tamagui:
+        description: Universal UI kit with optimal performance
+        styles:
+          - styles/tamagui.md
+        variables:
+          ui_library: Tamagui
+      gluestack:
+        description: Universal component library
+        styles:
+          - styles/gluestack.md
+        variables:
+          ui_library: Gluestack UI
+
   state:
     description: State management solution
     default: zustand
@@ -103,6 +130,8 @@ skills:
   - new-query
   - new-db-query
   - platform-check
+  - new-hook
+  - new-navigation
 
 quality_gates:
   typecheck:
@@ -120,6 +149,10 @@ working_dir: "."
 
 patterns:
   - patterns/mobile-patterns.md
+  - patterns/offline.md
+  - patterns/push-notifications.md
+  - patterns/logging.md
+  - patterns/error-tracking.md
 
 styles:
   - styles/react-native.md

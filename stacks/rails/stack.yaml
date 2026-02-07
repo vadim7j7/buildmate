@@ -40,6 +40,23 @@ options:
           background_jobs: ActiveJob (async)
           job_adapter: async
 
+  serializer:
+    description: JSON serializer library
+    default: alba
+    choices:
+      alba:
+        description: Fast, flexible serializer
+        variables:
+          serializer_library: Alba
+      jsonapi:
+        description: JSON:API compliant serializer
+        variables:
+          serializer_library: "JSONAPI::Serializer"
+      blueprinter:
+        description: Simple serializer with DSL
+        variables:
+          serializer_library: Blueprinter
+
   db:
     description: Database system
     default: postgresql
@@ -125,6 +142,10 @@ skills:
   - new-presenter
   - new-spec
   - db-migrate
+  - new-mailer
+  - new-policy
+  - new-concern
+  - new-serializer
 
 quality_gates:
   lint:
@@ -139,6 +160,14 @@ working_dir: "."
 
 patterns:
   - patterns/backend-patterns.md
+  - patterns/auth.md
+  - patterns/pagination.md
+  - patterns/oauth.md
+  - patterns/file-upload.md
+  - patterns/websocket.md
+  - patterns/caching.md
+  - patterns/logging.md
+  - patterns/error-tracking.md
 
 styles:
   - styles/backend-ruby.md

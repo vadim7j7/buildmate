@@ -151,6 +151,9 @@ skills:
   - new-context
   - new-form
   - new-api-service
+  - new-server-action
+  - new-hook
+  - new-layout
 
 quality_gates:
   typecheck:
@@ -168,6 +171,11 @@ working_dir: "."
 
 patterns:
   - patterns/frontend-patterns.md
+  - patterns/auth.md
+  - patterns/pagination.md
+  - patterns/i18n.md
+  - patterns/logging.md
+  - patterns/error-tracking.md
 
 styles:
   - styles/frontend-typescript.md

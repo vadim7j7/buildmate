@@ -1,0 +1,99 @@
+# Stack YAML Template
+# Copy and customize this for your new stack
+
+name: STACK_NAME
+display_name: DISPLAY_NAME
+description: DESCRIPTION
+
+default_model: opus
+
+# List stacks that can be combined with this one
+# Stacks with the same role (e.g., two backends) typically conflict
+compatible_with:
+  - nextjs
+  - react-native
+
+# Agent definitions
+agents:
+  - name: ROLE-developer
+    template: agents/ROLE-developer.md.j2
+    description: Senior FRAMEWORK developer
+    role: developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: ROLE-tester
+    template: agents/ROLE-tester.md.j2
+    description: TEST_FRAMEWORK testing specialist
+    role: tester
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+
+  - name: ROLE-reviewer
+    template: agents/ROLE-reviewer.md.j2
+    description: FRAMEWORK code reviewer
+    role: reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+
+# Skills included with this stack
+skills:
+  - new-model
+  - new-controller
+  - new-service
+  - db-migrate
+
+# Quality gates - commands that must pass
+quality_gates:
+  lint:
+    command: LINT_COMMAND
+    fix_command: LINT_FIX_COMMAND
+    description: LANGUAGE linting
+  tests:
+    command: TEST_COMMAND
+    description: TEST_FRAMEWORK test suite
+  # Optional: typecheck
+  # typecheck:
+  #   command: TYPECHECK_COMMAND
+  #   description: Type checking
+
+# Pattern and style reference files
+patterns:
+  - patterns/ROLE-patterns.md
+
+styles:
+  - styles/ROLE-LANGUAGE.md
+
+# Variables available in Jinja2 templates
+variables:
+  framework: FRAMEWORK
+  language: LANGUAGE
+  test_framework: TEST_FRAMEWORK
+  orm: ORM
+  package_manager: PACKAGE_MANAGER
+
+# Working directory (relative to project root)
+# Use "." for root, or "api" / "backend" for subdirectory
+working_dir: "."
+
+# Optional: Stack-specific options
+# options:
+#   db:
+#     description: Database
+#     choices: [postgresql, mysql, sqlite]
+#     default: postgresql
