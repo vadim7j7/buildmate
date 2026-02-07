@@ -426,16 +426,76 @@ my-project/
 │   │   ├── delegate/
 │   │   ├── test/
 │   │   ├── review/
+│   │   ├── recap/        # Session context loading
 │   │   └── ...
+│   ├── hooks/            # Lifecycle hooks
+│   │   ├── track-changes.sh
+│   │   ├── task-complete.sh
+│   │   ├── session-end.sh
+│   │   └── session-save.sh
 │   ├── patterns/         # Code pattern references
 │   ├── styles/           # Style guide references
 │   ├── context/
-│   │   └── features/     # Feature tracking directory
+│   │   ├── features/     # Feature tracking directory
+│   │   ├── active-work.md      # Previous session state (auto-generated)
+│   │   ├── session-summary.md  # Last session summary (auto-generated)
+│   │   └── agent-activity.log  # Activity log (auto-generated)
 │   ├── settings.json     # Shared settings
 │   ├── settings.local.json  # Local settings (gitignored)
 │   └── README.md         # Usage instructions
 └── CLAUDE.md             # Project-level instructions
 ```
+
+## Session Continuity
+
+The bootstrap includes hooks that track agent activity and enable session continuity.
+
+### How It Works
+
+```
+Session 1                              Session 2
+─────────                              ─────────
+Work on feature                        Run /recap or start PM workflow
+    ↓                                      ↓
+Hooks track activity:                  Load saved context:
+  • track-changes.sh (file edits)        • active-work.md
+  • task-complete.sh (tasks)             • session-summary.md
+    ↓                                      • agent-activity.log
+Session ends                               ↓
+    ↓                                  Continue where you left off
+session-end.sh saves summary
+```
+
+### Hooks
+
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `track-changes.sh` | PostToolUse: Edit\|Write | Logs file modifications |
+| `task-complete.sh` | PostToolUse: Task | Logs subagent task completions |
+| `session-end.sh` | Stop | Generates session summary |
+| `session-save.sh` | Manual | Saves active work context |
+
+### Loading Previous Context
+
+**Option 1: Run `/recap`**
+
+```
+/recap
+```
+
+Returns a formatted summary of previous session state, in-progress features, and suggested next steps.
+
+**Option 2: Use PM workflow**
+
+The orchestrator's Phase 1.0 automatically checks for previous session context before planning.
+
+### Generated Files
+
+| File | Content | Gitignored |
+|------|---------|------------|
+| `context/active-work.md` | Branch, uncommitted changes, in-progress features | No |
+| `context/session-summary.md` | Session stats, recent activity | Yes |
+| `context/agent-activity.log` | Timestamped file edits and task completions | Yes |
 
 ## Development
 
