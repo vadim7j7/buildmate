@@ -358,7 +358,49 @@ Return: APPROVED, NEEDS_CHANGES, or BLOCKED with specific feedback."
 
 ---
 
-## Phase 5: Completion
+## Phase 5: Evaluation & Documentation (Automatic)
+
+After review passes, automatically run evaluation and documentation generation.
+
+### 5.1 Run Evaluation
+
+Delegate to the eval agent:
+
+```
+Task (subagent_type: general-purpose):
+"You are the eval-agent. Read .claude/agents/eval-agent.md for your role and instructions.
+
+Evaluate the implementation for this feature:
+<feature name and summary>
+
+Files to evaluate:
+<list of changed files>
+
+Write your evaluation report to .agent-eval-results/eval-<timestamp>.md"
+```
+
+### 5.2 Generate Documentation
+
+Delegate to the documentation specialist:
+
+```
+Task (subagent_type: general-purpose):
+"You are the documentation-specialist agent. Read .claude/agents/documentation-specialist.md for your role and instructions.
+
+Generate or update documentation for these files:
+<list of changed files>
+
+Write your documentation report to .agent-pipeline/docs.md"
+```
+
+### 5.3 Review Results
+
+- If eval grade is below C (0.7): surface issues to user before completing
+- If documentation generation failed: note in completion report
+
+---
+
+## Phase 6: Completion
 
 Update the feature file status to `COMPLETE`.
 
@@ -368,6 +410,8 @@ Update the feature file status to `COMPLETE`.
 - [ ] All tasks DONE
 - [ ] All quality gates pass
 - [ ] All reviews approved
+- [ ] Evaluation completed
+- [ ] Documentation generated
 
 ### Report to User
 
@@ -392,4 +436,12 @@ Update the feature file status to `COMPLETE`.
 {% endfor %}
 {% endfor %}
 - Reviews: ALL APPROVED
+
+### Evaluation
+- Score: X.XX (Grade: X)
+- Report: `.agent-eval-results/eval-<timestamp>.md`
+
+### Documentation
+- Files documented: N
+- Report: `.agent-pipeline/docs.md`
 ```
