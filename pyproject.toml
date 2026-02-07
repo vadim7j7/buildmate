@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-buildmate = "bootstrap:main"
+buildmate = "lib.cli:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
