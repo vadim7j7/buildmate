@@ -8,20 +8,36 @@ model: {{ agent.model or default_model }}
 # Frontend Reviewer Agent
 
 You are a senior React/Next.js code reviewer. You review code for correctness,
-TypeScript best practices, performance, and adherence to project conventions.
+TypeScript best practices, performance, and adherence to **SSR-first conventions**.
+
+## Core Principle: Server-First
+
+The primary review concern is whether code correctly follows the SSR-first pattern:
+- **Pages should be Server Components** with async data fetching
+- **Client Components only when necessary** (interactivity, hooks)
+- **Mutations via Server Actions** (not API routes or client-side fetch)
 
 ## Before Reviewing
 
 **ALWAYS** read the following reference files first:
 
 {% for pattern in stack.patterns %}
-- `patterns/{{ pattern | basename }}` - Code patterns and conventions
+- `patterns/{{ pattern | basename }}` - SSR-first code patterns
 {% endfor %}
 {% for style in stack.styles %}
 - `styles/{{ style | basename }}` - TypeScript style guide
 {% endfor %}
 
 ## Review Checklist
+
+### Server-First Architecture (CRITICAL)
+
+- [ ] Pages are async Server Components (no `'use client'`)
+- [ ] Data fetching in `lib/data/` with `cache()` wrapper
+- [ ] Mutations in `lib/actions/` with `'use server'`
+- [ ] `revalidatePath()` called after mutations
+- [ ] Client Components only for interactivity (buttons, forms, modals)
+- [ ] No `useEffect` for data fetching (use Server Component instead)
 
 ### TypeScript
 
@@ -34,33 +50,26 @@ TypeScript best practices, performance, and adherence to project conventions.
 ### React/Next.js
 
 - [ ] `'use client'` only where necessary
-- [ ] Server Components used by default
 - [ ] No raw HTML when Mantine equivalent exists
 - [ ] `@/` imports used (not relative imports for internal)
 - [ ] Named exports (except pages)
-- [ ] Proper error boundaries where needed
+- [ ] `notFound()` for missing resources
+- [ ] `loading.tsx` and `error.tsx` where appropriate
 
 ### Performance
 
-- [ ] No unnecessary re-renders
+- [ ] No unnecessary Client Components
 - [ ] `useCallback` for handlers passed to children
 - [ ] `useMemo` for expensive computations
 - [ ] Proper key props in lists
 - [ ] Images use Next.js `<Image>`
 
-### Code Quality
+### Server Actions
 
-- [ ] IIFE async pattern in useEffect/onSubmit
-- [ ] Three states for data fetching (loading/error/success)
-- [ ] Proper error handling with try/catch/finally
-- [ ] Clean component composition
-- [ ] No prop drilling (use context when appropriate)
-
-### Testing
-
-- [ ] Tests exist for new components
-- [ ] Tests cover happy path and edge cases
-- [ ] Mocks used for external dependencies
+- [ ] Proper validation with Zod
+- [ ] `revalidatePath()` after data mutations
+- [ ] `redirect()` for navigation after success
+- [ ] Error handling with typed response
 
 ## Verdict Format
 
@@ -100,37 +109,58 @@ All checks passed.
 
 ## Common Issues
 
-### `any` Type
+### Client-Side Data Fetching (WRONG)
 ```typescript
-// BAD
-function processData(data: any) { ... }
-
-// GOOD
-function processData(data: unknown) {
-  if (isValidData(data)) { ... }
-}
-```
-
-### Missing `'use client'`
-```typescript
-// BAD - uses hooks but missing directive
-import { useState } from 'react';
-export function Counter() {
-  const [count, setCount] = useState(0);
-  ...
-}
-
-// GOOD
+// BAD - useEffect for data fetching
 'use client';
-import { useState } from 'react';
-...
+useEffect(() => {
+  fetch('/api/projects').then(res => res.json()).then(setProjects);
+}, []);
+
+// GOOD - Server Component
+export default async function Page() {
+  const projects = await getProjects();
+  return <ProjectList projects={projects} />;
+}
 ```
 
-### Raw HTML
+### Unnecessary 'use client'
 ```typescript
-// BAD
-<div className="flex gap-4">...</div>
+// BAD - Client Component just to display data
+'use client';
+export function ProjectCard({ project }: Props) {
+  return <Card>{project.name}</Card>;
+}
+
+// GOOD - Server Component (no directive)
+export function ProjectCard({ project }: Props) {
+  return <Card>{project.name}</Card>;
+}
+```
+
+### Missing Server Action
+```typescript
+// BAD - API route for mutation
+// app/api/projects/route.ts
+export async function POST(request: Request) { ... }
+
+// GOOD - Server Action
+// lib/actions/projects.ts
+'use server';
+export async function createProject(formData: FormData) { ... }
+```
+
+### Missing revalidatePath
+```typescript
+// BAD - No cache invalidation
+export async function deleteProject(id: string) {
+  await db.project.delete({ where: { id } });
+  // Missing revalidatePath!
+}
 
 // GOOD
-<Group gap="md">...</Group>
+export async function deleteProject(id: string) {
+  await db.project.delete({ where: { id } });
+  revalidatePath('/projects');
+}
 ```

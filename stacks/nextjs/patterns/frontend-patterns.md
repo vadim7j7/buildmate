@@ -1,179 +1,35 @@
 # React / Next.js Code Patterns
 
-Reference patterns for code generation based on Sharebird's frontend conventions.
-All agents and skills should follow these patterns when generating code.
+Reference patterns for code generation following Next.js App Router conventions.
+**Server Components are the default.** Only use Client Components when necessary.
 
 ---
 
-## Pattern 1: Client Component with Form
+## Pattern 1: Page with Server-Side Data Fetching (DEFAULT)
 
-A client-side component using `@mantine/form`, IIFE async submission, and
-`showNotification` for user feedback.
-
-```typescript
-'use client';
-
-import { useForm } from '@mantine/form';
-import { TextInput, Textarea, Button, Stack, Group } from '@mantine/core';
-import { showNotification } from '@mantine/notifications';
-import { createProjectApi } from '@/services/projects';
-
-type CreateProjectFormValues = {
-  name: string;
-  description: string;
-};
-
-type CreateProjectFormProps = {
-  onSuccess?: () => void;
-  onCancel?: () => void;
-};
-
-export function CreateProjectForm({ onSuccess, onCancel }: CreateProjectFormProps) {
-  const form = useForm<CreateProjectFormValues>({
-    initialValues: {
-      name: '',
-      description: '',
-    },
-    validate: {
-      name: (value) =>
-        value.trim().length < 2 ? 'Name must be at least 2 characters' : null,
-      description: (value) =>
-        value.trim().length === 0 ? 'Description is required' : null,
-    },
-  });
-
-  const handleSubmit = form.onSubmit((values) => {
-    (async () => {
-      try {
-        await createProjectApi(values);
-        showNotification({
-          title: 'Success',
-          message: 'Project created successfully',
-          color: 'green',
-        });
-        form.reset();
-        onSuccess?.();
-      } catch {
-        showNotification({
-          title: 'Error',
-          message: 'Failed to create project. Please try again.',
-          color: 'red',
-        });
-      }
-    })();
-  });
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <Stack>
-        <TextInput
-          label="Project Name"
-          placeholder="Enter project name"
-          required
-          {...form.getInputProps('name')}
-        />
-        <Textarea
-          label="Description"
-          placeholder="Describe your project"
-          required
-          minRows={3}
-          {...form.getInputProps('description')}
-        />
-        <Group justify="flex-end">
-          {onCancel && (
-            <Button variant="default" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-          <Button type="submit">Create Project</Button>
-        </Group>
-      </Stack>
-    </form>
-  );
-}
-```
-
-### Key Points
-
-- `'use client'` because it uses `useForm` hook and event handlers
-- `type` for props and form values (not `interface`)
-- IIFE async `(() => { ... })()` inside `form.onSubmit` callback
-- `showNotification` for success and error feedback
-- `form.getInputProps('field')` to wire up Mantine inputs
-- `form.reset()` on success
-
----
-
-## Pattern 2: Container with Data Fetching
-
-A container component that fetches data, manages state, and delegates rendering
-to a presentational component.
+The primary pattern. Pages are async Server Components that fetch data directly.
 
 ```typescript
-'use client';
+// src/app/projects/page.tsx
+import { Metadata } from 'next';
+import { Stack, Title } from '@mantine/core';
+import { getProjects } from '@/lib/data/projects';
+import { ProjectList } from '@/components/projects/ProjectList';
+import { CreateProjectButton } from '@/components/projects/CreateProjectButton';
 
-import { useState, useEffect, useCallback } from 'react';
-import { LoadingOverlay, Alert, Stack, Title, Group, Button } from '@mantine/core';
-import { showNotification } from '@mantine/notifications';
-import { useRouter } from 'next/navigation';
-import { fetchProjectsApi, deleteProjectApi } from '@/services/projects';
-import { ProjectList } from '@/components/ProjectList';
-
-type Project = {
-  id: string;
-  name: string;
-  description: string;
-  status: 'active' | 'archived' | 'draft';
-  updatedAt: string;
+export const metadata: Metadata = {
+  title: 'Projects',
+  description: 'View and manage your projects',
 };
 
-export function ProjectListContainer() {
-  const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await fetchProjectsApi();
-        setProjects(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load projects');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const handleDelete = useCallback(async (id: string) => {
-    try {
-      await deleteProjectApi(id);
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-      showNotification({
-        title: 'Deleted',
-        message: 'Project removed successfully',
-        color: 'green',
-      });
-    } catch {
-      showNotification({
-        title: 'Error',
-        message: 'Failed to delete project',
-        color: 'red',
-      });
-    }
-  }, []);
-
-  if (loading) return <LoadingOverlay visible />;
-  if (error) return <Alert color="red" title="Error">{error}</Alert>;
+export default async function ProjectsPage() {
+  const projects = await getProjects();
 
   return (
-    <Stack>
-      <Group justify="space-between">
-        <Title order={2}>Projects</Title>
-        <Button onClick={() => router.push('/projects/new')}>New Project</Button>
-      </Group>
-      <ProjectList projects={projects} onDelete={handleDelete} />
+    <Stack gap="lg">
+      <Title order={1}>Projects</Title>
+      <CreateProjectButton />
+      <ProjectList projects={projects} />
     </Stack>
   );
 }
@@ -181,76 +37,443 @@ export function ProjectListContainer() {
 
 ### Key Points
 
-- `'use client'` because it uses hooks and event handlers
-- IIFE async pattern in `useEffect`: `(async () => { ... })()`
-- Three state variables: `data`, `loading`, `error`
-- `try/catch/finally` with `setLoading(false)` in `finally`
-- `useCallback` for event handlers passed to children
-- Renders `LoadingOverlay` while loading, `Alert` on error
-- Delegates rendering to `ProjectList` presentational component
+- Page is an **async Server Component** (no `'use client'`)
+- Data fetched directly in the component body with `await`
+- No `useState`, no `useEffect`, no loading states needed
+- `metadata` export for SEO (only works in Server Components)
+- Child components receive data as props
+- Fast initial page load with SSR
 
 ---
 
-## Pattern 3: Page with Metadata
+## Pattern 2: Data Fetching Layer
 
-A Next.js App Router page that defines metadata and delegates to a container.
-
-```typescript
-// src/app/projects/page.tsx
-import { Metadata } from 'next';
-import { ProjectListContainer } from '@/containers/ProjectListContainer';
-
-export const metadata: Metadata = {
-  title: 'Projects',
-  description: 'View and manage your projects',
-};
-
-export default function ProjectsPage() {
-  return <ProjectListContainer />;
-}
-```
-
-### Dynamic Route Page
+Server-side data fetching functions in `lib/data/`. These run on the server only.
 
 ```typescript
-// src/app/projects/[id]/page.tsx
-import { Metadata } from 'next';
-import { ProjectDetailContainer } from '@/containers/ProjectDetailContainer';
+// src/lib/data/projects.ts
+import { db } from '@/lib/db';
+import { cache } from 'react';
 
-type PageProps = {
-  params: { id: string };
+export type Project = {
+  id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'archived' | 'draft';
+  createdAt: Date;
+  updatedAt: Date;
 };
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  return {
-    title: `Project ${params.id}`,
-  };
-}
+// Cached and deduplicated automatically by React
+export const getProjects = cache(async (): Promise<Project[]> => {
+  return db.project.findMany({
+    orderBy: { updatedAt: 'desc' },
+  });
+});
 
-export default function ProjectDetailPage({ params }: PageProps) {
-  return <ProjectDetailContainer id={params.id} />;
+export const getProject = cache(async (id: string): Promise<Project | null> => {
+  return db.project.findUnique({
+    where: { id },
+  });
+});
+
+// For external APIs
+export async function getProjectsFromApi(): Promise<Project[]> {
+  const response = await fetch(`${process.env.API_URL}/projects`, {
+    next: { revalidate: 60 }, // Cache for 60 seconds
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch projects');
+  }
+
+  return response.json();
 }
 ```
 
 ### Key Points
 
-- Pages are Server Components (no `'use client'`)
-- Pages define `metadata` or `generateMetadata` for SEO
-- Pages delegate to containers, never fetch data themselves (unless using server-side fetch)
-- Pages use default exports (Next.js requirement)
-- Dynamic routes type `params` with `type PageProps`
+- Functions in `lib/data/` run on the server only
+- Use `cache()` from React to deduplicate requests
+- Use `next: { revalidate: N }` for time-based caching
+- Use `next: { tags: ['projects'] }` for on-demand revalidation
+- Direct database access or external API calls
+- Types exported for use in components
 
 ---
 
-## Pattern 4: Layout with Providers
+## Pattern 3: Server Component (Presentational)
 
-Root layout wrapping the app with theme, notification, and context providers.
+Server Components that receive data as props. No `'use client'` needed.
+
+```typescript
+// src/components/projects/ProjectList.tsx
+import { Stack, Text } from '@mantine/core';
+import { ProjectCard } from './ProjectCard';
+import type { Project } from '@/lib/data/projects';
+
+type ProjectListProps = {
+  projects: Project[];
+};
+
+export function ProjectList({ projects }: ProjectListProps) {
+  if (projects.length === 0) {
+    return <Text c="dimmed">No projects yet. Create your first project!</Text>;
+  }
+
+  return (
+    <Stack gap="md">
+      {projects.map((project) => (
+        <ProjectCard key={project.id} project={project} />
+      ))}
+    </Stack>
+  );
+}
+```
+
+```typescript
+// src/components/projects/ProjectCard.tsx
+import { Card, Text, Badge, Group } from '@mantine/core';
+import Link from 'next/link';
+import { DeleteProjectButton } from './DeleteProjectButton';
+import type { Project } from '@/lib/data/projects';
+
+type ProjectCardProps = {
+  project: Project;
+};
+
+export function ProjectCard({ project }: ProjectCardProps) {
+  return (
+    <Card shadow="sm" padding="lg" component={Link} href={`/projects/${project.id}`}>
+      <Group justify="space-between" align="flex-start">
+        <div>
+          <Text fw={500}>{project.name}</Text>
+          <Text size="sm" c="dimmed" mt="xs">
+            {project.description}
+          </Text>
+        </div>
+        <Group gap="xs">
+          <Badge color={project.status === 'active' ? 'green' : 'gray'}>
+            {project.status}
+          </Badge>
+          <DeleteProjectButton projectId={project.id} />
+        </Group>
+      </Group>
+    </Card>
+  );
+}
+```
+
+### Key Points
+
+- No `'use client'` directive
+- Pure presentational components receiving props
+- Can use Mantine components (they work in Server Components)
+- Can use Next.js `Link` for navigation
+- Interactive children (buttons) are separate Client Components
+
+---
+
+## Pattern 4: Server Actions for Mutations
+
+Use Server Actions for create, update, delete operations. No API routes needed.
+
+```typescript
+// src/lib/actions/projects.ts
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { db } from '@/lib/db';
+import { z } from 'zod';
+
+const CreateProjectSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  description: z.string().min(1, 'Description is required'),
+});
+
+export type ActionState = {
+  success: boolean;
+  message: string;
+  errors?: Record<string, string[]>;
+};
+
+export async function createProject(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const parsed = CreateProjectSchema.safeParse({
+    name: formData.get('name'),
+    description: formData.get('description'),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: 'Validation failed',
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await db.project.create({
+      data: parsed.data,
+    });
+  } catch {
+    return {
+      success: false,
+      message: 'Failed to create project',
+    };
+  }
+
+  revalidatePath('/projects');
+  redirect('/projects');
+}
+
+export async function deleteProject(projectId: string): Promise<ActionState> {
+  try {
+    await db.project.delete({
+      where: { id: projectId },
+    });
+
+    revalidatePath('/projects');
+
+    return { success: true, message: 'Project deleted' };
+  } catch {
+    return { success: false, message: 'Failed to delete project' };
+  }
+}
+```
+
+### Key Points
+
+- `'use server'` directive at the top of the file
+- Functions can be called directly from Client Components
+- Use `revalidatePath()` to refresh cached data after mutations
+- Use `redirect()` for navigation after successful mutations
+- Zod for validation with typed error responses
+- Return `ActionState` for client feedback
+
+---
+
+## Pattern 5: Client Component with Server Action
+
+Client Components for interactivity, using Server Actions for mutations.
+
+```typescript
+// src/components/projects/CreateProjectButton.tsx
+'use client';
+
+import { useState } from 'react';
+import { Button, Modal } from '@mantine/core';
+import { CreateProjectForm } from './CreateProjectForm';
+
+export function CreateProjectButton() {
+  const [opened, setOpened] = useState(false);
+
+  return (
+    <>
+      <Button onClick={() => setOpened(true)}>New Project</Button>
+      <Modal opened={opened} onClose={() => setOpened(false)} title="Create Project">
+        <CreateProjectForm onSuccess={() => setOpened(false)} />
+      </Modal>
+    </>
+  );
+}
+```
+
+```typescript
+// src/components/projects/CreateProjectForm.tsx
+'use client';
+
+import { useActionState } from 'react';
+import { TextInput, Textarea, Button, Stack, Alert } from '@mantine/core';
+import { createProject, type ActionState } from '@/lib/actions/projects';
+
+type CreateProjectFormProps = {
+  onSuccess?: () => void;
+};
+
+const initialState: ActionState = {
+  success: false,
+  message: '',
+};
+
+export function CreateProjectForm({ onSuccess }: CreateProjectFormProps) {
+  const [state, formAction, isPending] = useActionState(createProject, initialState);
+
+  // Call onSuccess when action succeeds (redirect happens server-side)
+  // Note: redirect() in server action will handle navigation
+
+  return (
+    <form action={formAction}>
+      <Stack gap="md">
+        {state.message && !state.success && (
+          <Alert color="red" title="Error">
+            {state.message}
+          </Alert>
+        )}
+
+        <TextInput
+          name="name"
+          label="Project Name"
+          placeholder="Enter project name"
+          required
+          error={state.errors?.name?.[0]}
+        />
+
+        <Textarea
+          name="description"
+          label="Description"
+          placeholder="Describe your project"
+          required
+          minRows={3}
+          error={state.errors?.description?.[0]}
+        />
+
+        <Button type="submit" loading={isPending}>
+          Create Project
+        </Button>
+      </Stack>
+    </form>
+  );
+}
+```
+
+```typescript
+// src/components/projects/DeleteProjectButton.tsx
+'use client';
+
+import { useTransition } from 'react';
+import { ActionIcon } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
+import { showNotification } from '@mantine/notifications';
+import { deleteProject } from '@/lib/actions/projects';
+
+type DeleteProjectButtonProps = {
+  projectId: string;
+};
+
+export function DeleteProjectButton({ projectId }: DeleteProjectButtonProps) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleDelete = () => {
+    startTransition(async () => {
+      const result = await deleteProject(projectId);
+
+      if (result.success) {
+        showNotification({
+          title: 'Deleted',
+          message: result.message,
+          color: 'green',
+        });
+      } else {
+        showNotification({
+          title: 'Error',
+          message: result.message,
+          color: 'red',
+        });
+      }
+    });
+  };
+
+  return (
+    <ActionIcon
+      color="red"
+      variant="subtle"
+      onClick={handleDelete}
+      loading={isPending}
+      aria-label="Delete project"
+    >
+      <IconTrash size={16} />
+    </ActionIcon>
+  );
+}
+```
+
+### Key Points
+
+- `'use client'` only for interactive components
+- `useActionState` for forms with Server Actions
+- `useTransition` for non-form mutations with loading state
+- Server Action handles database + revalidation + redirect
+- Client shows loading state and notifications
+- Form uses native `action` attribute (progressive enhancement)
+
+---
+
+## Pattern 6: Dynamic Route with Server Data
+
+Dynamic pages fetch data based on route params.
+
+```typescript
+// src/app/projects/[id]/page.tsx
+import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
+import { Stack, Title, Text, Group } from '@mantine/core';
+import { getProject } from '@/lib/data/projects';
+import { EditProjectButton } from '@/components/projects/EditProjectButton';
+import { DeleteProjectButton } from '@/components/projects/DeleteProjectButton';
+
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const project = await getProject(id);
+
+  if (!project) {
+    return { title: 'Project Not Found' };
+  }
+
+  return {
+    title: project.name,
+    description: project.description,
+  };
+}
+
+export default async function ProjectDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const project = await getProject(id);
+
+  if (!project) {
+    notFound();
+  }
+
+  return (
+    <Stack gap="lg">
+      <Group justify="space-between">
+        <Title order={1}>{project.name}</Title>
+        <Group gap="xs">
+          <EditProjectButton project={project} />
+          <DeleteProjectButton projectId={project.id} />
+        </Group>
+      </Group>
+      <Text>{project.description}</Text>
+    </Stack>
+  );
+}
+```
+
+### Key Points
+
+- `params` is a Promise in Next.js 15+ (await it)
+- `generateMetadata` for dynamic SEO
+- `notFound()` renders the not-found page
+- Data fetched once, used for metadata and content
+- `cache()` deduplicates the `getProject` call
+
+---
+
+## Pattern 7: Layout with Providers
+
+Root layout wrapping the app with providers.
 
 ```typescript
 // src/app/layout.tsx
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { theme } from '@/styles/theme';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
@@ -269,7 +492,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <MantineProvider theme={theme}>
           <Notifications position="top-right" />
-          <AuthProvider>{children}</AuthProvider>
+          {children}
         </MantineProvider>
       </body>
     </html>
@@ -281,232 +504,116 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 - Root layout is a Server Component
 - `ColorSchemeScript` prevents flash of unstyled content
-- `MantineProvider` wraps entire app
-- `Notifications` component enables `showNotification` everywhere
-- Context providers nested inside MantineProvider
-- CSS imports for Mantine at the layout level
+- `MantineProvider` and `Notifications` work in Server Components
+- CSS imports at the layout level
 
 ---
 
-## Pattern 5: API Service
+## Pattern 8: Loading and Error States
 
-Typed service module using the `request<T>()` wrapper.
+Use file-based loading and error handling.
 
 ```typescript
-// src/services/request.ts
-export async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  });
+// src/app/projects/loading.tsx
+import { LoadingOverlay, Center } from '@mantine/core';
 
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
+export default function ProjectsLoading() {
+  return (
+    <Center h="50vh">
+      <LoadingOverlay visible />
+    </Center>
+  );
 }
 ```
 
 ```typescript
-// src/services/projects.ts
-import { request } from './request';
-
-type Project = {
-  id: string;
-  name: string;
-  description: string;
-  status: 'active' | 'archived' | 'draft';
-  createdAt: string;
-  updatedAt: string;
-};
-
-type CreateProjectPayload = {
-  name: string;
-  description: string;
-};
-
-export const fetchProjectsApi = () =>
-  request<Project[]>('/api/projects');
-
-export const fetchProjectApi = (id: string) =>
-  request<Project>(`/api/projects/${id}`);
-
-export const createProjectApi = (data: CreateProjectPayload) =>
-  request<Project>('/api/projects', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-
-export const updateProjectApi = (id: string, data: Partial<CreateProjectPayload>) =>
-  request<Project>(`/api/projects/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
-
-export const deleteProjectApi = (id: string) =>
-  request<void>(`/api/projects/${id}`, { method: 'DELETE' });
-```
-
-### Key Points
-
-- `request<T>()` generic wrapper for type-safe API calls
-- Function names use `Api` suffix: `fetchProjectsApi`, `createProjectApi`
-- Response types and payload types defined with `type`
-- Named exports only (no default export)
-- Error thrown for non-OK responses
-
----
-
-## Pattern 6: React Context
-
-Context with Provider, `useMemo` value, and custom hook with safety check.
-
-```typescript
-// src/contexts/AuthContext.tsx
+// src/app/projects/error.tsx
 'use client';
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useMemo,
-  useCallback,
-  type ReactNode,
-} from 'react';
+import { Alert, Button, Stack } from '@mantine/core';
 
-type User = {
-  id: string;
-  name: string;
-  email: string;
+type ErrorProps = {
+  error: Error;
+  reset: () => void;
 };
 
-type AuthContextValue = {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
-  logout: () => void;
-};
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-
-  const login = useCallback(async (credentials: { email: string; password: string }) => {
-    const response = await loginApi(credentials);
-    setUser(response.user);
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-  }, []);
-
-  const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated: user !== null,
-      login,
-      logout,
-    }),
-    [user, login, logout]
+export default function ProjectsError({ error, reset }: ErrorProps) {
+  return (
+    <Stack gap="md" align="center">
+      <Alert color="red" title="Something went wrong">
+        {error.message}
+      </Alert>
+      <Button onClick={reset}>Try again</Button>
+    </Stack>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }
 ```
-
-### Key Points
-
-- `createContext<T | undefined>(undefined)` -- undefined as default
-- Custom hook `useAuth()` throws if used outside Provider
-- `useMemo` on the value object to prevent unnecessary re-renders
-- `useCallback` on handlers to stabilize function references
-- `type` for context value (not `interface`)
-
----
-
-## Pattern 7: Mantine Form with Validation
-
-Complete form pattern with field-level validation.
 
 ```typescript
-const form = useForm({
-  initialValues: {
-    name: '',
-    email: '',
-    role: '' as 'admin' | 'member' | 'viewer' | '',
-  },
-  validate: {
-    name: (value) => {
-      if (value.trim().length < 2) return 'Name must be at least 2 characters';
-      if (value.trim().length > 100) return 'Name is too long';
-      return null;
-    },
-    email: (value) =>
-      /^\S+@\S+\.\S+$/.test(value) ? null : 'Invalid email',
-    role: (value) =>
-      value ? null : 'Please select a role',
-  },
-});
+// src/app/projects/[id]/not-found.tsx
+import { Stack, Title, Text, Button } from '@mantine/core';
+import Link from 'next/link';
 
-// Wire up inputs
-<TextInput label="Name" {...form.getInputProps('name')} />
-<TextInput label="Email" {...form.getInputProps('email')} />
-<Select
-  label="Role"
-  data={['admin', 'member', 'viewer']}
-  {...form.getInputProps('role')}
-/>
-
-// Handle submission
-const handleSubmit = form.onSubmit((values) => {
-  (async () => {
-    try {
-      await submitApi(values);
-      showNotification({ title: 'Success', message: 'Saved', color: 'green' });
-    } catch {
-      showNotification({ title: 'Error', message: 'Failed', color: 'red' });
-    }
-  })();
-});
+export default function ProjectNotFound() {
+  return (
+    <Stack gap="md" align="center">
+      <Title order={2}>Project Not Found</Title>
+      <Text c="dimmed">The project you're looking for doesn't exist.</Text>
+      <Button component={Link} href="/projects">
+        Back to Projects
+      </Button>
+    </Stack>
+  );
+}
 ```
 
 ### Key Points
 
-- `useForm` with typed initial values
-- `validate` returns `null` for valid, error string for invalid
-- `form.getInputProps('field')` wires value, onChange, and error
-- `form.onSubmit` validates before calling the callback
-- IIFE async for the submission handler
+- `loading.tsx` shows during async data fetching (Server Component)
+- `error.tsx` must be a Client Component (needs `reset` function)
+- `not-found.tsx` for custom 404 pages
+- These are automatic - Next.js uses them based on file location
 
 ---
 
 ## Quick Reference: When to Use 'use client'
 
-| Needs... | 'use client'? |
+| Scenario | 'use client'? |
 |---|---|
-| Just displaying props data | No (Server Component) |
-| Mantine layout components only (Card, Stack, Text) | No |
-| `useState`, `useEffect`, `useForm` | Yes |
-| `onClick`, `onChange`, `onSubmit` | Yes |
-| `useRouter()` from next/navigation | Yes |
-| `useSearchParams()` | Yes |
-| `window`, `document`, `localStorage` | Yes |
-| Third-party hook library | Yes |
-| Static data fetching with `fetch()` in component body | No |
+| Page fetching data with `await` | **No** (Server Component) |
+| Displaying props/data | **No** |
+| Mantine layout components (Card, Stack, Text) | **No** |
+| Form with Server Action (`action={formAction}`) | **Yes** (needs `useActionState`) |
+| Button with `onClick` | **Yes** |
+| `useState`, `useEffect`, `useTransition` | **Yes** |
+| `useRouter()`, `useSearchParams()` | **Yes** |
+| `window`, `document`, `localStorage` | **Yes** |
+
+---
+
+## Quick Reference: Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Page (Server Component)                                        │
+│  └─ await getData() ──────────────────────────────────────────┐ │
+│                                                                │ │
+│  ┌─────────────────────────────────────────────────────────┐  │ │
+│  │  lib/data/                                               │  │ │
+│  │  └─ Direct DB access or fetch() with caching             │◄─┘ │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  <ChildComponent data={data} />                                  │
+│  └─ Props flow down to Server or Client Components               │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Client Component ('use client')                         │    │
+│  │  └─ onClick calls Server Action ─────────────────────┐   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                      │           │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  lib/actions/ ('use server')                             │    │
+│  │  └─ Mutate DB → revalidatePath() → redirect()            │◄───┘
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
