@@ -84,6 +84,18 @@ Task("Act as PM and coordinate building auth")
 > ambiguous, the scope is unclear, or multiple valid approaches exist.
 > Once the user approves the plan, Phases 2–5 run **autonomously**.
 
+### 1.0 Check Previous Session Context
+
+If resuming work from a previous session, read saved context first:
+
+- `.claude/context/active-work.md` - Previous session state (branch, uncommitted changes, what was in progress)
+- `.claude/context/session-summary.md` - Last session summary (files edited, tasks completed)
+- `.claude/context/features/*.md` - In-progress feature files
+
+Alternatively, run `/recap` for a formatted summary of previous work.
+
+**Skip this step if starting fresh work with no prior context.**
+
 ### 1.1 Understand the Request
 
 - Read the user's request carefully
