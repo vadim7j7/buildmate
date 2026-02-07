@@ -7,6 +7,7 @@ Tests for project extensibility features:
 """
 
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -343,7 +344,7 @@ class TestAddStackCommand:
     def _run_bootstrap(self, *args):
         """Helper to run bootstrap.py."""
         result = subprocess.run(
-            [".venv/bin/python", "bootstrap.py", *args],
+            [sys.executable, "bootstrap.py", *args],
             capture_output=True,
             text=True,
         )
@@ -431,7 +432,7 @@ class TestSetOptionCommand:
     def _run_bootstrap(self, *args):
         """Helper to run bootstrap.py."""
         result = subprocess.run(
-            [".venv/bin/python", "bootstrap.py", *args],
+            [sys.executable, "bootstrap.py", *args],
             capture_output=True,
             text=True,
         )
@@ -514,7 +515,7 @@ class TestUpgradeCommand:
     def _run_bootstrap(self, *args):
         """Helper to run bootstrap.py."""
         result = subprocess.run(
-            [".venv/bin/python", "bootstrap.py", *args],
+            [sys.executable, "bootstrap.py", *args],
             capture_output=True,
             text=True,
         )
@@ -609,7 +610,7 @@ class TestDryRunExtensibility:
     def _run_bootstrap(self, *args):
         """Helper to run bootstrap.py."""
         result = subprocess.run(
-            [".venv/bin/python", "bootstrap.py", *args],
+            [sys.executable, "bootstrap.py", *args],
             capture_output=True,
             text=True,
         )
@@ -677,7 +678,7 @@ class TestMultiStackExtensibility:
     def _run_bootstrap(self, *args):
         """Helper to run bootstrap.py."""
         result = subprocess.run(
-            [".venv/bin/python", "bootstrap.py", *args],
+            [sys.executable, "bootstrap.py", *args],
             capture_output=True,
             text=True,
         )
