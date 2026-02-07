@@ -34,6 +34,14 @@ stacks/<name>/
 ## What Gets Updated
 
 - `README.md` — Adds stack to "Available Stacks" table
+- `tests/` — Adds tests for the new stack
+- `CLAUDE.md` — Updates if stack list mentioned
+
+## What May Need Updates (Check Case-by-Case)
+
+- `schemas/stack.schema.json` — If new options/fields are needed
+- `base/` — If stack requires new shared agents or skills
+- `lib/config.py` — If stack has special loading requirements
 
 ## What Auto-Works (No Changes Needed)
 
@@ -125,7 +133,7 @@ Based on stack type, read similar stacks:
 
 Also read:
 - `schemas/stack.schema.json` — Validation rules
-- Reference templates in `base/skills/new-stack/references/`
+- Reference templates in `.claude/skills/new-stack/references/`
 
 ---
 
@@ -216,17 +224,17 @@ Create agent templates in `stacks/<name>/agents/`:
 
 **Developer Agent** — `<role>-developer.md.j2`
 
-Read the reference template at `base/skills/new-stack/references/developer-agent.md.j2.txt`
+Read the reference template at `.claude/skills/new-stack/references/developer-agent.md.j2.txt`
 and customize for the new stack.
 
 **Tester Agent** — `<role>-tester.md.j2`
 
-Read the reference template at `base/skills/new-stack/references/tester-agent.md.j2.txt`
+Read the reference template at `.claude/skills/new-stack/references/tester-agent.md.j2.txt`
 and customize for the new stack.
 
 **Reviewer Agent** — `<role>-reviewer.md.j2`
 
-Read the reference template at `base/skills/new-stack/references/reviewer-agent.md.j2.txt`
+Read the reference template at `.claude/skills/new-stack/references/reviewer-agent.md.j2.txt`
 and customize for the new stack.
 
 ---
@@ -235,7 +243,7 @@ and customize for the new stack.
 
 For each skill selected, create `stacks/<name>/skills/<skill>/SKILL.md`.
 
-Read reference template at `base/skills/new-stack/references/skill-template.md.txt`
+Read reference template at `.claude/skills/new-stack/references/skill-template.md.txt`
 and customize for each skill.
 
 Common skills by stack type:
@@ -254,7 +262,7 @@ Common skills by stack type:
 
 Create `stacks/<name>/patterns/<role>-patterns.md`:
 
-Read reference template at `base/skills/new-stack/references/patterns-template.md.txt`
+Read reference template at `.claude/skills/new-stack/references/patterns-template.md.txt`
 and customize with framework-specific patterns:
 
 - Model/Entity pattern
@@ -269,7 +277,7 @@ and customize with framework-specific patterns:
 
 Create `stacks/<name>/styles/<role>-<language>.md`:
 
-Read reference template at `base/skills/new-stack/references/styles-template.md.txt`
+Read reference template at `.claude/skills/new-stack/references/styles-template.md.txt`
 and customize with:
 
 - Code style rules (naming, formatting)
@@ -341,7 +349,122 @@ Verify the output structure looks correct.
 
 ---
 
-### Step 12: Report Results
+### Step 12: Add Tests
+
+Create tests for the new stack in `tests/`:
+
+**12.1 Check existing test patterns:**
+
+```bash
+cat tests/test_config.py     # Stack loading tests
+cat tests/test_renderer.py   # Rendering tests
+cat tests/test_integration.py # Bootstrap tests
+```
+
+**12.2 Add stack to existing test cases:**
+
+Edit `tests/test_integration.py` and add:
+
+```python
+def test_bootstrap_<name>(self, tmp_path):
+    """Test bootstrapping <name> stack."""
+    result = subprocess.run(
+        ["python", "bootstrap.py", "<name>", str(tmp_path)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert (tmp_path / ".claude").exists()
+    assert (tmp_path / ".claude" / "agents").exists()
+```
+
+Edit `tests/test_config.py` and add:
+
+```python
+def test_load_<name>_stack(self):
+    """Test loading <name> stack configuration."""
+    stack = load_stack("<name>")
+    assert stack.name == "<name>"
+    assert len(stack.agents) >= 3  # developer, tester, reviewer
+```
+
+**12.3 Run tests:**
+
+```bash
+source .venv/bin/activate
+python -m pytest tests/ -v -k "<name>"
+python -m pytest tests/ -v  # Run all tests
+```
+
+---
+
+### Step 13: Check Schema Updates (If Needed)
+
+If the stack introduces new options or fields:
+
+**13.1 Read current schema:**
+
+```bash
+cat schemas/stack.schema.json
+```
+
+**13.2 Add new option (if needed):**
+
+If stack has configurable options (like `--db=postgresql`), add to stack.yaml:
+
+```yaml
+options:
+  db:
+    description: Database backend
+    choices: [postgresql, mysql, sqlite]
+    default: postgresql
+    patterns:
+      postgresql: patterns/postgresql.md
+      mysql: patterns/mysql.md
+```
+
+**13.3 Validate schema still works:**
+
+```bash
+python bootstrap.py --validate <name>
+```
+
+---
+
+### Step 14: Check Base Updates (If Needed)
+
+If stack requires shared functionality:
+
+**14.1 New base skill needed?**
+
+If multiple stacks would benefit from a skill, add to `base/skills/` instead of `stacks/<name>/skills/`.
+
+**14.2 New base agent needed?**
+
+Rarely needed, but if so, add to `base/agents/`.
+
+**14.3 Update renderer/config (if needed)?**
+
+If stack has special requirements, may need updates to:
+- `lib/config.py` — Stack loading
+- `lib/renderer.py` — Template rendering
+
+---
+
+### Step 15: Update CLAUDE.md (If Needed)
+
+Check if `CLAUDE.md` mentions available stacks:
+
+```bash
+grep -n "stacks" CLAUDE.md
+grep -n "rails\|fastapi\|nextjs" CLAUDE.md
+```
+
+If it lists stacks, add the new one.
+
+---
+
+### Step 16: Report Results
 
 Present a summary:
 
@@ -357,19 +480,30 @@ Present a summary:
 - stacks/<name>/skills/<skill_2>/SKILL.md
 - stacks/<name>/patterns/<role>-patterns.md
 - stacks/<name>/styles/<role>-<language>.md
+- profiles/<name>-api.yaml (if requested)
 
 ### Files Updated
 - README.md (Added to Available Stacks table)
+- tests/test_config.py (Added load test)
+- tests/test_integration.py (Added bootstrap test)
+- CLAUDE.md (if stack list mentioned)
+
+### Files Checked (No Changes Needed)
+- schemas/stack.schema.json (existing schema sufficient)
+- base/ (no new shared components needed)
+- lib/ (no special handling needed)
 
 ### Verification
 ✓ python bootstrap.py --validate <name>
 ✓ python bootstrap.py --list (shows <name>)
+✓ python -m pytest tests/ -v (all tests pass)
+✓ python bootstrap.py <name> /tmp/test --dry-run (output correct)
 
 ### Next Steps
 1. Review generated files and customize as needed
 2. Add framework-specific code examples to patterns
-3. Test: python bootstrap.py <name> /tmp/test-app
-4. Commit: git add stacks/<name> && git commit -m "feat: add <name> stack"
+3. Full test: python bootstrap.py <name> /tmp/test-app
+4. Commit: git add stacks/<name> tests/ README.md && git commit -m "feat: add <name> stack"
 ```
 
 ---
@@ -386,7 +520,7 @@ Present a summary:
 
 ## Reference Files
 
-Templates are in `base/skills/new-stack/references/`:
+Templates are in `.claude/skills/new-stack/references/`:
 - `stack-yaml-template.yaml` — stack.yaml structure
 - `developer-agent.md.j2.txt` — Developer agent template
 - `tester-agent.md.j2.txt` — Tester agent template
