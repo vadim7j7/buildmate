@@ -76,6 +76,26 @@ pass or max iterations are reached.
 | `/eval` | Run quality evaluation |
 | `/security` | Run security audit |
 
+### Git Workflow Commands
+
+| Command | Description |
+|---------|-------------|
+| `/branch <name>` | Create a feature branch |
+| `/ship` | Commit, push, and create PR |
+| `/sync` | Sync branch with main/master |
+
+Configure automation in `.claude/settings.json`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full"  // "none" | "branch" | "full"
+  }
+}
+```
+
+With `"full"`, PM auto-creates branches and ships PRs on completion.
+
 ### Stack Commands
 {% for stack in stacks %}
 

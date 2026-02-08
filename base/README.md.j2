@@ -41,6 +41,14 @@ Or use slash commands for specific tasks:
 | `/eval` | Run quality evaluation |
 | `/security` | Run security audit |
 
+### Git Workflow Commands
+
+| Command | Description |
+|---------|-------------|
+| `/branch <name>` | Create a feature branch |
+| `/ship` | Commit, push, and create PR |
+| `/sync` | Sync branch with main |
+
 ### Stack Commands
 {% for stack in stacks %}
 
@@ -117,6 +125,32 @@ Use `/recap` to restore context in a new session and see:
 |------|---------|
 | `.claude/settings.json` | Shared settings (committed) |
 | `.claude/settings.local.json` | Personal overrides (gitignored) |
+
+### Git Workflow Automation
+
+Configure automatic branch creation and PR submission in `settings.json`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full"
+  }
+}
+```
+
+| Setting | Behavior |
+|---------|----------|
+| `"none"` | No git automation (default) |
+| `"branch"` | Auto-create branch after plan approval |
+| `"full"` | Auto-create branch + PR on completion |
+
+**PM flags to override per-task:**
+
+```
+/pm Add feature --branch    # Create branch only
+/pm Add feature --ship      # Full automation
+/pm Add feature --no-git    # Disable automation
+```
 
 ## Patterns and Styles
 

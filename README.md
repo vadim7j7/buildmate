@@ -18,6 +18,8 @@ Bootstrap Claude Code agent configurations for your projects. Composes base agen
 - **Quality gates** - Stack-specific linting, testing, and type checking commands
 - **Browser cloning** - Analyze and clone websites using MCP browser tools (frontend stacks)
 - **Self-verification** - Agents test their own work via HTTP requests or MCP browser
+- **Git workflow automation** - Auto-create branches, commit, push, and create PRs
+- **Multi-repository support** - Coordinate git operations across multiple repos
 
 ## Installation
 
@@ -682,6 +684,119 @@ buildmate nextjs /path/to/app --no-auto-verify
 | `backend-verifier` | Rails, FastAPI | HTTP requests (curl/httpie) |
 | `frontend-verifier` | Next.js | MCP browser (Puppeteer) |
 | `mobile-verifier` | React Native | Jest + TypeScript |
+
+## Git Workflow Automation
+
+Optional automation for creating branches, committing changes, and creating pull requests.
+
+### Configuration
+
+Add to `.claude/settings.json`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full"
+  }
+}
+```
+
+| Setting | Behavior |
+|---------|----------|
+| `"none"` | No git automation (default) |
+| `"branch"` | Auto-create branch after plan approval |
+| `"full"` | Auto-create branch + PR on completion |
+
+### Skills
+
+| Skill | Usage | Description |
+|-------|-------|-------------|
+| `/branch` | `/branch user-auth` | Create feature branch |
+| `/ship` | `/ship` | Commit, push, create PR |
+| `/sync` | `/sync` | Sync branch with main |
+
+### PM Workflow Integration
+
+With `git_workflow: "full"`:
+
+```
+/pm Add user authentication
+
+Phase 1: Planning
+  → User approves plan
+  → /branch feature/user-auth (auto)
+
+Phase 2-5: Implementation, Testing, Review
+
+Phase 6: Completion
+  → All gates pass
+  → /ship (auto)
+  → PR created and ready for review
+```
+
+### PM Flags
+
+Override project settings per-task:
+
+```bash
+/pm Add feature --branch    # Create branch only
+/pm Add feature --ship      # Full automation
+/pm Add feature --no-git    # Disable automation
+```
+
+### Multi-Repository Support
+
+For workspaces with multiple repositories (e.g., separate backend, web, mobile repos):
+
+```json
+{
+  "pm": {
+    "git_workflow": "full",
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+        "workspace": ".",
+        "backend": "./backend",
+        "web": "./web",
+        "mobile": "./mobile"
+      },
+      "stack_repo_map": {
+        "rails": "backend",
+        "fastapi": "backend",
+        "nextjs": "web",
+        "react-native": "mobile"
+      }
+    }
+  }
+}
+```
+
+When multi-repo is enabled:
+
+| Command | Behavior |
+|---------|----------|
+| `/branch` | Creates branches in all relevant repos |
+| `/ship` | Creates linked PRs across repos |
+| `/sync` | Syncs all repos with base branch |
+
+**Stack-based repo selection:**
+
+```bash
+/branch user-auth --stacks rails,nextjs  # Branch only in backend + web
+/ship --repo backend                      # Ship only backend changes
+```
+
+**Cross-linked PRs:**
+
+PRs automatically include references to related PRs in other repos:
+
+```markdown
+## Related PRs
+| Repository | PR | Status |
+|------------|-----|--------|
+| backend | #42 | Open |
+| web | #18 | Open |
+```
 
 ## Development
 

@@ -264,6 +264,47 @@ implement → verify → (fail?) → fix → verify again (max 3 retries)
 **Skill:** `/verify` - manually trigger verification
 **Agents:** `backend-verifier`, `frontend-verifier`, `mobile-verifier`
 
+### Git Workflow Automation
+Optional automation for branches, commits, and PRs. Configure in `.claude/settings.json`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full"  // "none" | "branch" | "full"
+  }
+}
+```
+
+**Skills:**
+- `/branch <name>` - Create feature branch
+- `/ship` - Commit, push, create PR
+- `/sync` - Sync branch with main
+
+**PM Integration:** With `git_workflow: "full"`, PM auto-creates branches after plan approval and auto-ships on completion.
+
+**Multi-Repo Support:** For workspaces with multiple git repos:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full",
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+        "backend": "./backend",
+        "web": "./web"
+      },
+      "stack_repo_map": {
+        "rails": "backend",
+        "nextjs": "web"
+      }
+    }
+  }
+}
+```
+
+Creates coordinated branches and linked PRs across repos.
+
 ## CLI Commands
 
 ```bash
