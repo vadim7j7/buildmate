@@ -29,12 +29,14 @@ Use PM: Build a user authentication system with OAuth
 ## What This Does
 
 1. **Loads the orchestrator workflow** from `.claude/agents/orchestrator.md`
-2. **Follows the 5-phase pipeline:**
+2. **Follows the 6-phase pipeline:**
    - Phase 1: Planning (interactive with user)
    - Phase 2: Implementation (delegates to developer agents)
+   - Phase 2.5: Verification (verifiers test via HTTP/browser)
    - Phase 3: Testing (delegates to tester agents)
    - Phase 4: Review (delegates to reviewer agents)
-   - Phase 5: Completion (final report)
+   - Phase 5: Evaluation & Documentation
+   - Phase 6: Completion (final report)
 
 ## MANDATORY Workflow
 

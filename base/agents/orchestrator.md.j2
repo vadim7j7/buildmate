@@ -263,6 +263,76 @@ After each Task completes:
 3. Update TodoWrite (mark completed, start next)
 4. Verify the work by reading modified files
 
+### Implementation Verification
+
+**After implementation, run verifiers to test the work by making real requests:**
+
+{% for stack in stacks %}
+{% if 'rails' in stack.name or 'fastapi' in stack.name %}
+#### {{ stack.display_name }} Verification
+
+```
+Task (subagent_type: general-purpose):
+"You are the backend-verifier agent. Read .claude/agents/backend-verifier.md for your instructions.
+
+Verify the implemented endpoints:
+<list endpoints created>
+
+1. Ensure dev server is running
+2. Make HTTP requests to test each endpoint
+3. Validate responses (status codes, body structure)
+4. Test error cases (invalid input, not found, unauthorized)
+
+If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
+Report: VERIFIED or FAILED with details."
+```
+
+{% endif %}
+{% if 'nextjs' in stack.name %}
+#### {{ stack.display_name }} Verification
+
+```
+Task (subagent_type: general-purpose):
+"You are the frontend-verifier agent. Read .claude/agents/frontend-verifier.md for your instructions.
+
+Verify the implemented components/pages:
+<list components/pages created>
+
+1. Ensure dev server is running
+2. Use MCP browser to navigate and take screenshots
+3. Check DOM for component existence
+4. Validate no console errors
+5. Run accessibility checks
+
+If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
+Report: VERIFIED or FAILED with details."
+```
+
+{% endif %}
+{% if 'native' in stack.name %}
+#### {{ stack.display_name }} Verification
+
+```
+Task (subagent_type: general-purpose):
+"You are the mobile-verifier agent. Read .claude/agents/mobile-verifier.md for your instructions.
+
+Verify the implemented components/screens:
+<list components/screens created>
+
+1. Run TypeScript check
+2. Run component tests with Jest
+3. Check for platform compatibility issues
+
+If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
+Report: VERIFIED or FAILED with details."
+```
+
+{% endif %}
+{% endfor %}
+
+- If verifier returns **VERIFIED**: proceed to testing
+- If verifier returns **FAILED** after retries: stop and report to user
+
 ---
 
 ## Phase 3: Testing
