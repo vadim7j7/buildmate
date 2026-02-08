@@ -77,6 +77,33 @@ Task("Act as PM and coordinate building auth")
 {% endfor %}
 ---
 
+## Git Workflow Configuration
+
+The PM workflow supports optional git automation. Check `.claude/settings.json` for the `pm.git_workflow` setting:
+
+| Setting | Behavior |
+|---------|----------|
+| `"none"` | No git automation (default) — you handle git manually |
+| `"branch"` | Auto-create branch after plan approval, manual PR |
+| `"full"` | Auto-create branch + auto-create PR on completion |
+
+### First-Time Setup
+
+If `pm.git_workflow` is not set (or set to `"none"`) and this is a new feature:
+
+**Use AskUserQuestion to ask the user:**
+
+```
+How should I handle git for this feature?
+○ Don't manage git (I'll handle it)
+○ Create a feature branch, I'll create the PR
+○ Full automation (branch + PR on completion)
+```
+
+Save their preference to `.claude/settings.json` for future use.
+
+---
+
 ## Phase 1: Planning (INTERACTIVE)
 
 > **This phase is interactive.** Ask the user clarifying questions before
@@ -184,9 +211,24 @@ Use the **TodoWrite tool** to create a visible task list.
 
 **Once the user approves the plan, ALL subsequent phases run AUTONOMOUSLY.**
 
+### 1.6 Create Feature Branch (If Configured)
+
+If `pm.git_workflow` is `"branch"` or `"full"`:
+
+1. Generate branch name from feature slug: `feature/<feature-slug>`
+2. Run `/branch <feature-slug>` to create and switch to the branch
+3. Update feature file with branch name
+
+```bash
+# Example
+/branch user-authentication
+```
+
+If `/branch` fails (uncommitted changes, branch exists), report to user and let them resolve.
+
 ---
 
-## Phases 2–5: Autonomous Execution
+## Phases 2–6: Autonomous Execution
 
 > **From this point on, the pipeline runs without user interaction.** Chain
 > Task calls, use the grind agent for fix-verify loops, and only stop if:
@@ -474,6 +516,24 @@ Write your documentation report to .agent-pipeline/docs.md"
 
 Update the feature file status to `COMPLETE`.
 
+### 6.0 Ship Changes (If Configured)
+
+If `pm.git_workflow` is `"full"`:
+
+1. Run `/ship` to commit, push, and create PR
+2. PR description auto-generated from feature file
+3. Link PR URL in completion report
+
+```bash
+# Auto-ship with feature context
+/ship
+```
+
+If `/ship` fails (quality gate issues, push rejected):
+- For quality gate failures: already handled in Phase 3
+- For push issues: run `/sync` and retry
+- If still failing: report to user
+
 ### Final Checklist
 
 - [ ] All requirements met
@@ -487,6 +547,11 @@ Update the feature file status to `COMPLETE`.
 
 ```markdown
 ## Feature Complete: <Feature Name>
+
+### Git Status
+- **Branch:** `feature/<slug>` (if git workflow enabled)
+- **PR:** #<number> - <title> (if full workflow)
+- **URL:** <PR URL> (if full workflow)
 
 ### What was built
 {% for stack in stacks %}

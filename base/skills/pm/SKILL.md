@@ -26,6 +26,22 @@ Or use the alternative syntax:
 Use PM: Build a user authentication system with OAuth
 ```
 
+### Git Workflow Flags
+
+Override project git settings for this task:
+
+```
+/pm Add user auth --branch              # Create branch, manual PR
+/pm Add user auth --ship                # Full automation (branch + PR)
+/pm Add user auth --no-git              # No git automation (override settings)
+```
+
+| Flag | Behavior |
+|------|----------|
+| `--branch` | Create feature branch after plan approval |
+| `--ship` | Create branch + auto-create PR on completion |
+| `--no-git` | Disable git automation (even if configured) |
+
 ## What This Does
 
 1. **Loads the orchestrator workflow** from `.claude/agents/orchestrator.md`
@@ -99,6 +115,43 @@ Even for "simple" tasks like adding seeds:
 5. Phase 4: Delegate to backend-reviewer
 6. Phase 5: Report completion
 ```
+
+## Git Workflow Configuration
+
+Configure default git behavior in `.claude/settings.json`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "none"
+  }
+}
+```
+
+| Setting | Behavior |
+|---------|----------|
+| `"none"` | No git automation (default) |
+| `"branch"` | Auto-create branch after plan approval |
+| `"full"` | Auto-create branch + PR on completion |
+
+### First-Time Setup
+
+If no setting exists and you start a feature, the orchestrator will ask:
+
+```
+How should I handle git for this feature?
+○ Don't manage git (I'll handle it)
+○ Create a feature branch, I'll create the PR
+○ Full automation (branch + PR on completion)
+```
+
+Your choice is saved for future features.
+
+### Related Skills
+
+- `/branch` — Create a feature branch manually
+- `/ship` — Commit, push, and create PR manually
+- `/sync` — Sync branch with main/master
 
 ## Delegation Template
 
