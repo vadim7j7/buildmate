@@ -248,6 +248,22 @@ Frontend stacks (nextjs, react-native) include browser automation tools for anal
 }
 ```
 
+### Self-Verification
+Agents automatically test their own implementations. After creating an endpoint or component, they verify it works by making real requests or rendering in a browser.
+
+**Verification Flow:**
+```
+implement → verify → (fail?) → fix → verify again (max 3 retries)
+```
+
+**Stack-specific verification:**
+- Backend (Rails/FastAPI): HTTP requests, validate responses
+- Frontend (Next.js): MCP browser, screenshots, DOM checks
+- Mobile (React Native): Jest tests, TypeScript checks
+
+**Skill:** `/verify` - manually trigger verification
+**Agents:** `backend-verifier`, `frontend-verifier`, `mobile-verifier`
+
 ## CLI Commands
 
 ```bash

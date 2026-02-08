@@ -145,6 +145,7 @@ skills:
   - test
   - review
   - docs
+  - verify
   - new-component
   - new-page
   - new-container
@@ -179,6 +180,7 @@ patterns:
   - patterns/logging.md
   - patterns/error-tracking.md
   - patterns/browser-cloning.md
+  - patterns/verification.md
 
 styles:
   - styles/frontend-typescript.md
@@ -188,3 +190,17 @@ variables:
   language: TypeScript
   test_framework: Jest + React Testing Library
   linter: ESLint + Prettier
+  dev_port: 3000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: npm run dev
+    port: 3000
+  browser:
+    headless: true
+    viewport:
+      width: 1280
+      height: 720

@@ -17,6 +17,7 @@ Bootstrap Claude Code agent configurations for your projects. Composes base agen
 - **Dry-run mode** - Preview what will be installed without making changes
 - **Quality gates** - Stack-specific linting, testing, and type checking commands
 - **Browser cloning** - Analyze and clone websites using MCP browser tools (frontend stacks)
+- **Self-verification** - Agents test their own work via HTTP requests or MCP browser
 
 ## Installation
 
@@ -617,6 +618,70 @@ After bootstrapping, restart Claude Code to connect the MCP server.
 - JavaScript-heavy SPAs need MCP browser (WebFetch alone won't work)
 - Assets (images, fonts) need separate handling
 - Use for learning/inspiration - respect copyright
+
+## Self-Verification
+
+Agents automatically test their own implementations in a verify-fix loop.
+
+### How It Works
+
+```
+implement → verify → (fail?) → analyze error → fix → verify again
+```
+
+**Backend (Rails/FastAPI):**
+- Makes actual HTTP requests to dev server
+- Validates response status codes and body structure
+- Tests error handling with invalid inputs
+
+**Frontend (Next.js):**
+- Uses MCP browser to render the page
+- Takes screenshots for visual verification
+- Checks DOM for component existence
+- Validates no console errors
+- Runs accessibility checks
+
+**Mobile (React Native):**
+- Runs Jest component tests
+- Checks TypeScript types
+- Validates platform compatibility
+
+### Usage
+
+```bash
+/verify                              # Verify last change
+/verify --endpoint POST /api/users   # Verify specific endpoint
+/verify --component HeroSection      # Verify specific component
+/verify --page /pricing              # Verify full page
+```
+
+### Configuration
+
+Each stack has verification config in `stack.yaml`:
+
+```yaml
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: npm run dev
+    port: 3000
+```
+
+Disable during bootstrap:
+
+```bash
+buildmate nextjs /path/to/app --no-auto-verify
+```
+
+### Agents
+
+| Agent | Stack | Testing Method |
+|-------|-------|----------------|
+| `backend-verifier` | Rails, FastAPI | HTTP requests (curl/httpie) |
+| `frontend-verifier` | Next.js | MCP browser (Puppeteer) |
+| `mobile-verifier` | React Native | Jest + TypeScript |
 
 ## Development
 

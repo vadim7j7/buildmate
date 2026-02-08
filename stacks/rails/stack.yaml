@@ -134,6 +134,7 @@ skills:
   - test
   - review
   - docs
+  - verify
   - new-model
   - new-controller
   - new-service
@@ -168,6 +169,7 @@ patterns:
   - patterns/caching.md
   - patterns/logging.md
   - patterns/error-tracking.md
+  - patterns/verification.md
 
 styles:
   - styles/backend-ruby.md
@@ -178,3 +180,13 @@ variables:
   test_framework: RSpec
   orm: ActiveRecord
   linter: RuboCop
+  dev_port: 3000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: bundle exec rails server
+    port: 3000
+    health_check: /health

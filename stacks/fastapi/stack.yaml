@@ -86,6 +86,7 @@ skills:
   - test
   - review
   - docs
+  - verify
   - new-router
   - new-schema
   - new-model
@@ -123,6 +124,7 @@ patterns:
   - patterns/caching.md
   - patterns/logging.md
   - patterns/error-tracking.md
+  - patterns/verification.md
 
 styles:
   - styles/backend-python.md
@@ -138,3 +140,13 @@ variables:
   tasks: Celery
   database: PostgreSQL
   package_manager: uv
+  dev_port: 8000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: uvicorn main:app --port 8000
+    port: 8000
+    health_check: /docs

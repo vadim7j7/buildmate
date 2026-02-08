@@ -124,6 +124,7 @@ skills:
   - test
   - review
   - docs
+  - verify
   - new-screen
   - new-rn-component
   - new-store
@@ -156,6 +157,7 @@ patterns:
   - patterns/logging.md
   - patterns/error-tracking.md
   - patterns/browser-cloning.md
+  - patterns/verification.md
 
 styles:
   - styles/react-native.md
@@ -170,3 +172,12 @@ variables:
   navigation: expo-router v4
   lists: FlashList
   i18n: i18next
+  dev_port: 8081
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: npx expo start --no-dev
+    port: 8081
