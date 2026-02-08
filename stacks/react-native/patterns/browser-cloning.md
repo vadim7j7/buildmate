@@ -191,12 +191,28 @@ This produces `.agent-pipeline/site-analysis.md` with:
 
 ### 2. Clone the Page
 
+Choose your output format:
+
 ```
-/clone-page https://example.com
+/clone-page https://example.com                     # Auto-detect from project
+/clone-page https://example.com --format html       # Plain HTML + CSS
+/clone-page https://example.com --format react      # React components
+/clone-page https://example.com --format nextjs     # Next.js App Router
+/clone-page https://example.com --format native     # React Native
+/clone-page https://example.com --format vue        # Vue.js SFCs
+/clone-page https://example.com --format svelte     # Svelte components
+```
+
+For React/Next.js, specify UI library:
+
+```
+/clone-page https://example.com --format nextjs --ui tailwind
+/clone-page https://example.com --format nextjs --ui shadcn
+/clone-page https://example.com --format react --ui chakra
 ```
 
 This generates:
-- Theme configuration
+- Theme configuration (format-appropriate)
 - Component files
 - Page composition
 
@@ -207,6 +223,28 @@ Check generated code:
 - Adjust theme values
 - Add missing interactions
 - Replace placeholder content
+
+## Output Formats
+
+| Format | Output | Use Case |
+|--------|--------|----------|
+| `html` | HTML + CSS files | Static sites, prototypes |
+| `react` | JSX + CSS Modules | React SPAs, Vite apps |
+| `nextjs` | App Router components | Next.js projects |
+| `native` | React Native + StyleSheet | Expo mobile apps |
+| `vue` | Vue 3 SFCs | Vue.js projects |
+| `svelte` | Svelte components | SvelteKit projects |
+
+## UI Library Options (React/Next.js)
+
+| Library | Description |
+|---------|-------------|
+| `plain` | CSS Modules (default for react) |
+| `tailwind` | Tailwind CSS utilities |
+| `mantine` | Mantine components (default for nextjs) |
+| `shadcn` | shadcn/ui components |
+| `chakra` | Chakra UI components |
+| `mui` | Material UI components |
 
 ## Best Practices
 

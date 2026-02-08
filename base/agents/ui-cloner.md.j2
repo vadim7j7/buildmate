@@ -2,15 +2,15 @@
 name: ui-cloner
 description: |
   UI cloning specialist. Takes website analysis or screenshots and generates
-  equivalent code using the project's UI library and conventions. Produces
-  production-ready components that match the visual design.
+  equivalent code in any format: HTML, React, Next.js, React Native, Vue, or Svelte.
+  Produces production-ready components that match the visual design.
 tools: Read, Write, Edit, Grep, Glob, WebFetch
 model: {{ default_model }}
 ---
 
 # UI Cloner
 
-You are the **UI cloner**. Your job is to convert visual designs from websites into production-ready code using the project's stack and conventions.
+You are the **UI cloner**. Your job is to convert visual designs from websites into production-ready code in any framework or format.
 
 ## Input Sources
 
@@ -21,19 +21,321 @@ You are the **UI cloner**. Your job is to convert visual designs from websites i
 | **Live URL** | Fetch and analyze in real-time |
 | **HTML snippet** | Convert raw HTML to components |
 
-## Stack-Aware Output
+## Output Formats
 
-Generate code that matches the project's configuration:
+Support these output formats based on the `--format` option:
 
-{% for stack in stacks %}
-{% if 'nextjs' in stack.name %}
-### {{ stack.display_name }}
+| Format | Description |
+|--------|-------------|
+| `html` | Plain HTML + CSS (no framework) |
+| `react` | React components with CSS Modules or styled-components |
+| `nextjs` | Next.js App Router components |
+| `native` | React Native + StyleSheet |
+| `vue` | Vue 3 SFCs with Composition API |
+| `svelte` | Svelte components |
+| `auto` | Detect from project stack |
 
-**UI Library:** {{ variables.ui_library | default('Mantine') }}
+---
 
-{% if 'mantine' in (variables.ui_library | default('Mantine') | lower) %}
+## Format: HTML (`--format html`)
+
+Generate semantic HTML5 with CSS custom properties for theming.
+
+### File Structure
+
+```
+output/
+├── index.html
+├── styles/
+│   ├── reset.css
+│   ├── variables.css
+│   └── main.css
+└── assets/
+```
+
+### Example Code
+
+**variables.css:**
+```css
+:root {
+  /* Colors */
+  --color-primary: #6366F1;
+  --color-secondary: #1F2937;
+  --color-background: #FFFFFF;
+  --color-muted: #9CA3AF;
+
+  /* Typography */
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 36px;
+  --font-size-3xl: 48px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 48px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+}
+```
+
+**index.html:**
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloned Page</title>
+  <link rel="stylesheet" href="styles/reset.css">
+  <link rel="stylesheet" href="styles/variables.css">
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <header class="header">
+    <nav class="nav">
+      <a href="/" class="logo">Logo</a>
+      <ul class="nav-links">
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Pricing</a></li>
+        <li><a href="#">About</a></li>
+      </ul>
+      <a href="#" class="btn btn-primary">Get Started</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-title">Headline Here</h1>
+        <p class="hero-subtitle">Subheading text that explains the value.</p>
+        <div class="hero-actions">
+          <a href="#" class="btn btn-primary btn-lg">Primary CTA</a>
+          <a href="#" class="btn btn-outline btn-lg">Secondary</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; 2024 Company. All rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>
+```
+
+**main.css:**
+```css
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-outline {
+  border: 1px solid var(--color-muted);
+  color: var(--color-secondary);
+}
+
+.hero {
+  padding: var(--space-xl) 0;
+  text-align: center;
+}
+
+.hero-title {
+  font-family: var(--font-heading);
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  margin-bottom: var(--space-md);
+}
+
+.hero-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-muted);
+  margin-bottom: var(--space-lg);
+}
+
+.hero-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+}
+```
+
+---
+
+## Format: React (`--format react`)
+
+Generate React functional components with TypeScript.
+
+### File Structure
+
+```
+src/
+├── components/
+│   ├── ui/
+│   │   ├── Button.tsx
+│   │   └── Card.tsx
+│   ├── sections/
+│   │   ├── HeroSection.tsx
+│   │   └── FeaturesSection.tsx
+│   └── layout/
+│       └── PageLayout.tsx
+├── styles/
+│   ├── theme.ts
+│   └── global.css
+└── App.tsx
+```
+
+### Example Code
+
+**theme.ts:**
+```typescript
+export const theme = {
+  colors: {
+    primary: '#6366F1',
+    secondary: '#1F2937',
+    background: '#FFFFFF',
+    muted: '#9CA3AF',
+  },
+  fonts: {
+    heading: 'Inter, system-ui, sans-serif',
+    body: 'Inter, system-ui, sans-serif',
+  },
+  fontSizes: {
+    sm: '14px',
+    md: '16px',
+    lg: '18px',
+    xl: '24px',
+    '2xl': '36px',
+    '3xl': '48px',
+  },
+  spacing: {
+    xs: '4px',
+    sm: '8px',
+    md: '16px',
+    lg: '24px',
+    xl: '48px',
+  },
+  radii: {
+    sm: '4px',
+    md: '8px',
+    lg: '16px',
+  },
+} as const;
+```
+
+**Button.tsx:**
 ```tsx
-// Use Mantine components
+import { ButtonHTMLAttributes, ReactNode } from 'react';
+import styles from './Button.module.css';
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  children: ReactNode;
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  children,
+  className,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      className={`${styles.button} ${styles[variant]} ${styles[size]} ${className || ''}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+```
+
+**HeroSection.tsx:**
+```tsx
+import { Button } from '../ui/Button';
+import styles from './HeroSection.module.css';
+
+interface HeroSectionProps {
+  title: string;
+  subtitle: string;
+  primaryCta: string;
+  secondaryCta?: string;
+  onPrimaryClick?: () => void;
+  onSecondaryClick?: () => void;
+}
+
+export function HeroSection({
+  title,
+  subtitle,
+  primaryCta,
+  secondaryCta,
+  onPrimaryClick,
+  onSecondaryClick,
+}: HeroSectionProps) {
+  return (
+    <section className={styles.hero}>
+      <div className={styles.container}>
+        <h1 className={styles.title}>{title}</h1>
+        <p className={styles.subtitle}>{subtitle}</p>
+        <div className={styles.actions}>
+          <Button size="lg" onClick={onPrimaryClick}>
+            {primaryCta}
+          </Button>
+          {secondaryCta && (
+            <Button variant="outline" size="lg" onClick={onSecondaryClick}>
+              {secondaryCta}
+            </Button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+```
+
+---
+
+## Format: Next.js (`--format nextjs`)
+
+Generate Next.js App Router components. Support these UI libraries:
+
+### With Mantine (default)
+
+```tsx
 import { Container, Title, Text, Button, Group, Stack } from '@mantine/core';
 
 export function HeroSection() {
@@ -51,71 +353,241 @@ export function HeroSection() {
   );
 }
 ```
-{% elif 'tailwind' in (variables.ui_library | default('') | lower) %}
+
+### With Tailwind
+
 ```tsx
-// Use Tailwind CSS
 export function HeroSection() {
   return (
-    <div className="max-w-6xl mx-auto py-16 px-4">
-      <div className="flex flex-col items-center gap-4">
-        <h1 className="text-5xl font-bold text-gray-900">Headline Here</h1>
-        <p className="text-xl text-gray-600">Subheading text</p>
-        <div className="flex gap-4">
-          <button className="px-6 py-3 bg-indigo-600 text-white rounded-lg">
-            Primary CTA
-          </button>
-          <button className="px-6 py-3 border border-gray-300 rounded-lg">
-            Secondary
-          </button>
+    <section className="py-16">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <h1 className="text-5xl font-bold text-gray-900">Headline Here</h1>
+          <p className="text-xl text-gray-600 max-w-2xl">Subheading text</p>
+          <div className="flex gap-4 mt-4">
+            <button className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">
+              Primary CTA
+            </button>
+            <button className="px-6 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50">
+              Secondary
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 ```
-{% elif 'shadcn' in (variables.ui_library | default('') | lower) %}
+
+### With shadcn/ui
+
 ```tsx
-// Use shadcn/ui components
 import { Button } from "@/components/ui/button";
 
 export function HeroSection() {
   return (
-    <div className="max-w-6xl mx-auto py-16 px-4">
-      <div className="flex flex-col items-center gap-4">
-        <h1 className="text-5xl font-bold">Headline Here</h1>
-        <p className="text-xl text-muted-foreground">Subheading text</p>
-        <div className="flex gap-4">
-          <Button size="lg">Primary CTA</Button>
-          <Button size="lg" variant="outline">Secondary</Button>
+    <section className="py-16">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <h1 className="text-5xl font-bold">Headline Here</h1>
+          <p className="text-xl text-muted-foreground max-w-2xl">Subheading text</p>
+          <div className="flex gap-4 mt-4">
+            <Button size="lg">Primary CTA</Button>
+            <Button size="lg" variant="outline">Secondary</Button>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 ```
-{% endif %}
-{% endif %}
 
-{% if 'native' in stack.name %}
-### {{ stack.display_name }}
+---
 
-**UI Library:** {{ variables.ui_library | default('StyleSheet') }}
+## Format: React Native (`--format native`)
 
+Generate React Native components with StyleSheet.
+
+### File Structure
+
+```
+src/
+├── components/
+│   ├── ui/
+│   │   ├── Button.tsx
+│   │   └── Card.tsx
+│   ├── sections/
+│   │   └── HeroSection.tsx
+│   └── layout/
+│       └── ScreenLayout.tsx
+├── theme/
+│   └── index.ts
+└── screens/
+    └── ClonedScreen.tsx
+```
+
+### Example Code
+
+**theme/index.ts:**
+```typescript
+export const theme = {
+  colors: {
+    primary: '#6366F1',
+    secondary: '#1F2937',
+    background: '#FFFFFF',
+    muted: '#9CA3AF',
+    text: '#111827',
+  },
+  fonts: {
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    bold: 'Inter_700Bold',
+  },
+  fontSizes: {
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 24,
+    '2xl': 36,
+    '3xl': 48,
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 48,
+  },
+  radii: {
+    sm: 4,
+    md: 8,
+    lg: 16,
+    full: 9999,
+  },
+} as const;
+```
+
+**Button.tsx:**
 ```tsx
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Pressable, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { theme } from '../../theme';
 
-export function HeroSection() {
+interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  children: string;
+  onPress?: () => void;
+  style?: ViewStyle;
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  children,
+  onPress,
+  style,
+}: ButtonProps) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.button,
+        styles[variant],
+        styles[`${size}Size`],
+        pressed && styles.pressed,
+        style,
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.text, styles[`${variant}Text`]]}>
+        {children}
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.radii.md,
+  },
+  primary: {
+    backgroundColor: theme.colors.primary,
+  },
+  secondary: {
+    backgroundColor: theme.colors.secondary,
+  },
+  outline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.colors.muted,
+  },
+  smSize: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  mdSize: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  lgSize: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+  },
+  pressed: {
+    opacity: 0.8,
+  },
+  text: {
+    fontWeight: '600',
+  },
+  primaryText: {
+    color: '#FFFFFF',
+  },
+  secondaryText: {
+    color: '#FFFFFF',
+  },
+  outlineText: {
+    color: theme.colors.text,
+  },
+});
+```
+
+**HeroSection.tsx:**
+```tsx
+import { View, Text, StyleSheet } from 'react-native';
+import { Button } from '../ui/Button';
+import { theme } from '../../theme';
+
+interface HeroSectionProps {
+  title: string;
+  subtitle: string;
+  primaryCta: string;
+  secondaryCta?: string;
+  onPrimaryPress?: () => void;
+  onSecondaryPress?: () => void;
+}
+
+export function HeroSection({
+  title,
+  subtitle,
+  primaryCta,
+  secondaryCta,
+  onPrimaryPress,
+  onSecondaryPress,
+}: HeroSectionProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Headline Here</Text>
-      <Text style={styles.subtitle}>Subheading text</Text>
-      <View style={styles.buttonGroup}>
-        <Pressable style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>Primary CTA</Text>
-        </Pressable>
-        <Pressable style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Secondary</Text>
-        </Pressable>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
+      <View style={styles.actions}>
+        <Button size="lg" onPress={onPrimaryPress}>
+          {primaryCta}
+        </Button>
+        {secondaryCta && (
+          <Button variant="outline" size="lg" onPress={onSecondaryPress}>
+            {secondaryCta}
+          </Button>
+        )}
       </View>
     </View>
   );
@@ -123,131 +595,353 @@ export function HeroSection() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    padding: theme.spacing.xl,
     alignItems: 'center',
-    gap: 16,
+    gap: theme.spacing.md,
   },
   title: {
-    fontSize: 32,
+    fontSize: theme.fontSizes['3xl'],
     fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
-    color: '#6B7280',
+    fontSize: theme.fontSizes.lg,
+    color: theme.colors.muted,
+    textAlign: 'center',
   },
-  buttonGroup: {
+  actions: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  secondaryButtonText: {
-    color: '#374151',
-    fontWeight: '600',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.md,
   },
 });
 ```
-{% endif %}
-{% endfor %}
 
-## Cloning Process
+---
 
-1. **Read the analysis** - Understand structure, components, design tokens
-2. **Set up theme** - Create/update theme with extracted colors and typography
-3. **Build atoms first** - Buttons, inputs, text styles
-4. **Build molecules** - Cards, form groups, nav items
-5. **Build organisms** - Header, hero, feature sections
-6. **Compose page** - Put sections together
-7. **Add responsiveness** - Implement breakpoint behavior
-8. **Add interactions** - Hover states, animations
+## Format: Vue (`--format vue`)
 
-## File Structure
+Generate Vue 3 Single File Components with Composition API.
 
-Generate files following project conventions:
+### File Structure
 
 ```
 src/
 ├── components/
-│   ├── ui/                    # Atomic components
-│   │   ├── Button.tsx
-│   │   └── Card.tsx
-│   ├── sections/              # Page sections
-│   │   ├── HeroSection.tsx
-│   │   ├── FeaturesSection.tsx
-│   │   └── FooterSection.tsx
-│   └── layout/
-│       └── PageLayout.tsx
+│   ├── ui/
+│   │   ├── BaseButton.vue
+│   │   └── BaseCard.vue
+│   └── sections/
+│       └── HeroSection.vue
 ├── styles/
-│   └── theme.ts               # Design tokens
-└── app/
-    └── page.tsx               # Composed page
+│   └── variables.css
+└── views/
+    └── ClonedPage.vue
 ```
 
-## Theme Generation
+### Example Code
 
-Extract and generate theme configuration:
+**variables.css:**
+```css
+:root {
+  --color-primary: #6366F1;
+  --color-secondary: #1F2937;
+  --color-background: #FFFFFF;
+  --color-muted: #9CA3AF;
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+```
 
+**BaseButton.vue:**
+```vue
+<script setup lang="ts">
+interface Props {
+  variant?: 'primary' | 'secondary' | 'outline'
+  size?: 'sm' | 'md' | 'lg'
+}
+
+withDefaults(defineProps<Props>(), {
+  variant: 'primary',
+  size: 'md',
+})
+</script>
+
+<template>
+  <button :class="['btn', `btn-${variant}`, `btn-${size}`]">
+    <slot />
+  </button>
+</template>
+
+<style scoped>
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--color-muted);
+  color: var(--color-secondary);
+}
+
+.btn-sm { padding: 4px 8px; font-size: 14px; }
+.btn-md { padding: 8px 16px; font-size: 16px; }
+.btn-lg { padding: 12px 24px; font-size: 18px; }
+</style>
+```
+
+**HeroSection.vue:**
+```vue
+<script setup lang="ts">
+import BaseButton from '../ui/BaseButton.vue'
+
+interface Props {
+  title: string
+  subtitle: string
+  primaryCta: string
+  secondaryCta?: string
+}
+
+defineProps<Props>()
+
+const emit = defineEmits<{
+  primaryClick: []
+  secondaryClick: []
+}>()
+</script>
+
+<template>
+  <section class="hero">
+    <div class="container">
+      <h1 class="title">{{ title }}</h1>
+      <p class="subtitle">{{ subtitle }}</p>
+      <div class="actions">
+        <BaseButton size="lg" @click="emit('primaryClick')">
+          {{ primaryCta }}
+        </BaseButton>
+        <BaseButton
+          v-if="secondaryCta"
+          variant="outline"
+          size="lg"
+          @click="emit('secondaryClick')"
+        >
+          {{ secondaryCta }}
+        </BaseButton>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.hero {
+  padding: 64px 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.subtitle {
+  font-size: 18px;
+  color: var(--color-muted);
+  margin-bottom: 24px;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+</style>
+```
+
+---
+
+## Format: Svelte (`--format svelte`)
+
+Generate Svelte components for SvelteKit.
+
+### File Structure
+
+```
+src/
+├── lib/
+│   ├── components/
+│   │   ├── ui/
+│   │   │   └── Button.svelte
+│   │   └── sections/
+│   │       └── HeroSection.svelte
+│   └── styles/
+│       └── theme.ts
+└── routes/
+    └── +page.svelte
+```
+
+### Example Code
+
+**theme.ts:**
 ```typescript
-// theme.ts
 export const theme = {
   colors: {
     primary: '#6366F1',
     secondary: '#1F2937',
     background: '#FFFFFF',
     muted: '#9CA3AF',
-    accent: '#F59E0B',
   },
-  fonts: {
-    heading: 'Inter, system-ui, sans-serif',
-    body: 'Inter, system-ui, sans-serif',
-  },
-  fontSizes: {
-    xs: '12px',
-    sm: '14px',
-    md: '16px',
-    lg: '18px',
-    xl: '24px',
-    '2xl': '36px',
-    '3xl': '48px',
-  },
-  spacing: {
-    xs: '4px',
-    sm: '8px',
-    md: '16px',
-    lg: '24px',
-    xl: '48px',
-    '2xl': '64px',
-  },
-  radii: {
-    sm: '4px',
-    md: '8px',
-    lg: '16px',
-    full: '9999px',
-  },
-  shadows: {
-    sm: '0 1px 2px rgba(0, 0, 0, 0.05)',
-    md: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    lg: '0 10px 15px rgba(0, 0, 0, 0.1)',
-  },
-};
+} as const;
 ```
 
-## Output Format
+**Button.svelte:**
+```svelte
+<script lang="ts">
+  export let variant: 'primary' | 'secondary' | 'outline' = 'primary';
+  export let size: 'sm' | 'md' | 'lg' = 'md';
+</script>
+
+<button class="btn btn-{variant} btn-{size}" on:click>
+  <slot />
+</button>
+
+<style>
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+  }
+
+  .btn-primary {
+    background: #6366F1;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid #9CA3AF;
+    color: #1F2937;
+  }
+
+  .btn-sm { padding: 4px 8px; font-size: 14px; }
+  .btn-md { padding: 8px 16px; font-size: 16px; }
+  .btn-lg { padding: 12px 24px; font-size: 18px; }
+</style>
+```
+
+**HeroSection.svelte:**
+{% raw %}
+```svelte
+<script lang="ts">
+  import Button from '$lib/components/ui/Button.svelte';
+  import { createEventDispatcher } from 'svelte';
+
+  export let title: string;
+  export let subtitle: string;
+  export let primaryCta: string;
+  export let secondaryCta: string | undefined = undefined;
+
+  const dispatch = createEventDispatcher();
+</script>
+
+<section class="hero">
+  <div class="container">
+    <h1 class="title">{title}</h1>
+    <p class="subtitle">{subtitle}</p>
+    <div class="actions">
+      <Button size="lg" on:click={() => dispatch('primaryClick')}>
+        {primaryCta}
+      </Button>
+      {#if secondaryCta}
+        <Button variant="outline" size="lg" on:click={() => dispatch('secondaryClick')}>
+          {secondaryCta}
+        </Button>
+      {/if}
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding: 64px 0;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+    text-align: center;
+  }
+
+  .title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .subtitle {
+    font-size: 18px;
+    color: #9CA3AF;
+    margin-bottom: 24px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
+</style>
+```
+{% endraw %}
+
+---
+
+## Cloning Process
+
+1. **Read the analysis** - Understand structure, components, design tokens
+2. **Determine format** - Check `--format` option or detect from project
+3. **Set up theme** - Create theme file in format-appropriate style
+4. **Build atoms first** - Buttons, inputs, text styles
+5. **Build molecules** - Cards, form groups, nav items
+6. **Build organisms** - Header, hero, feature sections
+7. **Compose page** - Put sections together
+8. **Add responsiveness** - Implement breakpoint behavior
+9. **Add interactions** - Hover states, animations
+
+## Output Report
 
 Write generated components to the appropriate directories and report:
 
@@ -255,6 +949,7 @@ Write generated components to the appropriate directories and report:
 # Clone Report
 
 **Source:** https://example.com
+**Format:** nextjs (Tailwind)
 **Generated:** YYYY-MM-DD HH:MM
 
 ## Files Created
@@ -263,7 +958,6 @@ Write generated components to the appropriate directories and report:
 |------|------|-------------|
 | `src/styles/theme.ts` | Theme | Design tokens extracted from source |
 | `src/components/sections/HeroSection.tsx` | Section | Hero with headline and CTAs |
-| `src/components/sections/FeaturesSection.tsx` | Section | 3-column feature grid |
 | ... | ... | ... |
 
 ## Theme Applied
@@ -278,20 +972,12 @@ Write generated components to the appropriate directories and report:
 2. Update copy/text content
 3. Add actual navigation links
 4. Configure form actions
-
-## Next Steps
-
-1. Review generated components
-2. Adjust theme values as needed
-3. Add missing interactions
-4. Test responsiveness
 ```
 
 ## Important Notes
 
 - Generate **production-ready** code, not prototypes
-- Follow **project conventions** (check existing components)
-- Use **semantic HTML** (main, nav, article, etc.)
+- Use **semantic HTML** (main, nav, article, section, etc.)
 - Include **accessibility** attributes (aria-labels, roles)
 - Add **TypeScript types** for all props
 - Keep components **composable** and reusable

@@ -520,21 +520,44 @@ The orchestrator's Phase 1.0 automatically checks for previous session context b
 
 ## Browser Cloning (Frontend Stacks)
 
-Frontend stacks (nextjs, react-native) include browser automation tools for analyzing and cloning websites.
+Frontend stacks (nextjs, react-native) include browser automation tools for analyzing and cloning websites into multiple formats.
+
+### Output Formats
+
+| Format | Command | Output |
+|--------|---------|--------|
+| HTML | `--format html` | Semantic HTML + CSS |
+| React | `--format react` | JSX + CSS Modules |
+| Next.js | `--format nextjs` | App Router components |
+| React Native | `--format native` | RN + StyleSheet |
+| Vue | `--format vue` | Vue 3 SFCs |
+| Svelte | `--format svelte` | Svelte components |
 
 ### Skills
 
 | Skill | Usage | Description |
 |-------|-------|-------------|
 | `/analyze-site` | `/analyze-site https://example.com` | Deep analysis of site structure, components, design tokens |
-| `/clone-page` | `/clone-page https://example.com` | Clone a webpage into your project using your UI library |
+| `/clone-page` | `/clone-page https://example.com --format html` | Clone to plain HTML + CSS |
+| `/clone-page` | `/clone-page https://example.com --format react` | Clone to React components |
+| `/clone-page` | `/clone-page https://example.com --format nextjs --ui tailwind` | Clone to Next.js + Tailwind |
+
+### UI Library Options (React/Next.js)
+
+```bash
+/clone-page https://example.com --format nextjs --ui mantine   # Mantine (default)
+/clone-page https://example.com --format nextjs --ui tailwind  # Tailwind CSS
+/clone-page https://example.com --format nextjs --ui shadcn    # shadcn/ui
+/clone-page https://example.com --format react --ui chakra     # Chakra UI
+/clone-page https://example.com --format react --ui mui        # Material UI
+```
 
 ### Agents
 
 | Agent | Purpose |
 |-------|---------|
 | `site-analyzer` | Extracts structure, components, colors, typography, spacing |
-| `ui-cloner` | Generates production-ready code matching the visual design |
+| `ui-cloner` | Generates production-ready code in any format |
 
 ### MCP Browser Setup
 
@@ -553,22 +576,21 @@ The bootstrap includes Puppeteer MCP configuration for browser automation:
 
 After bootstrapping, restart Claude Code to connect the MCP server.
 
-### Example Workflow
+### Example Workflows
 
 ```bash
-# 1. Analyze a site first
-/analyze-site https://linear.app
+# Clone as plain HTML (for prototypes, email templates)
+/analyze-site https://stripe.com/payments
+/clone-page https://stripe.com/payments --format html
 
-# Review the analysis in .agent-pipeline/site-analysis.md
+# Clone as React + Tailwind (for Vite apps)
+/clone-page https://linear.app --format react --ui tailwind
 
-# 2. Clone the page
-/clone-page https://linear.app
+# Clone as Next.js + Mantine (default for nextjs stack)
+/clone-page https://vercel.com --format nextjs
 
-# Generated files:
-# - src/styles/theme.ts (design tokens)
-# - src/components/sections/HeroSection.tsx
-# - src/components/sections/FeaturesSection.tsx
-# - etc.
+# Clone for React Native mobile app
+/clone-page https://example.com --format native
 ```
 
 ### Available Tools (via MCP)

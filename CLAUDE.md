@@ -218,15 +218,23 @@ Skills are slash commands (e.g., `/test`, `/review`, `/new-model`) that invoke s
 Features are tracked in `.claude/context/features/` as markdown files with status, requirements, and progress.
 
 ### Browser Cloning (Frontend Stacks)
-Frontend stacks (nextjs, react-native) include browser automation tools for analyzing and cloning website designs. Uses MCP browser servers (Puppeteer/Playwright) to capture screenshots, extract HTML/CSS, and generate stack-specific components.
+Frontend stacks (nextjs, react-native) include browser automation tools for analyzing and cloning website designs into multiple output formats.
+
+**Output Formats:**
+- `--format html` - Plain HTML + CSS
+- `--format react` - React components + CSS Modules
+- `--format nextjs` - Next.js App Router components
+- `--format native` - React Native + StyleSheet
+- `--format vue` - Vue 3 SFCs
+- `--format svelte` - Svelte components
 
 **Skills:**
 - `/analyze-site <url>` - Deep analysis of website structure and design tokens
-- `/clone-page <url>` - Clone a webpage using the project's UI library
+- `/clone-page <url> --format <fmt>` - Clone a webpage in any format
 
 **Agents:**
 - `site-analyzer` - Extracts structure, components, design tokens
-- `ui-cloner` - Generates stack-specific code (Mantine, Tailwind, React Native)
+- `ui-cloner` - Generates production-ready code in any format
 
 **Setup:** Requires MCP browser server configured in `.claude/settings.json`:
 ```json
