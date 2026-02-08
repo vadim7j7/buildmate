@@ -21,6 +21,8 @@ Keeps your feature branch up to date with the base branch by rebasing or merging
 |----------|-------------|---------|
 | `--merge` | Use merge instead of rebase | false (rebase) |
 | `--base` | Base branch to sync with | main or master |
+| `--repo` | Specific repo to sync (multi-repo only) | All repos |
+| `--parallel` | Sync repos in parallel | false |
 
 ## Why Rebase vs Merge
 
@@ -223,3 +225,150 @@ Syncs with develop instead of main.
 ## Integration
 
 This skill is automatically called by `/ship` when push fails due to upstream changes. Users can also invoke it manually to keep branches fresh during long-running work.
+
+---
+
+## Multi-Repository Support
+
+For workspaces with multiple repositories, `/sync` coordinates syncing across all repos.
+
+### Configuration
+
+Uses the same configuration as `/branch` in `.claude/settings.json`:
+
+```json
+{
+  "pm": {
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+        "workspace": ".",
+        "backend": "./backend",
+        "web": "./web",
+        "mobile": "./mobile"
+      }
+    }
+  }
+}
+```
+
+### Multi-Repo Workflow
+
+#### Step 0: Identify Target Repos
+
+1. If `--repo` specified, sync only that repo
+2. Otherwise, sync all repos on the same branch
+
+```bash
+# Check which repos are on the feature branch
+for repo in $REPOS; do
+  BRANCH=$(cd $repo && git branch --show-current)
+  if [ "$BRANCH" = "$FEATURE_BRANCH" ]; then
+    echo "$repo: on $BRANCH"
+  fi
+done
+```
+
+#### Step 1-5: Per-Repository Sync
+
+For each target repo, execute the standard sync workflow:
+
+```bash
+for repo in $REPOS; do
+  (
+    cd $repo
+    git stash push -m "Auto-stash before sync"
+    git fetch origin
+    git rebase origin/$BASE_BRANCH  # or merge
+    git push --force-with-lease origin $BRANCH
+    git stash pop
+  )
+done
+```
+
+#### Parallel Sync (Optional)
+
+With `--parallel`, sync repos concurrently:
+
+```bash
+# Sync in background
+(cd backend && git fetch && git rebase origin/main) &
+(cd web && git fetch && git rebase origin/main) &
+(cd mobile && git fetch && git rebase origin/main) &
+wait
+```
+
+**Note:** Parallel sync is faster but makes conflict resolution harder.
+
+### Multi-Repo Output
+
+```markdown
+## Branches Synced
+
+| Repository | Branch | Strategy | Status | Conflicts |
+|------------|--------|----------|--------|-----------|
+| backend | `feature/user-auth` | rebase | Synced | None |
+| web | `feature/user-auth` | rebase | Synced | None |
+| mobile | `feature/user-auth` | rebase | Synced | 1 file |
+
+### Conflict Details (mobile)
+- `src/api/auth.ts` - Manual resolution needed
+
+### Changes Incorporated
+**backend:**
+- abc1234 feat: add user model
+
+**web:**
+- def5678 fix: update API client
+
+### Next Steps
+1. Resolve conflict in mobile/src/api/auth.ts
+2. Run `/sync --repo mobile` to complete
+```
+
+### Conflict Handling
+
+When conflicts occur in multi-repo sync:
+
+1. **Stop at first conflict** (default)
+   - Report which repo has conflicts
+   - Help resolve, then continue with remaining repos
+
+2. **Continue on conflict** (with flag)
+   - Note conflicts but proceed with other repos
+   - Report all conflicts at end
+
+### Examples
+
+#### Sync All Repos
+```
+/sync
+```
+Rebases all repos on their respective main branches.
+
+#### Sync Specific Repo
+```
+/sync --repo backend
+```
+Only syncs the backend repo.
+
+#### Parallel Sync
+```
+/sync --parallel
+```
+Syncs all repos concurrently (faster, but harder to debug).
+
+#### Merge Strategy for All
+```
+/sync --merge
+```
+Uses merge instead of rebase in all repos.
+
+### Error Handling
+
+| Error | Action |
+|-------|--------|
+| Conflict in one repo | Stop, help resolve, offer to continue |
+| Force push rejected | Report which repo, suggest coordination |
+| Repo not on feature branch | Skip that repo, report |
+| Stash pop conflicts | Keep in stash, report per repo |

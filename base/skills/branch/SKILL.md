@@ -25,6 +25,8 @@ Creates a new git branch with proper naming conventions for starting work on a f
 | `--type` | Branch type: feature, fix, chore, hotfix, refactor | feature |
 | `--issue` | GitHub issue number to link | None |
 | `--base` | Base branch to create from | main or master |
+| `--repo` | Specific repo to branch (multi-repo only) | All relevant repos |
+| `--stacks` | Limit to repos for specific stacks | Auto-detect |
 
 ## Workflow
 
@@ -164,3 +166,130 @@ Creates `fix/login-timeout`, links to issue #42.
 /branch security-patch --type hotfix --base production
 ```
 Creates `hotfix/security-patch` from production branch.
+
+---
+
+## Multi-Repository Support
+
+For workspaces with multiple repositories (e.g., separate backend, web, mobile repos).
+
+### Configuration
+
+In `.claude/settings.json`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full",
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+        "workspace": ".",
+        "backend": "./backend",
+        "web": "./web",
+        "mobile": "./mobile"
+      },
+      "stack_repo_map": {
+        "rails": "backend",
+        "fastapi": "backend",
+        "nextjs": "web",
+        "react-native": "mobile"
+      }
+    }
+  }
+}
+```
+
+### Auto-Detection
+
+If `multi_repo.enabled` is false but nested `.git` directories exist, offer to configure:
+
+```bash
+# Detect nested repos
+find . -maxdepth 2 -name ".git" -type d | grep -v "^\./\.git$"
+```
+
+If found, use AskUserQuestion to confirm multi-repo setup.
+
+### Multi-Repo Workflow
+
+#### Step 0: Identify Target Repositories
+
+1. Read `pm.multi_repo` from settings
+2. If `--repo` specified, use only that repo
+3. If `--stacks` specified, map stacks to repos via `stack_repo_map`
+4. Otherwise, use all configured repositories
+
+#### Step 1-4: Per-Repository Operations
+
+For each target repository:
+
+```bash
+# Change to repo directory
+cd <repo_path>
+
+# Check for uncommitted changes
+git status --porcelain
+
+# Fetch and create branch
+git fetch origin
+git checkout -b "$BRANCH_NAME"
+
+# Return to workspace root
+cd -
+```
+
+#### Step 5: Coordinated Push
+
+Push all branches with the same name:
+
+```bash
+for repo in $REPOS; do
+  (cd $repo && git push -u origin "$BRANCH_NAME")
+done
+```
+
+### Multi-Repo Output
+
+```markdown
+## Branches Created
+
+| Repository | Branch | Status |
+|------------|--------|--------|
+| backend | `feature/user-auth` | Created |
+| web | `feature/user-auth` | Created |
+| mobile | `feature/user-auth` | Skipped (no changes expected) |
+
+**Base:** `main`
+**Issue:** #123 (linked in all repos)
+
+### Next Steps
+1. Implement changes in relevant repos
+2. Use `/ship` to create coordinated PRs
+```
+
+### Examples
+
+#### Branch in All Repos
+```
+/branch user-authentication
+```
+Creates `feature/user-authentication` in all configured repos.
+
+#### Branch in Specific Repo
+```
+/branch api-refactor --repo backend
+```
+Creates branch only in the backend repo.
+
+#### Branch for Specific Stacks
+```
+/branch mobile-auth --stacks react-native
+```
+Creates branch only in repos mapped to react-native stack.
+
+#### Full-Stack Feature
+```
+/branch user-dashboard --stacks rails,nextjs
+```
+Creates branch in backend and web repos.

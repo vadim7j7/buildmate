@@ -1,6 +1,11 @@
 {
   "pm": {
-    "git_workflow": "none"
+    "git_workflow": "none",
+    "multi_repo": {
+      "enabled": false,
+      "repositories": {},
+      "stack_repo_map": {}
+    }
   },
   "permissions": {
     "allow": [

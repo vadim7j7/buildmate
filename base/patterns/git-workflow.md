@@ -288,3 +288,103 @@ Phase 6: Completion
   → /ship (auto)
   → PR created and ready for review
 ```
+
+---
+
+## Multi-Repository Workflows
+
+For workspaces with multiple git repositories (e.g., separate backend, frontend, mobile repos).
+
+### Configuration
+
+```json
+{
+  "pm": {
+    "git_workflow": "full",
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+        "workspace": ".",
+        "backend": "./backend",
+        "web": "./web",
+        "mobile": "./mobile"
+      },
+      "stack_repo_map": {
+        "rails": "backend",
+        "fastapi": "backend",
+        "nextjs": "web",
+        "react-native": "mobile"
+      }
+    }
+  }
+}
+```
+
+### How It Works
+
+| Operation | Single Repo | Multi-Repo |
+|-----------|-------------|------------|
+| `/branch` | Creates one branch | Creates branches in all relevant repos |
+| `/ship` | One commit, one PR | Commits + linked PRs across repos |
+| `/sync` | Syncs one branch | Syncs all repos with same branch |
+
+### Branch Naming Across Repos
+
+All repos use the same branch name for coordination:
+
+```
+workspace/           → feature/user-auth
+├── backend/         → feature/user-auth
+├── web/             → feature/user-auth
+└── mobile/          → feature/user-auth
+```
+
+### Linked Pull Requests
+
+PRs are cross-linked for easy navigation:
+
+```markdown
+## Related PRs
+
+| Repository | PR | Status |
+|------------|-----|--------|
+| backend | #42 | Open |
+| web | #18 | Open |
+| mobile | - | No changes |
+```
+
+### Stack-to-Repo Mapping
+
+The `stack_repo_map` determines which repos are involved:
+
+```
+/pm Add user login --stacks rails,nextjs
+
+→ Branches created in: backend, web
+→ PRs created in: backend, web
+→ Mobile skipped (not in stacks)
+```
+
+### Merge Order
+
+For features spanning multiple repos with dependencies:
+
+1. **Backend first** — API changes must be deployed before frontend
+2. **Frontend second** — Consumes the new API
+3. **Mobile last** — May need API deployed to production
+
+### Workspace Repository
+
+The workspace repo can track:
+- Shared configuration
+- Documentation
+- Orchestration files
+- Umbrella PRs that link sub-repo PRs
+
+### Best Practices
+
+1. **Consistent branch names** — Same name across all repos
+2. **Atomic features** — Ship related changes together
+3. **API contracts first** — Define interfaces before parallel work
+4. **Cross-link PRs** — Easy navigation between related changes
+5. **Merge order** — Respect dependencies between repos

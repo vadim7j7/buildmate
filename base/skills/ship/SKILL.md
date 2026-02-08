@@ -27,6 +27,8 @@ Completes your work by running all quality gates, committing uncommitted changes
 | `--message` | Custom commit message | Auto-generated |
 | `--reviewer` | Add reviewer to PR | None |
 | `--label` | Add label to PR | None |
+| `--repo` | Specific repo to ship (multi-repo only) | All with changes |
+| `--link-prs` | Cross-link PRs in descriptions | true |
 
 ## Workflow
 
@@ -254,3 +256,208 @@ Useful for pushing work without PR (e.g., updating branch).
 /ship --message "feat(auth): add OAuth2 login flow"
 ```
 Uses provided commit message instead of auto-generating.
+
+---
+
+## Multi-Repository Support
+
+For workspaces with multiple repositories, `/ship` coordinates commits, pushes, and PRs across all repos.
+
+### Configuration
+
+Uses the same configuration as `/branch` in `.claude/settings.json`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full",
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+        "workspace": ".",
+        "backend": "./backend",
+        "web": "./web",
+        "mobile": "./mobile"
+      },
+      "stack_repo_map": {
+        "rails": "backend",
+        "fastapi": "backend",
+        "nextjs": "web",
+        "react-native": "mobile"
+      }
+    }
+  }
+}
+```
+
+### Multi-Repo Workflow
+
+#### Step 0: Identify Repos with Changes
+
+```bash
+# Check each configured repo for uncommitted changes or unpushed commits
+for repo in $REPOS; do
+  (cd $repo && git status --porcelain && git log origin/main..HEAD --oneline)
+done
+```
+
+Only process repos that have changes.
+
+#### Step 1: Quality Gates Per Repo
+
+Run quality gates in each repo based on its stack:
+
+```bash
+# Backend (Rails/FastAPI)
+(cd backend && bundle exec rubocop && bundle exec rspec)
+
+# Web (Next.js)
+(cd web && npm run lint && npm test && npx tsc --noEmit)
+
+# Mobile (React Native)
+(cd mobile && npm run lint && npm test)
+```
+
+#### Step 2: Commit in Each Repo
+
+For each repo with changes:
+
+```bash
+(cd $repo && git add -A && git commit -m "$MESSAGE")
+```
+
+Use the same commit message format, or customize per repo based on changes.
+
+#### Step 3: Push All Repos
+
+```bash
+for repo in $REPOS; do
+  (cd $repo && git push -u origin "$BRANCH_NAME")
+done
+```
+
+#### Step 4: Create Linked PRs
+
+Create PRs in sequence, then update descriptions with cross-links:
+
+```bash
+# Create PRs and collect URLs
+BACKEND_PR=$(cd backend && gh pr create --title "$TITLE" --body "$BODY" | tail -1)
+WEB_PR=$(cd web && gh pr create --title "$TITLE" --body "$BODY" | tail -1)
+
+# Update PR descriptions with cross-links
+gh pr edit $BACKEND_PR --body "... Related: $WEB_PR"
+gh pr edit $WEB_PR --body "... Related: $BACKEND_PR"
+```
+
+### Cross-Linked PR Description
+
+```markdown
+## Summary
+
+<Feature summary from feature file>
+
+## Changes in This Repo
+
+<Repo-specific changes>
+
+## Related PRs
+
+| Repository | PR | Status |
+|------------|-----|--------|
+| backend | #42 | Open |
+| web | #18 | Open |
+| mobile | - | No changes |
+
+## Test Plan
+
+- [ ] Backend tests pass
+- [ ] Frontend tests pass
+- [ ] Integration tested
+
+---
+Generated with [Claude Code](https://claude.ai/code)
+```
+
+### Multi-Repo Output
+
+```markdown
+## Shipped!
+
+### Pull Requests Created
+
+| Repository | PR | URL | Changes |
+|------------|-----|-----|---------|
+| backend | #42 | https://github.com/org/backend/pull/42 | +350/-45 |
+| web | #18 | https://github.com/org/web/pull/18 | +280/-30 |
+| mobile | - | - | No changes |
+
+### Summary
+- 3 repos processed
+- 2 PRs created
+- All PRs cross-linked
+
+### Quality Gates
+| Repo | Lint | Tests | Types |
+|------|------|-------|-------|
+| backend | PASS | PASS | N/A |
+| web | PASS | PASS | PASS |
+
+### Next Steps
+1. Wait for CI in all repos
+2. Review PRs together
+3. Merge in order: backend → web (if dependencies)
+```
+
+### Examples
+
+#### Ship All Repos
+```
+/ship
+```
+Commits, pushes, and creates PRs in all repos with changes.
+
+#### Ship Specific Repo
+```
+/ship --repo backend
+```
+Only ships the backend repo.
+
+#### Draft PRs for All
+```
+/ship --draft
+```
+Creates draft PRs in all repos.
+
+#### Ship Without Cross-Linking
+```
+/ship --link-prs=false
+```
+Creates independent PRs without cross-references.
+
+### Workspace PR (Optional)
+
+If the workspace itself has changes (e.g., shared configs, documentation):
+
+```bash
+# Create workspace PR that references all sub-PRs
+(cd . && gh pr create --title "feat: user authentication" --body "
+## Umbrella PR
+
+This PR coordinates changes across repositories:
+
+- Backend: #42
+- Web: #18
+
+Merge sub-PRs first, then merge this.
+")
+```
+
+### Error Handling
+
+| Error | Action |
+|-------|--------|
+| Quality gate fails in one repo | Report which repo failed, offer to skip or fix |
+| Push fails in one repo | Sync that repo, retry |
+| PR creation fails | Report error, continue with other repos |
+| Cross-linking fails | Create PRs without links, report issue |

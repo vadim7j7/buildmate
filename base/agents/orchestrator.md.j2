@@ -87,6 +87,38 @@ The PM workflow supports optional git automation. Check `.claude/settings.json` 
 | `"branch"` | Auto-create branch after plan approval, manual PR |
 | `"full"` | Auto-create branch + auto-create PR on completion |
 
+### Multi-Repository Support
+
+For workspaces with multiple git repositories, check `pm.multi_repo`:
+
+```json
+{
+  "pm": {
+    "git_workflow": "full",
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+        "workspace": ".",
+        "backend": "./backend",
+        "web": "./web",
+        "mobile": "./mobile"
+      },
+      "stack_repo_map": {
+        "rails": "backend",
+        "fastapi": "backend",
+        "nextjs": "web",
+        "react-native": "mobile"
+      }
+    }
+  }
+}
+```
+
+When multi-repo is enabled:
+- `/branch` creates branches in all relevant repos (based on stacks involved)
+- `/ship` commits, pushes, and creates linked PRs across repos
+- `/sync` syncs all repos with their base branches
+
 ### First-Time Setup
 
 If `pm.git_workflow` is not set (or set to `"none"`) and this is a new feature:
@@ -101,6 +133,22 @@ How should I handle git for this feature?
 ```
 
 Save their preference to `.claude/settings.json` for future use.
+
+### Multi-Repo Detection
+
+If nested `.git` directories are detected but multi-repo is not configured:
+
+```bash
+find . -maxdepth 2 -name ".git" -type d | grep -v "^\./\.git$"
+```
+
+If found, ask:
+
+```
+I detected multiple git repositories. Do you want to enable multi-repo mode?
+○ Yes, configure multi-repo
+○ No, use single repo mode
+```
 
 ---
 
@@ -223,6 +271,11 @@ If `pm.git_workflow` is `"branch"` or `"full"`:
 # Example
 /branch user-authentication
 ```
+
+**Multi-Repo:** If `pm.multi_repo.enabled` is true, `/branch` will:
+- Create branches in repos mapped to the stacks involved in this feature
+- Use `stack_repo_map` to determine which repos need branches
+- Report all created branches in the output
 
 If `/branch` fails (uncommitted changes, branch exists), report to user and let them resolve.
 
@@ -527,6 +580,19 @@ If `pm.git_workflow` is `"full"`:
 ```bash
 # Auto-ship with feature context
 /ship
+```
+
+**Multi-Repo:** If `pm.multi_repo.enabled` is true, `/ship` will:
+- Commit and push changes in all repos that have modifications
+- Create linked PRs in each repo with cross-references
+- Report all PR URLs in the completion report
+
+```markdown
+### Pull Requests Created
+| Repository | PR | URL |
+|------------|-----|-----|
+| backend | #42 | https://github.com/org/backend/pull/42 |
+| web | #18 | https://github.com/org/web/pull/18 |
 ```
 
 If `/ship` fails (quality gate issues, push rejected):
