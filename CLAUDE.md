@@ -42,6 +42,7 @@ See `README.md` for complete documentation.
 | `nextjs` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer |
 | `react-native` | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer |
 | `fastapi` | Python FastAPI | backend-developer, backend-tester, backend-reviewer |
+| `scraping` | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer |
 
 ## Profiles
 
@@ -94,7 +95,8 @@ buildmate/
 │   ├── rails/
 │   ├── nextjs/
 │   ├── react-native/
-│   └── fastapi/
+│   ├── fastapi/
+│   └── scraping/             # Web scraping (Python/Node.js)
 ├── tests/                    # Test suite
 ├── evals/                    # Evaluation configs
 └── CLAUDE.md                 # This file
@@ -264,6 +266,29 @@ implement → verify → (fail?) → fix → verify again (max 3 retries)
 **Skill:** `/verify` - manually trigger verification
 **Agents:** `backend-verifier`, `frontend-verifier`, `mobile-verifier`
 
+### Web Scraping
+The scraping stack provides specialized agents for building robust, ethical web scrapers in Python or Node.js.
+
+**Language Options:**
+- Python: Scrapy, BeautifulSoup, Playwright (default)
+- Node.js: Puppeteer, Cheerio, Playwright
+
+**Skills:**
+- `/new-spider <name>` - Generate Scrapy spider or scraper class
+- `/new-scraper <name>` - Generate HTTP or browser-based scraper
+- `/analyze-target <url>` - Analyze website structure
+- `/test-scraper` - Run comprehensive tests
+
+**Agents:** `scraper-developer`, `scraper-tester`, `scraper-reviewer`
+
+**Patterns:** anti-detection, pagination, authentication, data-validation, error-handling, rate-limiting
+
+**Usage:**
+```bash
+buildmate scraping /path/to/project --language=python
+buildmate scraping /path/to/project --language=nodejs --browser=puppeteer
+```
+
 ### Git Workflow Automation
 Optional automation for branches, commits, and PRs. Configure in `.claude/settings.json`:
 
@@ -341,7 +366,7 @@ buildmate rails+nextjs /path/to/app
 .venv/bin/python -m pytest tests/ -v
 
 # Test all stacks validation
-for stack in rails nextjs react-native fastapi; do
+for stack in rails nextjs react-native fastapi scraping; do
   buildmate --validate $stack
 done
 

@@ -1,0 +1,189 @@
+name: scraping
+display_name: Web Scraping
+description: Web scraping and data extraction with Python or Node.js
+
+default_model: opus
+
+compatible_with:
+  - rails
+  - fastapi
+  - nextjs
+
+options:
+  language:
+    description: Programming language for scraping
+    default: python
+    choices:
+      python:
+        description: Scrapy, BeautifulSoup, Playwright (recommended)
+        patterns:
+          - patterns/scrapy.md
+        styles:
+          - styles/python-scraping.md
+        variables:
+          language: Python
+          package_manager: uv
+          test_framework: pytest
+          frameworks: Scrapy, BeautifulSoup, Playwright
+          http_client: httpx
+          parser: BeautifulSoup, lxml
+        quality_gates:
+          lint:
+            command: uv run ruff check .
+            fix_command: uv run ruff check --fix .
+            description: Python linting with Ruff
+          typecheck:
+            command: uv run mypy .
+            description: Type checking with mypy
+          tests:
+            command: uv run pytest
+            description: Run pytest test suite
+      nodejs:
+        description: Puppeteer, Cheerio, Playwright
+        patterns:
+          - patterns/puppeteer.md
+        styles:
+          - styles/nodejs-scraping.md
+        variables:
+          language: Node.js
+          package_manager: npm
+          test_framework: Jest
+          frameworks: Puppeteer, Cheerio, Playwright
+          http_client: axios
+          parser: Cheerio
+        quality_gates:
+          lint:
+            command: npm run lint
+            fix_command: npm run lint -- --fix
+            description: ESLint linting
+          typecheck:
+            command: npx tsc --noEmit
+            description: TypeScript type checking
+          tests:
+            command: npm test
+            description: Run Jest tests
+
+  browser:
+    description: Browser automation tool
+    default: playwright
+    choices:
+      playwright:
+        description: Cross-browser automation (recommended)
+        variables:
+          browser_tool: Playwright
+      puppeteer:
+        description: Chrome/Chromium automation
+        variables:
+          browser_tool: Puppeteer
+      selenium:
+        description: Traditional browser automation
+        variables:
+          browser_tool: Selenium
+      none:
+        description: HTTP-only scraping (no browser)
+        variables:
+          browser_tool: None
+
+  output:
+    description: Output format
+    default: json
+    choices:
+      json:
+        description: JSON files
+        variables:
+          output_format: JSON
+      csv:
+        description: CSV files
+        variables:
+          output_format: CSV
+      database:
+        description: Direct database insertion
+        variables:
+          output_format: Database
+
+agents:
+  - name: scraper-developer
+    template: agents/scraper-developer.md.j2
+    description: Web scraping implementation specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-spider
+      - new-scraper
+      - analyze-target
+
+  - name: scraper-tester
+    template: agents/scraper-tester.md.j2
+    description: Scraper testing and validation specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test-scraper
+
+  - name: scraper-reviewer
+    template: agents/scraper-reviewer.md.j2
+    description: Scraper code reviewer (robustness, anti-detection)
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - verify
+  - new-spider
+  - new-scraper
+  - test-scraper
+  - analyze-target
+  - analyze-site
+  - clone-page
+
+quality_gates:
+  lint:
+    command: uv run ruff check .
+    fix_command: uv run ruff check --fix .
+    description: Python linting with Ruff
+  typecheck:
+    command: uv run mypy .
+    description: Type checking with mypy
+  tests:
+    command: uv run pytest
+    description: Run pytest test suite
+
+working_dir: "."
+
+patterns:
+  - patterns/anti-detection.md
+  - patterns/pagination.md
+  - patterns/authentication.md
+  - patterns/data-validation.md
+  - patterns/error-handling.md
+  - patterns/rate-limiting.md
+
+styles:
+  - styles/scraping-general.md
+
+variables:
+  domain: Web Scraping
+  focus: Data extraction and automation
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3

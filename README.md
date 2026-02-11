@@ -63,6 +63,7 @@ buildmate rails+nextjs /path/to/my-fullstack-app
 | `nextjs` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer | new-component, new-page, new-container, new-form |
 | `react-native` | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer | new-screen, new-store, new-query, platform-check |
 | `fastapi` | Python FastAPI | backend-developer, backend-tester, backend-reviewer | new-router, new-schema, new-model, new-service |
+| `scraping` | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer | new-spider, new-scraper, analyze-target, clone-page |
 
 ## Profiles
 
@@ -107,6 +108,14 @@ buildmate --options nextjs
 |--------|---------|---------|
 | `--jobs` | sidekiq, good_job, solid_queue, active_job | sidekiq |
 | `--db` | postgresql, mysql, sqlite | postgresql |
+
+### Scraping Options
+
+| Option | Choices | Default |
+|--------|---------|---------|
+| `--language` | python, nodejs | python |
+| `--browser` | playwright, puppeteer, selenium, none | playwright |
+| `--output` | json, csv, database | json |
 
 ## CLI Usage
 
@@ -186,8 +195,14 @@ buildmate/
 │   │   └── ...
 │   ├── react-native/
 │   │   └── ...
-│   └── fastapi/
-│       └── ...
+│   ├── fastapi/
+│   │   └── ...
+│   └── scraping/
+│       ├── stack.yaml        # Scraping stack (Python/Node.js)
+│       ├── agents/           # scraper-developer, tester, reviewer
+│       ├── skills/           # new-spider, analyze-target, etc.
+│       ├── patterns/         # anti-detection, pagination, auth
+│       └── styles/           # Python and Node.js styles
 ├── tests/                    # Test suite
 └── evals/                    # Evaluation configs
 ```
@@ -684,6 +699,67 @@ buildmate nextjs /path/to/app --no-auto-verify
 | `backend-verifier` | Rails, FastAPI | HTTP requests (curl/httpie) |
 | `frontend-verifier` | Next.js | MCP browser (Puppeteer) |
 | `mobile-verifier` | React Native | Jest + TypeScript |
+
+## Web Scraping
+
+The scraping stack provides specialized agents, skills, and patterns for building robust web scrapers.
+
+### Language Options
+
+| Language | Frameworks | Package Manager |
+|----------|------------|-----------------|
+| Python (default) | Scrapy, BeautifulSoup, Playwright | uv |
+| Node.js | Puppeteer, Cheerio, Playwright | npm |
+
+```bash
+# Python scraper project
+buildmate scraping /path/to/project --language=python
+
+# Node.js scraper project
+buildmate scraping /path/to/project --language=nodejs
+
+# HTTP-only (no browser automation)
+buildmate scraping /path/to/project --browser=none
+```
+
+### Skills
+
+| Skill | Usage | Description |
+|-------|-------|-------------|
+| `/new-spider` | `/new-spider products --url https://example.com` | Generate Scrapy spider or scraper class |
+| `/new-scraper` | `/new-scraper api-data --browser playwright` | Generate HTTP or browser-based scraper |
+| `/analyze-target` | `/analyze-target https://example.com/products` | Analyze website structure and plan strategy |
+| `/analyze-site` | `/analyze-site example.com --sitemap` | Site-wide analysis for large projects |
+| `/test-scraper` | `/test-scraper products --live` | Run comprehensive scraper tests |
+| `/clone-page` | `/clone-page https://example.com --name fixture` | Download page for offline testing |
+
+### Agents
+
+| Agent | Purpose |
+|-------|---------|
+| `scraper-developer` | Implements scrapers with proper error handling, rate limiting |
+| `scraper-tester` | Writes tests with mocked HTTP, validates extraction accuracy |
+| `scraper-reviewer` | Reviews for robustness, anti-detection, ethical compliance |
+
+### Patterns Included
+
+| Pattern | Description |
+|---------|-------------|
+| `anti-detection.md` | User-agent rotation, request timing, proxy rotation, fingerprint evasion |
+| `pagination.md` | URL params, next button, infinite scroll, cursor-based, load more |
+| `authentication.md` | Cookie sessions, form login, browser login, API keys, OAuth |
+| `data-validation.md` | Pydantic/Zod schemas, data cleaning, deduplication |
+| `error-handling.md` | HTTP errors, retry with backoff, circuit breakers, checkpointing |
+| `rate-limiting.md` | Fixed/random delays, token bucket, per-domain limits, adaptive |
+
+### Ethical Scraping
+
+The scraper agents enforce ethical practices:
+
+- **robots.txt compliance** - Always checks and respects crawl directives
+- **Rate limiting** - Minimum 1-2 second delays between requests
+- **Identification** - Uses descriptive User-Agent headers
+- **Error respect** - Backs off on 429/503 responses
 
 ## Git Workflow Automation
 
