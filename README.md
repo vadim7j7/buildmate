@@ -63,7 +63,7 @@ buildmate rails+nextjs /path/to/my-fullstack-app
 | `nextjs` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer | new-component, new-page, new-container, new-form |
 | `react-native` | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer | new-screen, new-store, new-query, platform-check |
 | `fastapi` | Python FastAPI | backend-developer, backend-tester, backend-reviewer | new-router, new-schema, new-model, new-service |
-| `scraping` | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer | new-spider, new-scraper, analyze-target, clone-page |
+| `scraping` | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer, site-analyzer, ui-cloner, api-generator | new-spider, new-scraper, analyze-target, clone-page, clone-site |
 
 ## Profiles
 
@@ -170,7 +170,10 @@ buildmate/
 │   │   ├── orchestrator.md.j2    # PM/workflow coordinator
 │   │   ├── grind.md.j2           # Fix-verify loop agent
 │   │   ├── eval-agent.md.j2      # Quality evaluation agent
-│   │   └── security-auditor.md.j2 # Security audit agent
+│   │   ├── security-auditor.md.j2 # Security audit agent
+│   │   ├── site-analyzer.md.j2   # Website analysis for cloning
+│   │   ├── ui-cloner.md.j2       # Frontend code generation
+│   │   └── api-generator.md.j2   # Backend API generation
 │   ├── skills/               # Core skills (always included)
 │   │   ├── delegate/         # Smart task delegation
 │   │   ├── docs/             # Documentation generation
@@ -731,7 +734,51 @@ buildmate scraping /path/to/project --browser=none
 | `/analyze-target` | `/analyze-target https://example.com/products` | Analyze website structure and plan strategy |
 | `/analyze-site` | `/analyze-site example.com --sitemap` | Site-wide analysis for large projects |
 | `/test-scraper` | `/test-scraper products --live` | Run comprehensive scraper tests |
-| `/clone-page` | `/clone-page https://example.com --name fixture` | Download page for offline testing |
+| `/clone-page` | `/clone-page https://example.com/products` | Full-stack clone: analyze, plan, confirm, generate |
+| `/clone-site` | `/clone-site https://example.com --depth 3` | Clone entire multi-page site |
+
+### Full-Stack Cloning
+
+The `/clone-page` and `/clone-site` skills provide intelligent website cloning:
+
+```bash
+# Clone a single page (full-stack: Next.js + FastAPI)
+/clone-page https://example.com/products
+
+# Clone with specific frameworks
+/clone-page https://example.com/products --frontend nextjs --backend fastapi
+
+# Frontend only (no backend)
+/clone-page https://example.com/landing --no-backend
+
+# Clone entire site
+/clone-site https://example.com --depth 3 --max-pages 30
+```
+
+**Workflow:**
+1. **Analyze** - Deep analysis of page structure, components, data models, APIs, authentication
+2. **Plan** - Create detailed generation plan showing all files to be created
+3. **Confirm** - Present plan to user and wait for approval
+4. **Generate** - Create frontend and backend code with full TypeScript types
+5. **Report** - Summary of generated files and next steps
+
+**Output Structure:**
+```
+./cloned/
+├── frontend/         # Next.js with Tailwind CSS
+│   ├── src/
+│   │   ├── components/
+│   │   ├── app/
+│   │   ├── hooks/
+│   │   └── types/
+│   └── package.json
+└── backend/          # FastAPI with SQLAlchemy
+    ├── app/
+    │   ├── api/routes/
+    │   ├── models/
+    │   └── schemas/
+    └── pyproject.toml
+```
 
 ### Agents
 
@@ -740,6 +787,9 @@ buildmate scraping /path/to/project --browser=none
 | `scraper-developer` | Implements scrapers with proper error handling, rate limiting |
 | `scraper-tester` | Writes tests with mocked HTTP, validates extraction accuracy |
 | `scraper-reviewer` | Reviews for robustness, anti-detection, ethical compliance |
+| `site-analyzer` | Deep page analysis for cloning (components, APIs, auth, design) |
+| `ui-cloner` | Frontend code generation with user confirmation |
+| `api-generator` | Backend API generation from analysis |
 
 ### Patterns Included
 
@@ -751,6 +801,9 @@ buildmate scraping /path/to/project --browser=none
 | `data-validation.md` | Pydantic/Zod schemas, data cleaning, deduplication |
 | `error-handling.md` | HTTP errors, retry with backoff, circuit breakers, checkpointing |
 | `rate-limiting.md` | Fixed/random delays, token bucket, per-domain limits, adaptive |
+| `component-extraction.md` | Identify and extract reusable UI components |
+| `design-token-extraction.md` | Extract colors, typography, spacing from sites |
+| `api-discovery.md` | Discover and map API endpoints from network traffic |
 
 ### Ethical Scraping
 

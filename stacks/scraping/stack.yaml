@@ -153,6 +153,7 @@ skills:
   - analyze-target
   - analyze-site
   - clone-page
+  - clone-site
 
 quality_gates:
   lint:
@@ -175,6 +176,9 @@ patterns:
   - patterns/data-validation.md
   - patterns/error-handling.md
   - patterns/rate-limiting.md
+  - patterns/component-extraction.md
+  - patterns/design-token-extraction.md
+  - patterns/api-discovery.md
 
 styles:
   - styles/scraping-general.md

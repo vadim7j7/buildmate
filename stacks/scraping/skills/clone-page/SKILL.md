@@ -1,230 +1,326 @@
 # /clone-page
 
-Download and save a webpage locally for offline analysis and testing.
+Analyze a webpage and generate full-stack code (frontend + backend) with user confirmation.
+
+## Overview
+
+This skill orchestrates a complete page cloning workflow:
+1. **Analyze** - Deep analysis of the target page
+2. **Plan** - Create detailed generation plan
+3. **Confirm** - Get user approval before generating
+4. **Generate** - Create frontend and backend code
 
 ## Arguments
 
-| Argument | Description | Required |
-|----------|-------------|----------|
-| `url` | URL to clone | Yes |
-| `--name` | Name for saved files | No |
-| `--assets` | Download assets (images, CSS, JS) | No |
-| `--render` | Render JavaScript before saving | No |
-| `--output` | Output directory | No |
+| Argument | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `url` | URL to clone | Yes | - |
+| `--frontend` | Frontend framework | No | nextjs |
+| `--backend` | Backend framework | No | fastapi |
+| `--output` | Output directory | No | ./cloned/ |
+| `--ui` | UI library | No | tailwind |
+| `--no-backend` | Skip backend generation | No | false |
+| `--analyze-only` | Only analyze, don't generate | No | false |
 
 ## Examples
 
 ```bash
+# Full-stack clone with defaults (Next.js + FastAPI)
 /clone-page https://example.com/products
-/clone-page https://example.com/products --name product-listing
-/clone-page https://example.com/product/123 --render --assets
-/clone-page https://example.com --output fixtures/
+
+# Frontend only (no backend)
+/clone-page https://example.com/landing --no-backend
+
+# Custom frameworks
+/clone-page https://example.com/products --frontend react --backend express
+
+# Analysis only
+/clone-page https://example.com/products --analyze-only
+
+# Custom output directory
+/clone-page https://example.com/products --output ./my-clone/
+
+# With specific UI library
+/clone-page https://example.com/products --ui mantine
 ```
 
-## Use Cases
+## Workflow
 
-### 1. Test Fixtures
+### Phase 1: Analysis
 
-Create stable HTML fixtures for unit tests:
+The **site-analyzer** agent performs deep analysis:
 
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         SITE ANALYSIS                           │
+├─────────────────────────────────────────────────────────────────┤
+│ • Page structure (header, main, sidebar, footer)                │
+│ • Components (cards, forms, modals, tables)                     │
+│ • Data models (Product, User, Category, etc.)                   │
+│ • API endpoints (GET /products, POST /cart, etc.)               │
+│ • Authentication (OAuth providers, login forms)                 │
+│ • Design system (colors, typography, spacing)                   │
+│ • Interactions (hover states, animations)                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Output saved to:
+- `.agent-pipeline/site-analysis.json` - Structured data
+- `.agent-pipeline/site-analysis.md` - Human-readable summary
+
+### Phase 2: Planning
+
+Present findings and create generation plan:
+
+```markdown
+## Analysis Complete
+
+**URL:** https://example.com/products
+**Page Type:** Product Listing
+
+### Components Found
+| Component | Count | Purpose |
+|-----------|-------|---------|
+| ProductCard | 12 | Product display |
+| FilterPanel | 1 | Category/price filters |
+| SearchBar | 1 | Product search |
+| Pagination | 1 | Page navigation |
+
+### Data Models
+- **Product**: id, name, price, image, rating, inStock, category
+- **Category**: id, name, slug, count
+- **User**: id, email, name, avatar
+
+### API Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/products | List with filters |
+| GET | /api/products/:id | Single product |
+| GET | /api/categories | All categories |
+| POST | /api/cart | Add to cart |
+
+### Authentication
+- **Detected:** Google OAuth + Email/Password
+- **Protected Routes:** /account, /checkout, /orders
+
+### Design System
+- Primary: #3b82f6
+- Font: Inter
+- Spacing: 4px base
+
+## Generation Plan
+
+### Frontend (Next.js + Tailwind)
+- 4 UI components (Button, Card, Input, Badge)
+- 5 section components (Header, ProductGrid, FilterPanel, Footer, Hero)
+- 2 pages (Home, Products)
+- Types and API hooks
+
+### Backend (FastAPI)
+- 5 models (Product, Category, User, Cart, Order)
+- 12 API endpoints
+- JWT authentication
+- Database migrations
+```
+
+### Phase 3: Confirmation
+
+Ask user to confirm before generating:
+
+```markdown
+## Confirmation Required
+
+Ready to generate:
+
+**Frontend:**
+- Framework: Next.js 14 with Tailwind CSS
+- Components: 12 files
+- Pages: 2 routes
+- Output: ./cloned/frontend/
+
+**Backend:**
+- Framework: FastAPI (Python)
+- Models: 5 database models
+- Endpoints: 12 API routes
+- Output: ./cloned/backend/
+
+**Authentication:**
+- Include NextAuth.js setup? (Google + Email)
+- Include backend JWT auth? (Yes)
+
+**Options:**
+1. Proceed with full generation
+2. Generate frontend only
+3. Generate backend only
+4. Modify plan
+5. Cancel
+
+Your choice:
+```
+
+### Phase 4: Generation
+
+After confirmation, generate code:
+
+```
+./cloned/
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ui/
+│   │   │   └── sections/
+│   │   ├── app/
+│   │   ├── types/
+│   │   ├── hooks/
+│   │   └── lib/
+│   ├── tailwind.config.ts
+│   └── package.json
+│
+└── backend/
+    ├── app/
+    │   ├── api/routes/
+    │   ├── models/
+    │   ├── schemas/
+    │   └── core/
+    ├── alembic/
+    └── pyproject.toml
+```
+
+### Phase 5: Report
+
+After generation, provide summary:
+
+```markdown
+## Clone Complete
+
+**Generated:** 2024-01-15 10:30:00
+**Source:** https://example.com/products
+
+### Frontend (./cloned/frontend/)
+- 12 components
+- 2 pages
+- Full TypeScript types
+- API hooks ready
+
+### Backend (./cloned/backend/)
+- 5 models with migrations
+- 12 API endpoints
+- JWT authentication
+- OpenAPI documentation
+
+### Next Steps
+
+**Frontend:**
 ```bash
-/clone-page https://example.com/product/123 --name product-detail
+cd cloned/frontend
+npm install
+npm run dev
 ```
 
-Creates:
-```
-tests/fixtures/
-└── product-detail.html
-```
-
-### 2. Offline Development
-
-Work on selectors without hitting live server:
-
+**Backend:**
 ```bash
-/clone-page https://example.com/products --assets --name products
+cd cloned/backend
+pip install -e ".[dev]"
+cp .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
-Creates:
-```
-tests/fixtures/
-├── products.html
-└── products_assets/
-    ├── styles.css
-    ├── logo.png
-    └── app.js
+### Manual Adjustments Needed
+
+1. Replace placeholder images
+2. Update copy/text content
+3. Configure OAuth credentials
+4. Add actual database seed data
 ```
 
-### 3. JavaScript-Rendered Pages
+## Framework Combinations
 
-For SPAs that require JavaScript:
-
-```bash
-/clone-page https://spa-example.com/products --render --name spa-products
-```
-
-Captures the fully rendered DOM after JavaScript execution.
-
-### 4. Snapshot Comparison
-
-Track changes to target pages over time:
-
-```bash
-/clone-page https://example.com/products --name products-$(date +%Y%m%d)
-```
-
-## Implementation
-
-{% if variables.language == 'Python' %}
-### HTTP Download
-
-```python
-import httpx
-from pathlib import Path
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-
-async def clone_page(url: str, output_dir: Path, name: str, include_assets: bool = False):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        response.raise_for_status()
-
-        html = response.text
-        soup = BeautifulSoup(html, "lxml")
-
-        if include_assets:
-            html = await download_assets(soup, url, output_dir / f"{name}_assets", client)
-
-        output_path = output_dir / f"{name}.html"
-        output_path.write_text(html)
-        print(f"Saved: {output_path}")
-
-async def download_assets(soup: BeautifulSoup, base_url: str, assets_dir: Path, client):
-    assets_dir.mkdir(parents=True, exist_ok=True)
-
-    # Download and rewrite image sources
-    for img in soup.find_all("img", src=True):
-        asset_url = urljoin(base_url, img["src"])
-        local_path = await download_asset(asset_url, assets_dir, client)
-        img["src"] = str(local_path.relative_to(assets_dir.parent))
-
-    # Similar for CSS, JS...
-    return str(soup)
-```
-
-### Browser Render
-
-```python
-from playwright.async_api import async_playwright
-
-async def clone_rendered_page(url: str, output_dir: Path, name: str):
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-
-        await page.goto(url, wait_until="networkidle")
-
-        # Get rendered HTML
-        html = await page.content()
-
-        output_path = output_dir / f"{name}.html"
-        output_path.write_text(html)
-
-        await browser.close()
-        print(f"Saved (rendered): {output_path}")
-```
-
-{% else %}
-### HTTP Download
-
-```typescript
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
-async function clonePage(
-  url: string,
-  outputDir: string,
-  name: string,
-  includeAssets = false
-): Promise<void> {
-  const response = await axios.get(url);
-  let html = response.data;
-
-  if (includeAssets) {
-    const $ = cheerio.load(html);
-    await downloadAssets($, url, path.join(outputDir, `${name}_assets`));
-    html = $.html();
-  }
-
-  const outputPath = path.join(outputDir, `${name}.html`);
-  await fs.mkdir(outputDir, { recursive: true });
-  await fs.writeFile(outputPath, html);
-  console.log(`Saved: ${outputPath}`);
-}
-```
-
-### Browser Render
-
-```typescript
-import { chromium } from 'playwright';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
-async function cloneRenderedPage(
-  url: string,
-  outputDir: string,
-  name: string
-): Promise<void> {
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-
-  await page.goto(url, { waitUntil: 'networkidle' });
-
-  const html = await page.content();
-
-  const outputPath = path.join(outputDir, `${name}.html`);
-  await fs.mkdir(outputDir, { recursive: true });
-  await fs.writeFile(outputPath, html);
-
-  await browser.close();
-  console.log(`Saved (rendered): ${outputPath}`);
-}
-```
-{% endif %}
+| Frontend | Backend | Use Case |
+|----------|---------|----------|
+| Next.js | FastAPI | Full-stack Python backend |
+| Next.js | Rails | Ruby on Rails API |
+| Next.js | Express | Node.js TypeScript |
+| React | FastAPI | SPA with Python API |
+| React Native | FastAPI | Mobile app |
 
 ## Output Structure
 
+### Frontend Output
 ```
-tests/
-└── fixtures/
-    ├── product-listing.html          # Main page
-    ├── product-listing_assets/       # Assets (if --assets)
-    │   ├── style.css
-    │   ├── main.js
-    │   └── images/
-    │       ├── logo.png
-    │       └── product-1.jpg
-    ├── product-detail.html
-    └── search-results.html
+cloned/frontend/
+├── src/
+│   ├── components/
+│   │   ├── ui/           # Button, Card, Input, Badge
+│   │   ├── sections/     # Header, ProductGrid, Footer
+│   │   └── layout/       # PageLayout
+│   ├── app/              # Next.js routes
+│   ├── types/            # TypeScript definitions
+│   ├── hooks/            # Data fetching hooks
+│   └── lib/              # Utilities
+├── public/
+├── tailwind.config.ts
+├── package.json
+└── README.md
 ```
 
-## Best Practices
+### Backend Output
+```
+cloned/backend/
+├── app/
+│   ├── api/
+│   │   ├── routes/       # Endpoint handlers
+│   │   └── deps.py       # Dependencies
+│   ├── models/           # SQLAlchemy models
+│   ├── schemas/          # Pydantic schemas
+│   └── core/             # Config, security, db
+├── alembic/
+│   └── versions/         # Migrations
+├── tests/
+├── pyproject.toml
+├── .env.example
+└── README.md
+```
 
-1. **Name descriptively** - Use meaningful names for easy identification
-2. **Include timestamps** - For change tracking over time
-3. **Use --render sparingly** - Slower, only for JS-dependent pages
-4. **Organize by page type** - Group similar pages together
-5. **Document source URLs** - Add comments with original URLs
+## Agents Used
+
+| Agent | Role |
+|-------|------|
+| **site-analyzer** | Deep page analysis |
+| **ui-cloner** | Frontend code generation |
+| **api-generator** | Backend code generation |
+
+## Configuration
+
+Override defaults in `.claude/settings.json`:
+
+```json
+{
+  "clone": {
+    "defaultFrontend": "nextjs",
+    "defaultBackend": "fastapi",
+    "defaultOutput": "./cloned",
+    "defaultUi": "tailwind",
+    "generateMockData": true,
+    "includeTests": true
+  }
+}
+```
 
 ## Self-Verification
 
 After cloning, verify:
 
-- [ ] HTML file saved correctly
-- [ ] Assets downloaded (if requested)
-- [ ] Relative paths work locally
-- [ ] JavaScript-rendered content captured (if --render)
-- [ ] File can be opened in browser
-- [ ] Selectors work on local copy
+- [ ] Analysis matches page structure
+- [ ] Components render correctly
+- [ ] Types match data models
+- [ ] API endpoints work
+- [ ] Authentication flows complete
+- [ ] Database migrations run
+- [ ] All quality gates pass
+
+## Related Skills
+
+- `/clone-site` - Clone entire multi-page site
+- `/analyze-site` - Analysis only (no generation)
+- `/new-component` - Generate single component
