@@ -7,6 +7,7 @@ default_model: opus
 compatible_with:
   - rails
   - fastapi
+  - scraping
 
 options:
   ui:
