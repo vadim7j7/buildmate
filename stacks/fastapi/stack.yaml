@@ -7,6 +7,7 @@ default_model: opus
 compatible_with:
   - nextjs
   - react-native
+  - scraping
 
 options:
   db:
