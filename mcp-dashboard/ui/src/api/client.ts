@@ -1,0 +1,120 @@
+import type { Activity, ProcessStatus, Question, Stats, Task } from '../types'
+
+const BASE = '/api'
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`${res.status}: ${body}`)
+  }
+  return res.json()
+}
+
+export const api = {
+  // Tasks
+  listTasks: () => request<Task[]>('/tasks'),
+  getTask: (id: string) => request<Task>(`/tasks/${id}`),
+  createTask: (title: string, description: string, autoAccept: boolean) =>
+    request<Task>('/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ title, description, auto_accept: autoAccept }),
+    }),
+  updateTask: (id: string, data: Partial<{ status: string; phase: string; result: string }>) =>
+    request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteTask: (id: string) => request<{ deleted: boolean }>(`/tasks/${id}`, { method: 'DELETE' }),
+
+  // Activity
+  getActivity: (taskId: string) => request<Activity[]>(`/tasks/${taskId}/activity`),
+
+  // Questions
+  getQuestions: (taskId: string) => request<Question[]>(`/tasks/${taskId}/questions`),
+  answerQuestion: (taskId: string, questionId: string, answer: string) =>
+    request<Question>(`/tasks/${taskId}/questions/${questionId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ answer }),
+    }),
+
+  // Process
+  runTask: (taskId: string, prompt?: string) =>
+    request<{ status: string; task_id: string }>(`/tasks/${taskId}/run`, {
+      method: 'POST',
+      body: JSON.stringify(prompt ? { prompt } : {}),
+    }),
+  cancelTask: (taskId: string) =>
+    request<{ status: string }>(`/tasks/${taskId}/cancel`, { method: 'POST' }),
+  getProcessStatus: (taskId: string) =>
+    request<ProcessStatus>(`/tasks/${taskId}/process`),
+
+  // Stats & Agents
+  getStats: () => request<Stats>('/stats'),
+  getAgents: () => request<{ name: string; filename: string; description: string }[]>('/agents'),
+}
+
+// --- WebSocket hook ---
+
+export function createWebSocket(
+  onMessage: (msg: { type: string; data: unknown }) => void,
+  onStatusChange: (connected: boolean) => void,
+): { close: () => void } {
+  let ws: WebSocket | null = null
+  let reconnectDelay = 1000
+  let closed = false
+  let pingInterval: ReturnType<typeof setInterval> | null = null
+
+  function connect() {
+    if (closed) return
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const url = `${protocol}//${window.location.host}/ws`
+    ws = new WebSocket(url)
+
+    ws.onopen = () => {
+      reconnectDelay = 1000
+      onStatusChange(true)
+      // Start ping interval
+      pingInterval = setInterval(() => {
+        if (ws?.readyState === WebSocket.OPEN) {
+          ws.send('ping')
+        }
+      }, 30000)
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data)
+        if (msg.type !== 'pong') {
+          onMessage(msg)
+        }
+      } catch {
+        // ignore malformed messages
+      }
+    }
+
+    ws.onclose = () => {
+      onStatusChange(false)
+      if (pingInterval) clearInterval(pingInterval)
+      if (!closed) {
+        setTimeout(connect, reconnectDelay)
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000)
+      }
+    }
+
+    ws.onerror = () => {
+      ws?.close()
+    }
+  }
+
+  connect()
+
+  return {
+    close: () => {
+      closed = true
+      if (pingInterval) clearInterval(pingInterval)
+      ws?.close()
+    },
+  }
+}

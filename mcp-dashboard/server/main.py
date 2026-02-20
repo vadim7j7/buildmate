@@ -1,0 +1,394 @@
+"""
+MCP Dashboard Server.
+
+FastAPI application providing REST API, WebSocket real-time updates,
+process management, and static file serving for the React frontend.
+"""
+
+import asyncio
+import json
+import logging
+import os
+import re
+import uuid
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from .database import SyncDB, init_db
+from .models import (
+    AnswerRequest,
+    RunTaskRequest,
+    StatsResponse,
+    TaskCreate,
+    TaskUpdate,
+)
+from .queue_manager import QueueManager
+
+logger = logging.getLogger(__name__)
+
+# Global state
+db: SyncDB | None = None
+queue: QueueManager | None = None
+ws_clients: list[WebSocket] = []
+_poll_task: asyncio.Task | None = None
+
+
+def get_db_path() -> str:
+    return os.environ.get("DASHBOARD_DB_PATH", ".dashboard/tasks.db")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: init DB and start WebSocket poller."""
+    global db, queue, _poll_task
+
+    db_path = get_db_path()
+    init_db(db_path)
+    db = SyncDB(db_path)
+    queue = QueueManager(db_path)
+
+    # Start WebSocket polling task
+    _poll_task = asyncio.create_task(_ws_poll_loop())
+
+    yield
+
+    # Cleanup
+    if _poll_task:
+        _poll_task.cancel()
+        try:
+            await _poll_task
+        except asyncio.CancelledError:
+            pass
+
+
+app = FastAPI(title="MCP Dashboard", version="0.1.0", lifespan=lifespan)
+
+# CORS for development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# --- WebSocket ---
+
+
+async def _ws_broadcast(message: dict) -> None:
+    """Send a message to all connected WebSocket clients."""
+    data = json.dumps(message)
+    disconnected = []
+    for ws in ws_clients:
+        try:
+            await ws.send_text(data)
+        except Exception:
+            disconnected.append(ws)
+    for ws in disconnected:
+        ws_clients.remove(ws)
+
+
+async def _ws_poll_loop() -> None:
+    """Poll SQLite and push full state snapshots to WebSocket clients.
+
+    Uses snapshot-diff approach instead of timestamp cursors to avoid
+    race conditions with second-precision timestamps.
+    """
+    prev_snapshot: str = ""
+    last_activity_id: int = 0
+    last_question_snapshot: str = ""
+
+    while True:
+        await asyncio.sleep(0.5)
+        if not ws_clients or not db:
+            continue
+        try:
+            # Fetch full state every cycle — cheap for a small dashboard
+            tasks = db.get_root_tasks()
+            stats = db.get_stats()
+
+            # Snapshot tasks + stats as JSON for comparison
+            snapshot = json.dumps({"t": tasks, "s": stats}, sort_keys=True)
+            if snapshot != prev_snapshot:
+                prev_snapshot = snapshot
+                await _ws_broadcast(
+                    {"type": "tasks_updated", "data": tasks}
+                )
+                await _ws_broadcast({"type": "stats", "data": stats})
+
+            # Stream new activity entries using auto-increment ID as cursor
+            new_activity = db.get_activity_since_id(last_activity_id)
+            if new_activity:
+                last_activity_id = max(a["id"] for a in new_activity)
+                await _ws_broadcast(
+                    {"type": "activity", "data": new_activity}
+                )
+
+            # Check for question changes (new or answered)
+            all_pending = db.get_all_pending_questions()
+            q_snapshot = json.dumps(all_pending, sort_keys=True)
+            if q_snapshot != last_question_snapshot:
+                last_question_snapshot = q_snapshot
+                await _ws_broadcast(
+                    {"type": "questions", "data": all_pending}
+                )
+
+            # Broadcast process info — always send so UI clears stale entries
+            if queue:
+                running = queue.list_running()
+                processes = {
+                    tid: queue.get_status(tid) for tid in running
+                }
+                await _ws_broadcast(
+                    {"type": "processes", "data": processes}
+                )
+        except Exception as e:
+            logger.error(f"WebSocket poll error: {e}")
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    ws_clients.append(websocket)
+    try:
+        # Send initial state
+        if db:
+            tasks = db.get_root_tasks()
+            stats = db.get_stats()
+            await websocket.send_text(
+                json.dumps({"type": "init", "data": {"tasks": tasks, "stats": stats}})
+            )
+        # Keep connection alive
+        while True:
+            # Wait for any client messages (ping/pong)
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text(json.dumps({"type": "pong"}))
+    except WebSocketDisconnect:
+        pass
+    finally:
+        if websocket in ws_clients:
+            ws_clients.remove(websocket)
+
+
+# --- REST API ---
+
+
+@app.get("/api/tasks")
+async def list_tasks():
+    """List root tasks (parent_id IS NULL)."""
+    return db.get_root_tasks()
+
+
+@app.post("/api/tasks")
+async def create_task(body: TaskCreate):
+    """Create a new task from the UI."""
+    task_id = str(uuid.uuid4())[:8]
+    task = db.create_task(
+        task_id=task_id,
+        title=body.title,
+        description=body.description,
+        auto_accept=body.auto_accept,
+        source="dashboard",
+    )
+    return task
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task(task_id: str):
+    """Get a task with its children."""
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@app.patch("/api/tasks/{task_id}")
+async def update_task(task_id: str, body: TaskUpdate):
+    """Update a task."""
+    task = db.update_task(
+        task_id,
+        status=body.status,
+        phase=body.phase,
+        result=body.result,
+        assigned_agent=body.assigned_agent,
+    )
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: str):
+    """Delete a task and its children."""
+    if not db.delete_task(task_id):
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"deleted": True}
+
+
+@app.get("/api/tasks/{task_id}/activity")
+async def get_activity(task_id: str, limit: int = 50, include_children: bool = True):
+    """Get activity log for a task and optionally its children."""
+    return db.get_activity(task_id, limit=limit, include_children=include_children)
+
+
+@app.get("/api/tasks/{task_id}/questions")
+async def get_questions(task_id: str, pending_only: bool = False, include_children: bool = True):
+    """Get questions for a task and optionally its children."""
+    return db.get_questions(task_id, pending_only=pending_only, include_children=include_children)
+
+
+@app.post("/api/tasks/{task_id}/questions/{question_id}/answer")
+async def answer_question(task_id: str, question_id: str, body: AnswerRequest):
+    """Answer a pending question."""
+    question = db.get_question(question_id)
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    if question["task_id"] != task_id:
+        raise HTTPException(status_code=400, detail="Question does not belong to task")
+    if question.get("answer") is not None:
+        raise HTTPException(status_code=400, detail="Question already answered")
+    result = db.answer_question(question_id, body.answer)
+    return result
+
+
+@app.post("/api/tasks/{task_id}/run")
+async def run_task(task_id: str, body: RunTaskRequest | None = None):
+    """Spawn a Claude process for a task."""
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    prompt = ""
+    if body and body.prompt:
+        prompt = body.prompt
+    else:
+        prompt = f"Use PM: {task['title']}"
+        if task.get("description"):
+            prompt += f"\n\n{task['description']}"
+
+    success = await queue.spawn(task_id, prompt)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to spawn Claude process")
+
+    return {"status": "running", "task_id": task_id}
+
+
+@app.post("/api/tasks/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    """Cancel a running Claude process."""
+    cancelled = await queue.cancel(task_id)
+    if not cancelled:
+        raise HTTPException(status_code=404, detail="No running process for task")
+    return {"status": "cancelled", "task_id": task_id}
+
+
+@app.get("/api/tasks/{task_id}/process")
+async def get_process_status(task_id: str):
+    """Get Claude process status for a task."""
+    return queue.get_status(task_id)
+
+
+@app.get("/api/stats")
+async def get_stats():
+    """Get dashboard statistics."""
+    stats = db.get_stats()
+    return StatsResponse(**stats)
+
+
+@app.get("/api/agents")
+async def list_agents():
+    """List available agents from .claude/agents/."""
+    agents = []
+    agents_dir = Path(".claude/agents")
+    if agents_dir.exists():
+        for f in sorted(agents_dir.iterdir()):
+            if f.suffix == ".md" and f.is_file():
+                name = f.stem
+                description = ""
+                # Try to extract description from frontmatter
+                content = f.read_text()
+                desc_match = re.search(
+                    r"^description:\s*\|?\s*\n?\s*(.+?)$",
+                    content,
+                    re.MULTILINE,
+                )
+                if desc_match:
+                    description = desc_match.group(1).strip()
+                agents.append(
+                    {"name": name, "filename": f.name, "description": description}
+                )
+    return agents
+
+
+# --- Static file serving ---
+
+# Serve the React frontend from ui/dist/
+UI_DIR = Path(__file__).parent.parent / "ui" / "dist"
+
+
+@app.get("/")
+async def serve_index():
+    """Serve the React app index page."""
+    index = UI_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return {"message": "MCP Dashboard API", "docs": "/docs"}
+
+
+# Mount static assets if the dist directory exists
+if UI_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=UI_DIR / "assets"), name="assets")
+
+    # Catch-all for SPA routing
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve static files or fall back to index.html for SPA routing."""
+        file_path = UI_DIR / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        index = UI_DIR / "index.html"
+        if index.exists():
+            return FileResponse(index)
+        raise HTTPException(status_code=404)
+
+
+# --- CLI Entry ---
+
+
+def cli_main():
+    """CLI entry point for mcp-dashboard command."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="MCP Dashboard Server")
+    parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
+    parser.add_argument("--port", type=int, default=8420, help="Port to listen on")
+    parser.add_argument("--db", default=None, help="Database path")
+    parser.add_argument(
+        "--reload", action="store_true", help="Enable auto-reload for development"
+    )
+    args = parser.parse_args()
+
+    if args.db:
+        os.environ["DASHBOARD_DB_PATH"] = args.db
+
+    print(f"\n  MCP Dashboard")
+    print(f"  http://{args.host}:{args.port}\n")
+
+    uvicorn.run(
+        "server.main:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+    )
+
+
+if __name__ == "__main__":
+    cli_main()

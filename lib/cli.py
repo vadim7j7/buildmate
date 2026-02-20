@@ -262,6 +262,7 @@ def cmd_bootstrap(
     default_model: str | None = None,
     profile_name: str | None = None,
     extra_args: list[str] | None = None,
+    dashboard: bool = False,
 ):
     """Bootstrap stacks to target directory."""
     print_header()
@@ -344,7 +345,7 @@ def cmd_bootstrap(
     # Render templates
     print("Rendering templates...")
     try:
-        output = render_all(config)
+        output = render_all(config, dashboard=dashboard)
     except Exception as e:
         print(f"Error rendering templates: {e}")
         import traceback
@@ -366,6 +367,7 @@ def cmd_bootstrap(
         dry_run=dry_run,
         selected_options=config.selected_options,
         profile_name=profile_name,
+        dashboard=dashboard,
     )
 
     if result.errors:
@@ -820,6 +822,11 @@ Extend existing projects:
         action="store_true",
         help="Show credits and about information",
     )
+    parser.add_argument(
+        "--dashboard",
+        action="store_true",
+        help="Install MCP Dashboard for monitoring and control",
+    )
 
     # Parse known args and collect unknown args (for dynamic options)
     args, unknown_args = parser.parse_known_args()
@@ -903,6 +910,7 @@ Extend existing projects:
         default_model=args.default_model,
         profile_name=args.profile,
         extra_args=unknown_args,
+        dashboard=args.dashboard,
     )
 
 

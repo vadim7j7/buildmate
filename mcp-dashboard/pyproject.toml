@@ -1,0 +1,23 @@
+[project]
+name = "mcp-dashboard"
+version = "0.1.0"
+description = "MCP Dashboard - monitoring and control layer for Claude Code orchestrator"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "mcp[cli]>=1.0",
+    "aiosqlite>=0.20",
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+mcp-dashboard = "server.main:cli_main"
+mcp-dashboard-tools = "server.mcp_tools:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["server*"]

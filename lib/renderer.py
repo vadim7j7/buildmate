@@ -67,12 +67,15 @@ def create_jinja_env(template_dirs: list[Path]) -> Environment:
     return env
 
 
-def build_template_context(config: ComposedConfig) -> dict[str, Any]:
+def build_template_context(
+    config: ComposedConfig, dashboard: bool = False
+) -> dict[str, Any]:
     """
     Build the context dictionary for template rendering.
 
     Args:
         config: Composed configuration from multiple stacks
+        dashboard: Whether MCP Dashboard is enabled
 
     Returns:
         Dictionary of variables available in templates
@@ -90,6 +93,8 @@ def build_template_context(config: ComposedConfig) -> dict[str, Any]:
         # Global settings
         "default_model": config.default_model,
         "variables": config.variables,
+        # Dashboard integration
+        "dashboard": dashboard,
     }
 
 
@@ -249,12 +254,13 @@ def collect_hooks(config: ComposedConfig) -> tuple[dict[str, str], dict[str, Pat
     return rendered, static
 
 
-def render_all(config: ComposedConfig) -> RenderedOutput:
+def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutput:
     """
     Render all templates for a composed configuration.
 
     Args:
         config: Composed configuration from one or more stacks
+        dashboard: Whether MCP Dashboard is enabled
 
     Returns:
         RenderedOutput containing all rendered content
@@ -263,7 +269,7 @@ def render_all(config: ComposedConfig) -> RenderedOutput:
     template_dirs = [V2_ROOT]  # Root so we can use paths like "base/agents/..."
 
     env = create_jinja_env(template_dirs)
-    context = build_template_context(config)
+    context = build_template_context(config, dashboard=dashboard)
 
     output = RenderedOutput()
 

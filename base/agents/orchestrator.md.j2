@@ -16,6 +16,27 @@ memory: project
 
 # PM Orchestration Workflow Guide
 
+{% if dashboard %}
+## Dashboard Integration (MCP Tools)
+
+The MCP Dashboard is enabled. Use these tools to track progress in the dashboard UI:
+
+| Tool | When to Use |
+|------|-------------|
+| `dashboard_register_task(title, description)` | Start of workflow — register the root task. Returns `{id: "..."}` |
+| `dashboard_create_subtask(parent_id, title, assigned_agent)` | Before each Task delegation — create a tracking subtask |
+| `dashboard_update_status(task_id, status, result)` | After a subtask completes or fails |
+| `dashboard_update_phase(task_id, phase)` | At the start of each pipeline phase |
+| `dashboard_log(task_id, message, agent)` | Log notable events visible in the dashboard |
+| `dashboard_ask_question(task_id, question, question_type, options)` | Ask user a question (blocks until answered) |
+| `dashboard_get_task(task_id)` | Check task state, children, pending questions |
+
+**task_id convention:** The root task ID is returned by `dashboard_register_task`. Store it and pass it to all subsequent calls. Subtask IDs are returned by `dashboard_create_subtask`.
+
+**Status values:** `pending`, `in_progress`, `completed`, `failed`, `blocked`
+**Phase values:** `planning`, `implementation`, `testing`, `review`, `evaluation`, `completion`
+
+{% endif %}
 ## CRITICAL: This Is NOT a Spawnable Agent
 
 **This file is a WORKFLOW GUIDE, not a sub-agent.** The main Claude agent reads this file and follows the instructions directly. You do NOT spawn this as a sub-agent via the Task tool.
@@ -159,6 +180,16 @@ I detected multiple git repositories. Do you want to enable multi-repo mode?
 > ambiguous, the scope is unclear, or multiple valid approaches exist.
 > Once the user approves the plan, Phases 2–5 run **autonomously**.
 
+{% if dashboard %}
+**Dashboard: Register task and set phase**
+
+```
+task = dashboard_register_task(title="<task title from user request>", description="<description>")
+# Store task.id as the root task_id for all subsequent calls
+dashboard_update_phase(task_id=task.id, phase="planning")
+```
+{% endif %}
+
 ### 1.0 Check Previous Session Context
 
 If resuming work from a previous session, read saved context first:
@@ -253,13 +284,129 @@ Use the **TodoWrite tool** to create a visible task list.
 
 ### 1.5 Validate the Plan
 
+{% if dashboard %}
+> **MANDATORY: You MUST call `dashboard_ask_question` to get user approval before proceeding.**
+> Do NOT use AskUserQuestion. Do NOT skip this step. Do NOT auto-approve.
+> The `dashboard_ask_question` MCP tool will block until the user responds in the dashboard UI.
+
+**Always present the plan to the user.** Show the feature file, then call the MCP tool:
+
+```
+result = dashboard_ask_question(
+    task_id="<root_task_id>",
+    question="Please review the plan above. Approve to proceed or provide feedback.",
+    question_type="plan_review",
+    options=["Approve", "Needs changes"],
+    context="<paste the feature file content or plan summary>",
+    agent="orchestrator"
+)
+# WAIT for the result — this tool blocks until the user answers.
+# If result.answer == "Approve" -> proceed to Phase 2
+# If result.answer == "Needs changes" or other -> revise plan and ask again
+```
+
+**Do NOT proceed to Phase 2 until `dashboard_ask_question` returns with an "Approve" answer.**
+{% else %}
 - **Always present the plan to the user.** Show the feature file and ask for approval.
 - If anything is ambiguous, use AskUserQuestion to clarify.
 - For trivial changes, you may proceed without explicit approval.
+{% endif %}
 
 **Once the user approves the plan, ALL subsequent phases run AUTONOMOUSLY.**
 
-### 1.6 Create Feature Branch (If Configured)
+{% if dashboard %}
+### 1.6 Create All Pipeline Subtasks (Dashboard)
+
+**Immediately after plan approval**, create ALL subtasks upfront so the dashboard shows the full pipeline. Create them in `pending` status — they will be started one by one as each phase begins.
+
+```
+# 1. Implementation subtasks
+{% for stack in stacks %}
+{% set dev_agent = stack.agents | find_by_role('developer') %}
+{% if dev_agent %}
+impl_subtask_{{ stack.name }} = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Implement {{ stack.display_name }} features",
+    assigned_agent="{{ dev_agent.name }}"
+)
+{% endif %}
+{% endfor %}
+
+# 2. Verification subtasks (run browser/API tests to verify implementation)
+{% for stack in stacks %}
+{% if 'nextjs' in stack.name %}
+verify_subtask_{{ stack.name }} = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Verify {{ stack.display_name }} UI in browser",
+    assigned_agent="frontend-verifier"
+)
+{% endif %}
+{% if 'rails' in stack.name or 'fastapi' in stack.name %}
+verify_subtask_{{ stack.name }} = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Verify {{ stack.display_name }} API endpoints",
+    assigned_agent="backend-verifier"
+)
+{% endif %}
+{% if 'native' in stack.name %}
+verify_subtask_{{ stack.name }} = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Verify {{ stack.display_name }} components",
+    assigned_agent="mobile-verifier"
+)
+{% endif %}
+{% endfor %}
+
+# 3. Testing subtasks
+{% for stack in stacks %}
+{% set test_agent = stack.agents | find_by_role('tester') %}
+{% if test_agent %}
+test_subtask_{{ stack.name }} = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Write and run {{ stack.display_name }} tests",
+    assigned_agent="{{ test_agent.name }}"
+)
+{% endif %}
+{% endfor %}
+
+# 4. Quality gates subtask
+grind_subtask = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Run quality gates and fix failures",
+    assigned_agent="grind"
+)
+
+# 5. Review subtasks
+{% for stack in stacks %}
+{% set review_agent = stack.agents | find_by_role('reviewer') %}
+{% if review_agent %}
+review_subtask_{{ stack.name }} = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Code review for {{ stack.display_name }}",
+    assigned_agent="{{ review_agent.name }}"
+)
+{% endif %}
+{% endfor %}
+
+# 6. Eval subtask
+eval_subtask = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Evaluate implementation quality",
+    assigned_agent="eval-agent"
+)
+
+# 7. Documentation subtask
+docs_subtask = dashboard_create_subtask(
+    parent_id="<root_task_id>",
+    title="Generate documentation",
+    assigned_agent="documentation-specialist"
+)
+```
+
+**Store all subtask IDs.** You will update them to `in_progress` when each phase starts and `completed`/`failed` when done.
+
+{% endif %}
+### 1.7 Create Feature Branch (If Configured)
 
 If `pm.git_workflow` is `"branch"` or `"full"`:
 
@@ -295,6 +442,14 @@ If `/branch` fails (uncommitted changes, branch exists), report to user and let 
 ## Phase 2: Implementation
 
 Update the feature file status to `IN_PROGRESS`.
+
+{% if dashboard %}
+**Dashboard: Update phase**
+
+```
+dashboard_update_phase(task_id="<root_task_id>", phase="implementation")
+```
+{% endif %}
 
 > **CRITICAL: YOU MUST DELEGATE ALL IMPLEMENTATION WORK.**
 >
@@ -358,9 +513,41 @@ After each Task completes:
 3. Update TodoWrite (mark completed, start next)
 4. Verify the work by reading modified files
 
+{% if dashboard %}
+**Dashboard: Update pre-created subtask and log progress**
+
+Before each Task delegation, mark the subtask as in_progress and log what's happening:
+```
+dashboard_update_status(task_id=<subtask_id>, status="in_progress")
+dashboard_log(task_id=<subtask_id>, message="Starting: <brief description of work>", agent="orchestrator")
+```
+
+After the Task completes:
+```
+dashboard_log(task_id=<subtask_id>, message="Completed: <brief summary of result>", agent="orchestrator")
+dashboard_update_status(task_id=<subtask_id>, status="completed", result="<summary of what was done>")
+```
+
+If a Task fails:
+```
+dashboard_log(task_id=<subtask_id>, message="Failed: <error summary>", agent="orchestrator")
+dashboard_update_status(task_id=<subtask_id>, status="failed", result="<error details>")
+```
+
+**Use the subtask IDs you created in step 1.6** — do NOT create new subtasks.
+{% endif %}
+
 ### Implementation Verification
 
 **After implementation, run verifiers to test the work by making real requests:**
+
+{% if dashboard %}
+**Dashboard: Update verification subtask**
+```
+dashboard_update_status(task_id=<verify_subtask_id>, status="in_progress")
+dashboard_log(task_id=<verify_subtask_id>, message="Starting: self-verification of implementation", agent="orchestrator")
+```
+{% endif %}
 
 {% for stack in stacks %}
 {% if 'rails' in stack.name or 'fastapi' in stack.name %}
@@ -425,6 +612,14 @@ Report: VERIFIED or FAILED with details."
 {% endif %}
 {% endfor %}
 
+{% if dashboard %}
+After verification completes:
+```
+dashboard_log(task_id=<verify_subtask_id>, message="Completed: <VERIFIED or FAILED with details>", agent="orchestrator")
+dashboard_update_status(task_id=<verify_subtask_id>, status="completed", result="<VERIFIED or FAILED>")
+```
+{% endif %}
+
 - If verifier returns **VERIFIED**: proceed to testing
 - If verifier returns **FAILED** after retries: stop and report to user
 
@@ -433,6 +628,31 @@ Report: VERIFIED or FAILED with details."
 ## Phase 3: Testing
 
 Update the feature file status to `TESTING`.
+
+{% if dashboard %}
+```
+dashboard_update_phase(task_id="<root_task_id>", phase="testing")
+dashboard_log(task_id="<root_task_id>", message="Starting testing phase", agent="orchestrator")
+```
+
+**For each testing delegation**, update the pre-created subtask:
+```
+dashboard_update_status(task_id=<test_subtask_id>, status="in_progress")
+dashboard_log(task_id=<test_subtask_id>, message="Starting: writing and running tests", agent="orchestrator")
+# ... delegate via Task tool ...
+dashboard_log(task_id=<test_subtask_id>, message="Completed: <summary>", agent="orchestrator")
+dashboard_update_status(task_id=<test_subtask_id>, status="completed", result="<summary>")
+```
+
+Same for the grind subtask:
+```
+dashboard_update_status(task_id=<grind_subtask_id>, status="in_progress")
+dashboard_log(task_id=<grind_subtask_id>, message="Starting: running quality gates", agent="orchestrator")
+# ... delegate via Task tool ...
+dashboard_log(task_id=<grind_subtask_id>, message="Completed: all gates passing", agent="orchestrator")
+dashboard_update_status(task_id=<grind_subtask_id>, status="completed", result="<summary>")
+```
+{% endif %}
 
 > **CRITICAL: Delegate testing to specialist agents. Do NOT write tests yourself.**
 
@@ -494,6 +714,22 @@ Max iterations: 10."
 
 Update the feature file status to `IN_REVIEW`.
 
+{% if dashboard %}
+```
+dashboard_update_phase(task_id="<root_task_id>", phase="review")
+dashboard_log(task_id="<root_task_id>", message="Starting review phase", agent="orchestrator")
+```
+
+**For each review delegation**, update the pre-created subtask:
+```
+dashboard_update_status(task_id=<review_subtask_id>, status="in_progress")
+dashboard_log(task_id=<review_subtask_id>, message="Starting: code review", agent="orchestrator")
+# ... delegate via Task tool ...
+dashboard_log(task_id=<review_subtask_id>, message="Completed: <APPROVED/NEEDS_CHANGES/BLOCKED>", agent="orchestrator")
+dashboard_update_status(task_id=<review_subtask_id>, status="completed", result="<summary>")
+```
+{% endif %}
+
 > **CRITICAL: Delegate code review to specialist agents. Do NOT review code yourself.**
 
 ### Review Delegation
@@ -525,6 +761,22 @@ Return: APPROVED, NEEDS_CHANGES, or BLOCKED with specific feedback."
 
 ## Phase 5: Evaluation & Documentation (Automatic)
 
+{% if dashboard %}
+```
+dashboard_update_phase(task_id="<root_task_id>", phase="evaluation")
+dashboard_log(task_id="<root_task_id>", message="Starting evaluation phase", agent="orchestrator")
+```
+
+**Update the pre-created eval subtask:**
+```
+dashboard_update_status(task_id=<eval_subtask_id>, status="in_progress")
+dashboard_log(task_id=<eval_subtask_id>, message="Starting: quality evaluation", agent="orchestrator")
+# ... delegate via Task tool ...
+dashboard_log(task_id=<eval_subtask_id>, message="Completed: score X.XX, grade X", agent="orchestrator")
+dashboard_update_status(task_id=<eval_subtask_id>, status="completed", result="<summary>")
+```
+{% endif %}
+
 After review passes, automatically run evaluation and documentation generation.
 
 ### 5.1 Run Evaluation
@@ -546,6 +798,14 @@ Write your evaluation report to .agent-eval-results/eval-<timestamp>.md"
 
 ### 5.2 Generate Documentation
 
+{% if dashboard %}
+**Update the pre-created docs subtask:**
+```
+dashboard_update_status(task_id=<docs_subtask_id>, status="in_progress")
+dashboard_log(task_id=<docs_subtask_id>, message="Starting: documentation generation", agent="orchestrator")
+```
+{% endif %}
+
 Delegate to the documentation specialist:
 
 ```
@@ -558,6 +818,13 @@ Generate or update documentation for these files:
 Write your documentation report to .agent-pipeline/docs.md"
 ```
 
+{% if dashboard %}
+```
+dashboard_log(task_id=<docs_subtask_id>, message="Completed: documentation generated", agent="orchestrator")
+dashboard_update_status(task_id=<docs_subtask_id>, status="completed", result="<summary>")
+```
+{% endif %}
+
 ### 5.3 Review Results
 
 - If eval grade is below C (0.7): surface issues to user before completing
@@ -568,6 +835,12 @@ Write your documentation report to .agent-pipeline/docs.md"
 ## Phase 6: Completion
 
 Update the feature file status to `COMPLETE`.
+
+{% if dashboard %}
+```
+dashboard_update_phase(task_id="<root_task_id>", phase="completion")
+```
+{% endif %}
 
 ### 6.0 Ship Changes (If Configured)
 
@@ -646,3 +919,15 @@ If `/ship` fails (quality gate issues, push rejected):
 - Files documented: N
 - Report: `.agent-pipeline/docs.md`
 ```
+
+{% if dashboard %}
+**Dashboard: Mark root task as completed**
+
+```
+dashboard_update_status(
+    task_id="<root_task_id>",
+    status="completed",
+    result="<Feature Name>: <brief summary of what was built>"
+)
+```
+{% endif %}

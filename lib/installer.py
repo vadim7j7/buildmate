@@ -121,6 +121,138 @@ def create_settings_local_template(claude_dir: Path) -> None:
             f.write("\n")
 
 
+def install_dashboard(
+    target_path: Path, settings: dict[str, object]
+) -> None:
+    """
+    Install the MCP Dashboard to the target project.
+
+    Creates .dashboard/ directory with server code, pre-built UI,
+    Python venv, and start script. Modifies settings.json to add
+    MCP server config and tool permissions.
+
+    Args:
+        target_path: Project root directory
+        settings: The settings.json dict to modify in-place
+    """
+    dashboard_dir = target_path / ".dashboard"
+    ensure_directory(dashboard_dir)
+
+    # Locate mcp-dashboard source (relative to this package)
+    src_dir = Path(__file__).parent.parent / "mcp-dashboard"
+
+    # Copy server source
+    server_src = src_dir / "server"
+    server_dst = dashboard_dir / "server"
+    if server_src.exists():
+        if server_dst.exists():
+            shutil.rmtree(server_dst)
+        shutil.copytree(
+            server_src,
+            server_dst,
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+        )
+
+    # Copy pre-built UI
+    ui_dist_src = src_dir / "ui" / "dist"
+    ui_dist_dst = dashboard_dir / "ui" / "dist"
+    if ui_dist_src.exists():
+        ensure_directory(dashboard_dir / "ui")
+        if ui_dist_dst.exists():
+            shutil.rmtree(ui_dist_dst)
+        shutil.copytree(ui_dist_src, ui_dist_dst)
+
+    # Copy pyproject.toml
+    pyproject_src = src_dir / "pyproject.toml"
+    if pyproject_src.exists():
+        shutil.copy2(pyproject_src, dashboard_dir / "pyproject.toml")
+
+    # Create start-dashboard.sh
+    start_script = dashboard_dir / "start-dashboard.sh"
+    start_script.write_text(
+        "#!/usr/bin/env bash\n"
+        'SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"\n'
+        'cd "$SCRIPT_DIR/.."\n'
+        'export DASHBOARD_DB_PATH=".dashboard/tasks.db"\n'
+        '"$SCRIPT_DIR/.venv/bin/mcp-dashboard" --port 8420 "$@"\n'
+    )
+    make_executable(start_script)
+
+    # Create Python venv and install
+    import subprocess
+    import sys
+
+    venv_path = dashboard_dir / ".venv"
+    if not venv_path.exists():
+        subprocess.run(
+            [sys.executable, "-m", "venv", str(venv_path)],
+            check=True,
+            capture_output=True,
+        )
+
+    pip = venv_path / "bin" / "pip"
+    subprocess.run(
+        [str(pip), "install", "-e", str(dashboard_dir), "-q"],
+        check=True,
+        capture_output=True,
+    )
+
+    # Add MCP server config to settings.json
+    if "mcpServers" not in settings:
+        settings["mcpServers"] = {}
+
+    settings["mcpServers"]["dashboard"] = {
+        "command": ".dashboard/.venv/bin/mcp-dashboard-tools",
+        "env": {"DASHBOARD_DB_PATH": ".dashboard/tasks.db"},
+    }
+
+    # Add tool permissions — dashboard spawns Claude in -p (headless) mode
+    # where tools must be pre-approved since there's no interactive terminal.
+    if "permissions" not in settings:
+        settings["permissions"] = {"allow": [], "deny": []}
+    allow_list = settings["permissions"].get("allow", [])
+    dashboard_permissions = [
+        # Standard tools needed by orchestrator and subagents
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep",
+        "Task",
+        "TodoWrite",
+        "WebFetch",
+        "WebSearch",
+        # MCP dashboard tools
+        "mcp__dashboard__dashboard_register_task",
+        "mcp__dashboard__dashboard_create_subtask",
+        "mcp__dashboard__dashboard_update_status",
+        "mcp__dashboard__dashboard_update_phase",
+        "mcp__dashboard__dashboard_log",
+        "mcp__dashboard__dashboard_ask_question",
+        "mcp__dashboard__dashboard_get_task",
+    ]
+    for perm in dashboard_permissions:
+        if perm not in allow_list:
+            allow_list.append(perm)
+
+    # Add .dashboard/ to .gitignore
+    gitignore_path = target_path / ".gitignore"
+    entry = ".dashboard/"
+    existing_lines = set()
+    if gitignore_path.exists():
+        with open(gitignore_path) as f:
+            existing_lines = set(line.strip() for line in f)
+    if entry not in existing_lines:
+        with open(gitignore_path, "a") as f:
+            if existing_lines and not gitignore_path.read_text().endswith("\n"):
+                f.write("\n")
+            f.write(f"\n# MCP Dashboard\n{entry}\n")
+
+    print(f"  Dashboard installed to {dashboard_dir}")
+    print(f"  Start with: .dashboard/start-dashboard.sh")
+
+
 def install(
     output: RenderedOutput,
     target_path: Path,
@@ -130,6 +262,7 @@ def install(
     dry_run: bool = False,
     selected_options: dict[str, dict[str, str]] | None = None,
     profile_name: str | None = None,
+    dashboard: bool = False,
 ) -> InstallResult:
     """
     Install rendered output to target directory.
@@ -251,6 +384,13 @@ def install(
         else:
             shutil.copy2(source_path, style_dst)
         result.styles_count += 1
+
+    # Install dashboard if requested (before settings.json so MCP config is included)
+    if dashboard:
+        if dry_run:
+            print("[DRY RUN] Would install MCP Dashboard to .dashboard/")
+        else:
+            install_dashboard(target_path, output.settings)
 
     # Install settings.json
     settings_path = claude_dir / "settings.json"
