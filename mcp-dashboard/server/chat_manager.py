@@ -3,7 +3,6 @@ Chat manager for spawning Claude CLI processes for conversational chat.
 
 Streams Claude's response via WebSocket so the UI can show tokens in real-time.
 Uses --resume for multi-turn conversation continuity.
-Supports task_action blocks for managing dashboard tasks from chat.
 """
 
 import asyncio
@@ -11,9 +10,9 @@ import json
 import logging
 import re
 import signal
-import tempfile
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Awaitable, TYPE_CHECKING
 
 from .database import SyncDB
@@ -24,40 +23,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 CHAT_SYSTEM_PROMPT = """\
-You are a task manager for the MCP Dashboard. You do NOT have access to the filesystem, terminal, or codebase. You CANNOT run commands, read files, install packages, edit code, or make any changes yourself.
-
-YOUR ONLY JOB is to manage tasks using task_action blocks. When a user asks for ANYTHING that involves the codebase — bugs, errors, features, debugging, troubleshooting, dependency problems, configuration issues, "not working", "can't run", etc. — you MUST respond by creating a task. Do NOT try to diagnose the problem. Do NOT suggest fixes. Do NOT explain what the error means. Just briefly acknowledge the request and create a task.
-
-Tasks are executed by an orchestrator agent that delegates to specialized agents (developers, testers, reviewers) who have actual access to the codebase and tools. Only they can do the real work.
-
-<rules>
-- If the user describes a problem or error → create_task immediately. Do NOT analyze the error.
-- If the user asks to build/fix/change/debug anything → create_task immediately.
-- If the user pastes logs or error output → create_task with the error context in the description. Do NOT interpret the logs yourself.
-- You may ONLY respond conversationally for: greetings, questions about task status, listing/searching tasks, or general non-codebase questions.
-</rules>
-
-Available task_action blocks:
-
-- create_task: Create and run a new task.
-  <task_action>{"action": "create_task", "title": "...", "description": "..."}</task_action>
-
-- list_tasks: List all current tasks with their status.
-  <task_action>{"action": "list_tasks"}</task_action>
-
-- search_tasks: Search tasks by keyword.
-  <task_action>{"action": "search_tasks", "query": "..."}</task_action>
-
-- get_task: Get details of a specific task.
-  <task_action>{"action": "get_task", "task_id": "..."}</task_action>
-
-- cancel_task: Cancel a running task.
-  <task_action>{"action": "cancel_task", "task_id": "..."}</task_action>
-
-- delete_task: Delete a task.
-  <task_action>{"action": "delete_task", "task_id": "..."}</task_action>
-
-When listing or showing task details, format the information in a readable way for the user after the action block.
+You are a helpful coding assistant with full access to the codebase. \
+You can read files, write code, run commands, and help with any development task. \
+Be concise and focus on doing the work rather than explaining what you will do.\
 """
 
 # Regex to find <task_action>...</task_action> blocks in Claude's response
@@ -79,6 +47,12 @@ class ChatProcess:
 class ChatManager:
     """Manages Claude CLI subprocess lifecycle for chat conversations."""
 
+    # Tools the chat session needs pre-authorized in headless (-p) mode
+    REQUIRED_TOOLS = [
+        "Read", "Write", "Edit", "Bash", "Glob", "Grep",
+        "Task", "WebFetch", "WebSearch",
+    ]
+
     def __init__(
         self,
         db_path: str,
@@ -90,6 +64,21 @@ class ChatManager:
         self._broadcast = broadcast_fn
         self._queue_mgr = queue_mgr
         self._processes: dict[str, ChatProcess] = {}
+
+    @staticmethod
+    def _read_allowed_tools(project_root: Path) -> list[str]:
+        """Read allowed tools from .claude/settings.json and merge with
+        the required set for headless (-p) mode."""
+        tools = set(ChatManager.REQUIRED_TOOLS)
+        settings_path = project_root / ".claude" / "settings.json"
+        try:
+            with open(settings_path) as f:
+                settings = json.load(f)
+            for tool in settings.get("permissions", {}).get("allow", []):
+                tools.add(tool)
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            pass
+        return list(tools)
 
     async def send_message(
         self,
@@ -114,16 +103,18 @@ class ChatManager:
             logger.warning(f"Chat process already running for session {session_id}")
             return False
 
-        # Write system prompt to a temp file for --system-prompt (replaces default)
-        system_prompt_file = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False, prefix="chat_sysprompt_"
-        )
-        system_prompt_file.write(CHAT_SYSTEM_PROMPT)
-        system_prompt_file.close()
+        # Determine project root (same logic as QueueManager)
+        db_path = Path(self.db_path)
+        if db_path.parts and db_path.parts[0] == ".dashboard":
+            project_root = Path.cwd()
+        else:
+            project_root = db_path.parent.parent
+
+        # Pre-authorize tools so Claude doesn't hang waiting for permission
+        allowed_tools = self._read_allowed_tools(project_root)
 
         cmd = [
             "claude",
-            "--print",
             "-p",
             message,
             "--output-format",
@@ -131,18 +122,22 @@ class ChatManager:
             "--verbose",
             "--model",
             model,
-            "--system-prompt",
-            system_prompt_file.name,
+            "--append-system-prompt",
+            CHAT_SYSTEM_PROMPT,
         ]
 
         if claude_session_id:
             cmd.extend(["--resume", claude_session_id])
+
+        if allowed_tools:
+            cmd.extend(["--allowedTools", ",".join(allowed_tools)])
 
         try:
             stream_limit = 10 * 1024 * 1024  # 10 MB
 
             process = await asyncio.create_subprocess_exec(
                 *cmd,
+                cwd=str(project_root),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 limit=stream_limit,
