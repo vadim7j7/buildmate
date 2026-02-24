@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, ExternalLink, Play, RefreshCw, Square } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, Play, RefreshCw, Server, Square } from 'lucide-react'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
 import type { Service } from '../types'
@@ -86,10 +86,10 @@ function ServiceRow({ service }: { service: Service }) {
   return (
     <div className="bg-surface-900/60 border border-surface-800/50 rounded-xl overflow-hidden transition-all duration-200 hover:border-surface-700/50">
       {/* Header row */}
-      <div className="flex items-center gap-4 px-5 py-3.5">
+      <div className="flex items-center gap-3 px-4 py-3">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-surface-800 transition-colors"
+          className="p-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-surface-800 transition-colors"
         >
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
@@ -99,8 +99,7 @@ function ServiceRow({ service }: { service: Service }) {
 
         {/* Name + info */}
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium text-gray-200">{service.name}</span>
-          <span className="ml-2 text-xs text-gray-600 font-mono">{service.cwd}/</span>
+          <span className="text-sm font-medium text-gray-200 truncate block">{service.name}</span>
         </div>
 
         {/* Port */}
@@ -110,7 +109,7 @@ function ServiceRow({ service }: { service: Service }) {
             target="_blank"
             rel="noopener noreferrer"
             className="
-              flex items-center gap-1.5 px-2.5 py-1 rounded-lg
+              flex items-center gap-1 px-2 py-0.5 rounded-lg
               text-xs text-accent-400 bg-accent-500/10
               hover:bg-accent-500/20 transition-colors
             "
@@ -120,7 +119,7 @@ function ServiceRow({ service }: { service: Service }) {
           </a>
         )}
         {service.port && !isRunning && (
-          <span className="text-xs text-gray-600 px-2.5 py-1">:{service.port}</span>
+          <span className="text-xs text-gray-600 px-2 py-0.5">:{service.port}</span>
         )}
 
         {/* Uptime */}
@@ -129,19 +128,19 @@ function ServiceRow({ service }: { service: Service }) {
         )}
 
         {/* Action buttons */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {!isRunning && (
             <button
               onClick={handleStart}
               disabled={loading}
               className="
-                p-2 rounded-lg text-emerald-400
+                p-1.5 rounded-lg text-emerald-400
                 hover:bg-emerald-500/15 hover:text-emerald-300
                 disabled:opacity-50 transition-colors
               "
               title="Start"
             >
-              <Play className="w-4 h-4" />
+              <Play className="w-3.5 h-3.5" />
             </button>
           )}
           {isRunning && (
@@ -150,25 +149,25 @@ function ServiceRow({ service }: { service: Service }) {
                 onClick={handleRestart}
                 disabled={loading}
                 className="
-                  p-2 rounded-lg text-amber-400
+                  p-1.5 rounded-lg text-amber-400
                   hover:bg-amber-500/15 hover:text-amber-300
                   disabled:opacity-50 transition-colors
                 "
                 title="Restart"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleStop}
                 disabled={loading}
                 className="
-                  p-2 rounded-lg text-red-400
+                  p-1.5 rounded-lg text-red-400
                   hover:bg-red-500/15 hover:text-red-300
                   disabled:opacity-50 transition-colors
                 "
                 title="Stop"
               >
-                <Square className="w-4 h-4" />
+                <Square className="w-3.5 h-3.5" />
               </button>
             </>
           )}
@@ -179,9 +178,9 @@ function ServiceRow({ service }: { service: Service }) {
       {expanded && (
         <div className="border-t border-surface-800/50 bg-surface-925 max-h-64 overflow-y-auto">
           {logs.length === 0 ? (
-            <div className="px-5 py-4 text-gray-600 italic text-sm">No logs available</div>
+            <div className="px-4 py-3 text-gray-600 italic text-sm">No logs available</div>
           ) : (
-            <div className="px-5 py-3 font-mono text-xs">
+            <div className="px-4 py-2.5 font-mono text-xs">
               {logs.map((line, i) => (
                 <div key={i} className="text-gray-400 leading-6 whitespace-pre-wrap break-all">
                   {line}
@@ -200,21 +199,37 @@ export function ServicesPanel() {
   const { state } = useDashboard()
   const { services } = state
 
-  if (services.length === 0) {
-    return (
-      <div className="border-b border-surface-800/50 bg-surface-900/30 px-6 py-4">
-        <p className="text-sm text-gray-500">
-          No services configured. Add a <code className="text-accent-400 bg-surface-800 px-1.5 py-0.5 rounded text-xs">services.json</code> to <code className="text-accent-400 bg-surface-800 px-1.5 py-0.5 rounded text-xs">.dashboard/</code>
-        </p>
-      </div>
-    )
-  }
+  const runningCount = services.filter(s => s.status === 'running').length
 
   return (
-    <div className="border-b border-surface-800/50 bg-surface-900/30 px-6 py-4 space-y-2 animate-fade-in-down">
-      {services.map((svc) => (
-        <ServiceRow key={svc.id} service={svc} />
-      ))}
+    <div className="w-[420px] border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-surface-800/50">
+        <div className="flex items-center gap-2.5">
+          <Server className="w-4.5 h-4.5 text-purple-400" />
+          <h2 className="text-sm font-semibold text-gray-100">Services</h2>
+          <span className="ml-auto px-2 py-0.5 rounded-md bg-surface-800/80 text-xs text-gray-400">
+            {runningCount}/{services.length}
+          </span>
+        </div>
+      </div>
+
+      {/* Service list */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+        {services.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <Server className="w-8 h-8 mb-3 opacity-40" />
+            <p className="text-sm">No services configured</p>
+            <p className="text-xs mt-1 text-gray-600">
+              Add <code className="text-accent-400 bg-surface-800 px-1 py-0.5 rounded text-[10px]">services.json</code> to <code className="text-accent-400 bg-surface-800 px-1 py-0.5 rounded text-[10px]">.dashboard/</code>
+            </p>
+          </div>
+        ) : (
+          services.map((svc) => (
+            <ServiceRow key={svc.id} service={svc} />
+          ))
+        )}
+      </div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle, Circle, Loader, MessageCircle, MessageSquare, Search, Server, Wifi, WifiOff, X, XCircle } from 'lucide-react'
+import { MessageCircle, MessageSquare, Search, Server, Users, Wifi, WifiOff, X } from 'lucide-react'
 import { useDashboard } from '../context/DashboardContext'
 import { useChat } from '../context/ChatContext'
 
@@ -12,8 +12,8 @@ const SEARCH_STATUS_COLORS: Record<string, string> = {
 }
 
 export function StatsBar() {
-  const { state, selectTask, toggleServices } = useDashboard()
-  const { stats, connected, services, showServices, tasks } = state
+  const { state, selectTask, toggleServices, toggleTeam } = useDashboard()
+  const { stats, connected, services, showServices, tasks, agents, showTeam } = state
   const { state: chatState, toggleChat } = useChat()
 
   const [searchOpen, setSearchOpen] = useState(false)
@@ -82,49 +82,10 @@ export function StatsBar() {
               </h1>
             </div>
 
-            {/* Stats Pills */}
-            <div className="flex items-center gap-1.5">
-              <StatPill
-                icon={<Circle className="w-3.5 h-3.5" />}
-                label="Pending"
-                count={stats.pending}
-                colorClass="text-gray-400"
-                bgClass="bg-surface-800/60"
-              />
-              <StatPill
-                icon={<Loader className="w-3.5 h-3.5 animate-spin" />}
-                label="Active"
-                count={stats.in_progress}
-                colorClass="text-amber-400"
-                bgClass="bg-amber-500/10"
-                glowClass={stats.in_progress > 0 ? 'ring-1 ring-amber-500/20' : ''}
-              />
-              <StatPill
-                icon={<CheckCircle className="w-3.5 h-3.5" />}
-                label="Done"
-                count={stats.completed}
-                colorClass="text-emerald-400"
-                bgClass="bg-emerald-500/10"
-              />
-              <StatPill
-                icon={<XCircle className="w-3.5 h-3.5" />}
-                label="Failed"
-                count={stats.failed}
-                colorClass="text-red-400"
-                bgClass="bg-red-500/10"
-              />
-              <StatPill
-                icon={<AlertCircle className="w-3.5 h-3.5" />}
-                label="Blocked"
-                count={stats.blocked}
-                colorClass="text-orange-400"
-                bgClass="bg-orange-500/10"
-              />
-            </div>
           </div>
 
           {/* Search */}
-          <div ref={searchContainerRef} className="relative">
+          <div ref={searchContainerRef} className="relative z-50">
             {searchOpen ? (
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
@@ -218,6 +179,27 @@ export function StatsBar() {
               <span>Chat</span>
             </button>
 
+            {/* Team Toggle */}
+            {agents.length > 0 && (
+              <button
+                onClick={toggleTeam}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                  transition-all duration-200
+                  ${showTeam
+                    ? 'bg-teal-500/20 text-teal-300 ring-1 ring-teal-500/30'
+                    : 'bg-surface-800/60 text-gray-400 hover:text-gray-200 hover:bg-surface-800'
+                  }
+                `}
+              >
+                <Users className="w-4 h-4" />
+                <span>Team</span>
+                <span className="px-1.5 py-0.5 rounded-md bg-surface-700/50 text-xs">
+                  {agents.length}
+                </span>
+              </button>
+            )}
+
             {/* Services Toggle */}
             {totalCount > 0 && (
               <button
@@ -286,27 +268,3 @@ export function StatsBar() {
   )
 }
 
-type StatPillProps = {
-  icon: React.ReactNode
-  label: string
-  count: number
-  colorClass: string
-  bgClass: string
-  glowClass?: string
-}
-
-function StatPill({ icon, label, count, colorClass, bgClass, glowClass = '' }: StatPillProps) {
-  return (
-    <div
-      className={`
-        flex items-center gap-2 px-3.5 py-2 rounded-xl
-        backdrop-blur-sm transition-all duration-200
-        ${bgClass} ${colorClass} ${glowClass}
-      `}
-    >
-      {icon}
-      <span className="text-sm font-semibold tabular-nums">{count}</span>
-      <span className="text-xs opacity-70">{label}</span>
-    </div>
-  )
-}

@@ -9,10 +9,11 @@ import asyncio
 import json
 import logging
 import os
-import re
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+import yaml
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -389,6 +390,23 @@ async def get_stats():
     return StatsResponse(**stats)
 
 
+def _parse_frontmatter(content: str) -> dict:
+    """Parse YAML frontmatter from a markdown file delimited by --- lines."""
+    stripped = content.lstrip()
+    if not stripped.startswith("---"):
+        return {}
+    rest = stripped[3:]
+    end = rest.find("\n---")
+    if end == -1:
+        return {}
+    yaml_block = rest[:end]
+    try:
+        data = yaml.safe_load(yaml_block)
+        return data if isinstance(data, dict) else {}
+    except yaml.YAMLError:
+        return {}
+
+
 @app.get("/api/agents")
 async def list_agents():
     """List available agents from .claude/agents/."""
@@ -397,20 +415,41 @@ async def list_agents():
     if agents_dir.exists():
         for f in sorted(agents_dir.iterdir()):
             if f.suffix == ".md" and f.is_file():
-                name = f.stem
-                description = ""
-                # Try to extract description from frontmatter
                 content = f.read_text()
-                desc_match = re.search(
-                    r"^description:\s*\|?\s*\n?\s*(.+?)$",
-                    content,
-                    re.MULTILINE,
-                )
-                if desc_match:
-                    description = desc_match.group(1).strip()
-                agents.append(
-                    {"name": name, "filename": f.name, "description": description}
-                )
+                fm = _parse_frontmatter(content)
+
+                # tools may be a comma-separated string or a list
+                raw_tools = fm.get("tools", [])
+                if isinstance(raw_tools, str):
+                    tools = [t.strip() for t in raw_tools.split(",") if t.strip()]
+                elif isinstance(raw_tools, list):
+                    tools = [str(t) for t in raw_tools]
+                else:
+                    tools = []
+
+                # skills may be absent
+                raw_skills = fm.get("skills", [])
+                if isinstance(raw_skills, list):
+                    skills = [str(s) for s in raw_skills]
+                else:
+                    skills = []
+
+                # description may use | multiline syntax — yaml.safe_load handles it
+                description = fm.get("description", "")
+                if isinstance(description, str):
+                    description = description.strip()
+                else:
+                    description = ""
+
+                agents.append({
+                    "name": f.stem,
+                    "filename": f.name,
+                    "description": description,
+                    "tools": tools,
+                    "model": fm.get("model", ""),
+                    "skills": skills,
+                    "memory": fm.get("memory", None),
+                })
     return agents
 
 

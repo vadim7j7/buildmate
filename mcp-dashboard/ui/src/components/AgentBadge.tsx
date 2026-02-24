@@ -1,10 +1,10 @@
-type AgentColorConfig = {
+export type AgentColorConfig = {
   bg: string
   text: string
   border: string
 }
 
-const AGENT_COLORS: Record<string, AgentColorConfig> = {
+export const AGENT_COLORS: Record<string, AgentColorConfig> = {
   orchestrator: {
     bg: 'bg-purple-500/15',
     text: 'text-purple-300',
@@ -67,7 +67,7 @@ const AGENT_COLORS: Record<string, AgentColorConfig> = {
   },
 }
 
-const DEFAULT_COLOR: AgentColorConfig = {
+export const DEFAULT_COLOR: AgentColorConfig = {
   bg: 'bg-surface-700/50',
   text: 'text-gray-300',
   border: 'border-surface-600/50',

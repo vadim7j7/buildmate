@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { api, createWebSocket } from '../api/client'
-import type { Activity, Artifact, ProcessStatus, Question, Service, Stats, Task } from '../types'
+import type { Activity, AgentInfo, Artifact, ProcessStatus, Question, Service, Stats, Task } from '../types'
 import { useNotifications } from '../hooks/useNotifications'
 import type { Toast } from '../hooks/useNotifications'
 import { chatWsHandlerRef } from './ChatContext'
@@ -17,6 +17,8 @@ interface State {
   processes: Record<string, ProcessStatus>
   services: Service[]
   showServices: boolean
+  agents: AgentInfo[]
+  showTeam: boolean
 }
 
 type Action =
@@ -33,6 +35,8 @@ type Action =
   | { type: 'SET_PROCESSES'; processes: Record<string, ProcessStatus> }
   | { type: 'SET_SERVICES'; services: Service[] }
   | { type: 'TOGGLE_SERVICES' }
+  | { type: 'SET_AGENTS'; agents: AgentInfo[] }
+  | { type: 'TOGGLE_TEAM' }
 
 const initialState: State = {
   tasks: [],
@@ -45,6 +49,8 @@ const initialState: State = {
   processes: {},
   services: [],
   showServices: false,
+  agents: [],
+  showTeam: false,
 }
 
 function reducer(state: State, action: Action): State {
@@ -114,6 +120,12 @@ function reducer(state: State, action: Action): State {
     case 'TOGGLE_SERVICES':
       return { ...state, showServices: !state.showServices }
 
+    case 'SET_AGENTS':
+      return { ...state, agents: action.agents }
+
+    case 'TOGGLE_TEAM':
+      return { ...state, showTeam: !state.showTeam }
+
     default:
       return state
   }
@@ -125,6 +137,7 @@ interface DashboardContextValue {
   refreshTasks: () => Promise<void>
   refreshStats: () => Promise<void>
   toggleServices: () => void
+  toggleTeam: () => void
   toasts: Toast[]
   dismissToast: (id: number) => void
 }
@@ -169,6 +182,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const toggleServices = useCallback(() => {
     dispatch({ type: 'TOGGLE_SERVICES' })
+  }, [])
+
+  const toggleTeam = useCallback(() => {
+    dispatch({ type: 'TOGGLE_TEAM' })
+  }, [])
+
+  // Fetch agents on mount
+  useEffect(() => {
+    api.getAgents().then(agents => dispatch({ type: 'SET_AGENTS', agents })).catch(() => {})
   }, [])
 
   // Expose refresh functions via ref so ChatContext can trigger them
@@ -346,7 +368,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [state.selectedTaskId])
 
   return (
-    <DashboardContext.Provider value={{ state, selectTask, refreshTasks, refreshStats, toggleServices, toasts, dismissToast }}>
+    <DashboardContext.Provider value={{ state, selectTask, refreshTasks, refreshStats, toggleServices, toggleTeam, toasts, dismissToast }}>
       {children}
     </DashboardContext.Provider>
   )

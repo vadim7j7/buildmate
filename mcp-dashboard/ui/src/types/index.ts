@@ -74,6 +74,10 @@ export interface AgentInfo {
   name: string
   filename: string
   description: string
+  tools: string[]
+  model: string
+  skills: string[]
+  memory: string | null
 }
 
 export interface ProcessStatus {

@@ -1,4 +1,4 @@
-import type { Activity, Artifact, ChatMessage, ChatSession, ProcessStatus, Question, Service, Stats, Task } from '../types'
+import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, ProcessStatus, Question, Service, Stats, Task } from '../types'
 
 const BASE = '/api'
 
@@ -60,7 +60,7 @@ export const api = {
 
   // Stats & Agents
   getStats: () => request<Stats>('/stats'),
-  getAgents: () => request<{ name: string; filename: string; description: string }[]>('/agents'),
+  getAgents: () => request<AgentInfo[]>('/agents'),
 
   // Services
   listServices: () => request<Service[]>('/services'),

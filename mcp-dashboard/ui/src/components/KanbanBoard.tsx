@@ -130,13 +130,8 @@ export function KanbanBoard() {
 
                 {/* Empty State */}
                 {tasksByStatus(col.status).length === 0 && col.status !== 'pending' && (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-600">
-                    <div className="w-12 h-12 rounded-full bg-surface-800/50 flex items-center justify-center mb-3">
-                      <span className="text-xl opacity-50">
-                        {col.status === 'completed' ? 'done' : col.status === 'failed' ? 'x' : '-'}
-                      </span>
-                    </div>
-                    <p className="text-sm">No tasks</p>
+                  <div className="py-10 text-center">
+                    <p className="text-sm text-gray-600">No tasks</p>
                   </div>
                 )}
               </div>
