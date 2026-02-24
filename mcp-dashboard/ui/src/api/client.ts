@@ -46,6 +46,11 @@ export const api = {
     }),
   cancelTask: (taskId: string) =>
     request<{ status: string }>(`/tasks/${taskId}/cancel`, { method: 'POST' }),
+  requestChanges: (taskId: string, feedback: string) =>
+    request<{ status: string; task_id: string; revision_count: number }>(
+      `/tasks/${taskId}/request-changes`,
+      { method: 'POST', body: JSON.stringify({ feedback }) },
+    ),
   getProcessStatus: (taskId: string) =>
     request<ProcessStatus>(`/tasks/${taskId}/process`),
 

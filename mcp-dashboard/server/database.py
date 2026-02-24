@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     phase TEXT,
     result TEXT,
     pid INTEGER DEFAULT NULL,
+    claude_session_id TEXT DEFAULT NULL,
+    revision_count INTEGER DEFAULT 0,
     auto_accept BOOLEAN DEFAULT FALSE,
     source TEXT DEFAULT 'cli',
     created_at TEXT DEFAULT (datetime('now')),
@@ -129,6 +131,16 @@ def init_db(db_path: str | None = None) -> None:
             conn.execute("ALTER TABLE tasks ADD COLUMN pid INTEGER DEFAULT NULL")
         except sqlite3.OperationalError:
             pass  # Column already exists
+        # Migration: add claude_session_id column
+        try:
+            conn.execute("ALTER TABLE tasks ADD COLUMN claude_session_id TEXT DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass
+        # Migration: add revision_count column
+        try:
+            conn.execute("ALTER TABLE tasks ADD COLUMN revision_count INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
     finally:
         conn.close()
@@ -198,9 +210,11 @@ class SyncDB:
         task_id: str,
         status: str | None = None,
         phase: str | None = None,
-        result: str | None = None,
+        result=_UNSET,
         assigned_agent: str | None = None,
         pid=_UNSET,
+        claude_session_id=_UNSET,
+        revision_count=_UNSET,
     ) -> dict | None:
         conn = self._conn()
         try:
@@ -212,7 +226,7 @@ class SyncDB:
             if phase is not None:
                 updates.append("phase = ?")
                 params.append(phase)
-            if result is not None:
+            if result is not _UNSET:
                 updates.append("result = ?")
                 params.append(result)
             if assigned_agent is not None:
@@ -221,6 +235,12 @@ class SyncDB:
             if pid is not _UNSET:
                 updates.append("pid = ?")
                 params.append(pid)
+            if claude_session_id is not _UNSET:
+                updates.append("claude_session_id = ?")
+                params.append(claude_session_id)
+            if revision_count is not _UNSET:
+                updates.append("revision_count = ?")
+                params.append(revision_count)
 
             if not updates:
                 return self.get_task(task_id)

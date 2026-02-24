@@ -27,6 +27,7 @@ from .models import (
     AnswerRequest,
     ChatSendMessage,
     ChatSessionUpdate,
+    RequestChangesRequest,
     RunTaskRequest,
     StatsResponse,
     TaskCreate,
@@ -248,13 +249,16 @@ async def get_task(task_id: str):
 @app.patch("/api/tasks/{task_id}")
 async def update_task(task_id: str, body: TaskUpdate):
     """Update a task."""
-    task = db.update_task(
-        task_id,
-        status=body.status,
-        phase=body.phase,
-        result=body.result,
-        assigned_agent=body.assigned_agent,
-    )
+    kwargs = {}
+    if body.status is not None:
+        kwargs["status"] = body.status
+    if body.phase is not None:
+        kwargs["phase"] = body.phase
+    if body.result is not None:
+        kwargs["result"] = body.result
+    if body.assigned_agent is not None:
+        kwargs["assigned_agent"] = body.assigned_agent
+    task = db.update_task(task_id, **kwargs)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
@@ -375,6 +379,29 @@ async def cancel_task(task_id: str):
     if not cancelled:
         raise HTTPException(status_code=404, detail="No running process for task")
     return {"status": "cancelled", "task_id": task_id}
+
+
+@app.post("/api/tasks/{task_id}/request-changes")
+async def request_changes(task_id: str, body: RequestChangesRequest):
+    """Request changes on a completed/failed task, resuming the Claude session."""
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task["status"] not in ("completed", "failed"):
+        raise HTTPException(status_code=400, detail="Task must be completed or failed to request changes")
+    if not task.get("claude_session_id"):
+        raise HTTPException(status_code=400, detail="No Claude session to resume")
+
+    success = await queue.resume_with_feedback(task_id, body.feedback)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to resume Claude session")
+
+    updated = db.get_task(task_id)
+    return {
+        "status": "running",
+        "task_id": task_id,
+        "revision_count": updated.get("revision_count", 0) if updated else 1,
+    }
 
 
 @app.get("/api/tasks/{task_id}/process")

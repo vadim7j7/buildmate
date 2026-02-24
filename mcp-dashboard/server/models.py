@@ -93,6 +93,12 @@ class RunTaskRequest(BaseModel):
     prompt: str | None = None
 
 
+class RequestChangesRequest(BaseModel):
+    """Request body for requesting changes on a completed/failed task."""
+
+    feedback: str
+
+
 class AgentInfo(BaseModel):
     """Agent information."""
 

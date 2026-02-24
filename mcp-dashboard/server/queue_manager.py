@@ -25,6 +25,7 @@ class ProcessInfo:
     task_id: str
     process: asyncio.subprocess.Process
     prompt: str
+    claude_session_id: str | None = None
 
 
 class QueueManager:
@@ -35,13 +36,14 @@ class QueueManager:
         self._processes: dict[str, ProcessInfo] = {}
         self._db = SyncDB(db_path)
 
-    async def spawn(self, task_id: str, prompt: str) -> bool:
+    async def spawn(self, task_id: str, prompt: str, claude_session_id: str | None = None) -> bool:
         """
         Spawn a Claude CLI process for a task.
 
         Args:
             task_id: The task ID this process works on
             prompt: The prompt to send to Claude
+            claude_session_id: Optional session ID to resume a previous Claude session
 
         Returns:
             True if process started successfully
@@ -96,6 +98,8 @@ class QueueManager:
             "--output-format",
             "stream-json",
         ]
+        if claude_session_id:
+            cmd.extend(["--resume", claude_session_id])
         if mcp_config_path:
             cmd.extend(["--mcp-config", str(mcp_config_path)])
         if allowed_tools:
@@ -119,7 +123,8 @@ class QueueManager:
             )
 
             self._processes[task_id] = ProcessInfo(
-                task_id=task_id, process=process, prompt=prompt
+                task_id=task_id, process=process, prompt=prompt,
+                claude_session_id=claude_session_id,
             )
 
             # Update task status and persist PID
@@ -212,6 +217,49 @@ class QueueManager:
             return True
 
         return False
+
+    async def resume_with_feedback(self, task_id: str, feedback: str) -> bool:
+        """Resume a completed/failed task's Claude session with user feedback.
+
+        Increments revision_count, resets status to in_progress, clears result,
+        and spawns Claude with --resume using the stored session ID.
+
+        Returns:
+            True if the process was successfully spawned
+        """
+        task = self._db.get_task(task_id)
+        if not task:
+            return False
+
+        claude_session_id = task.get("claude_session_id")
+        if not claude_session_id:
+            return False
+
+        revision_count = (task.get("revision_count") or 0) + 1
+
+        # Reset task state for the new revision
+        self._db.update_task(
+            task_id,
+            status="in_progress",
+            result=None,
+            revision_count=revision_count,
+        )
+
+        self._db.log_activity(
+            task_id,
+            "revision_requested",
+            None,
+            f"Revision #{revision_count} requested: {feedback[:200]}",
+        )
+
+        resume_prompt = (
+            f"The user has reviewed your work on task {task_id} and is requesting changes.\n\n"
+            f"FEEDBACK:\n{feedback}\n\n"
+            f"Please address the feedback above. Make the requested changes, then update "
+            f"the task status when done."
+        )
+
+        return await self.spawn(task_id, resume_prompt, claude_session_id=claude_session_id)
 
     @staticmethod
     def _is_pid_alive(pid: int) -> bool:
@@ -549,6 +597,12 @@ class QueueManager:
 
         # --- Final result ---
         elif msg_type == "result":
+            sid = data.get("session_id")
+            if sid:
+                info = self._processes.get(task_id)
+                if info and not info.claude_session_id:
+                    info.claude_session_id = sid
+                    self._db.update_task(task_id, claude_session_id=sid)
             result_text = data.get("result", "")
             if isinstance(result_text, str) and result_text.strip():
                 self._db.log_activity(
@@ -595,6 +649,12 @@ class QueueManager:
 
         # --- System message ---
         elif msg_type == "system":
+            sid = data.get("session_id")
+            if sid:
+                info = self._processes.get(task_id)
+                if info:
+                    info.claude_session_id = sid
+                self._db.update_task(task_id, claude_session_id=sid)
             message = data.get("message", data.get("text", ""))
             if isinstance(message, str) and message.strip():
                 self._db.log_activity(

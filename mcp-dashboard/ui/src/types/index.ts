@@ -26,6 +26,8 @@ export interface Task {
   assigned_agent: string | null
   phase: string | null
   result: string | null
+  claude_session_id: string | null
+  revision_count: number
   auto_accept: boolean
   source: 'cli' | 'dashboard'
   created_at: string

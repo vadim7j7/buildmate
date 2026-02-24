@@ -7,12 +7,14 @@ import {
   Loader,
   MessageSquare,
   Play,
+  RotateCcw,
+  Send,
   Square,
   Trash2,
   X,
   XCircle,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
 import type { Artifact, Question, Task, TaskStatus } from '../types'
@@ -70,6 +72,17 @@ export function TaskDetailPanel() {
   const [artifactsOpen, setArtifactsOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
 
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
+
+  // Reset feedback form when switching tasks
+  useEffect(() => {
+    setShowFeedbackForm(false)
+    setFeedbackText('')
+    setIsSubmittingFeedback(false)
+  }, [state.selectedTaskId])
+
   const task = state.tasks.find(t => t.id === state.selectedTaskId)
   if (!task) return null
 
@@ -105,6 +118,23 @@ export function TaskDetailPanel() {
     }
   }
 
+  const handleRequestChanges = async () => {
+    if (!feedbackText.trim()) return
+    setIsSubmittingFeedback(true)
+    try {
+      await api.requestChanges(task.id, feedbackText.trim())
+      setShowFeedbackForm(false)
+      setFeedbackText('')
+      await refreshTasks()
+    } catch (err) {
+      console.error('Failed to request changes:', err)
+    } finally {
+      setIsSubmittingFeedback(false)
+    }
+  }
+
+  const canRequestChanges = (task.status === 'completed' || task.status === 'failed') && !!task.claude_session_id
+
   return (
     <>
       <div className="w-[420px] bg-surface-900/95 backdrop-blur-md border-l border-surface-800/50 flex flex-col overflow-hidden animate-slide-in-right">
@@ -137,6 +167,11 @@ export function TaskDetailPanel() {
               </span>
             )}
             <span className="text-[11px] text-gray-600 font-mono">ID: {task.id}</span>
+            {task.revision_count > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-medium border border-amber-500/20">
+                Rev {task.revision_count}
+              </span>
+            )}
           </div>
 
           {/* Process Status */}
@@ -189,6 +224,18 @@ export function TaskDetailPanel() {
                 <Square className="w-4 h-4" /> Cancel
               </button>
             )}
+            {canRequestChanges && (
+              <button
+                onClick={() => setShowFeedbackForm(!showFeedbackForm)}
+                className="
+                  flex items-center gap-2 px-4 py-2.5 text-sm font-medium
+                  bg-amber-600/80 hover:bg-amber-500 text-white
+                  rounded-xl transition-colors
+                "
+              >
+                <RotateCcw className="w-4 h-4" /> Request Changes
+              </button>
+            )}
             {(task.status === 'completed' || task.status === 'failed' || task.status === 'pending') && (
               <button
                 onClick={handleDelete}
@@ -203,6 +250,44 @@ export function TaskDetailPanel() {
               </button>
             )}
           </div>
+
+          {/* Feedback Form */}
+          {showFeedbackForm && (
+            <div className="mt-3 border border-amber-500/30 rounded-xl p-3 bg-amber-500/5">
+              <textarea
+                value={feedbackText}
+                onChange={e => setFeedbackText(e.target.value)}
+                placeholder="Describe what changes you'd like..."
+                className="
+                  w-full bg-surface-800 text-sm text-gray-200 rounded-lg p-3
+                  border border-surface-700 focus:border-amber-500/50 focus:outline-none
+                  resize-none placeholder-gray-500
+                "
+                rows={3}
+              />
+              <div className="flex gap-2 mt-2 justify-end">
+                <button
+                  onClick={() => { setShowFeedbackForm(false); setFeedbackText('') }}
+                  className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-300 rounded-lg hover:bg-surface-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRequestChanges}
+                  disabled={!feedbackText.trim() || isSubmittingFeedback}
+                  className="
+                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+                    bg-amber-600 hover:bg-amber-500 text-white
+                    rounded-lg transition-colors
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  "
+                >
+                  <Send className="w-3 h-3" />
+                  {isSubmittingFeedback ? 'Submitting...' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Scrollable Content */}
@@ -255,13 +340,23 @@ export function TaskDetailPanel() {
                     <div
                       key={child.id}
                       className="
-                        flex items-center gap-3 py-2.5 px-3 rounded-lg
+                        flex items-start gap-3 py-2.5 px-3 rounded-lg
                         bg-surface-850/50 hover:bg-surface-800/50
                         transition-colors
                       "
                     >
-                      {STATUS_ICON[child.status]}
-                      <span className="text-sm text-gray-300 flex-1 truncate">{child.title}</span>
+                      <div className="mt-0.5">{STATUS_ICON[child.status]}</div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-gray-300 block truncate">{child.title}</span>
+                        {child.result && (
+                          <p
+                            title={child.result}
+                            className="text-[11px] text-gray-500 mt-0.5 truncate"
+                          >
+                            {child.result}
+                          </p>
+                        )}
+                      </div>
                       <AgentBadge agent={child.assigned_agent} />
                     </div>
                   ))}

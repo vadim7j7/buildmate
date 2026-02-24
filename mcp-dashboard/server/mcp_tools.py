@@ -130,7 +130,10 @@ def dashboard_update_status(
         Updated task dict
     """
     db = _get_db()
-    task = db.update_task(task_id, status=status, result=result or None)
+    kwargs = {"status": status}
+    if result:
+        kwargs["result"] = result
+    task = db.update_task(task_id, **kwargs)
     return task or {"error": f"Task {task_id} not found"}
 
 
