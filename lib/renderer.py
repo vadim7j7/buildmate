@@ -29,6 +29,7 @@ class RenderedOutput:
     hook_files: dict[str, Path] = field(
         default_factory=dict
     )  # filename -> source path (non-template)
+    services_config: dict[str, Any] | None = None  # services.json for dashboard
 
 
 def create_jinja_env(template_dirs: list[Path]) -> Environment:
@@ -301,5 +302,47 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
     if settings_file.exists():
         with open(settings_file) as f:
             output.settings = json.load(f)
+
+    # Generate services.json config for dashboard
+    if dashboard:
+        import yaml
+
+        svc_list = []
+        for stack in config.stacks:
+            # Read raw YAML to get verification section (not on StackConfig)
+            raw_yaml_path = stack.stack_path / "stack.yaml"
+            if raw_yaml_path.exists():
+                with open(raw_yaml_path) as f:
+                    raw = yaml.safe_load(f)
+                verification = raw.get("verification", {})
+                dev_server = verification.get("dev_server", {})
+                command = dev_server.get("command")
+                if command:
+                    port = dev_server.get("port") or stack.variables.get("dev_port")
+                    svc_list.append(
+                        {
+                            "id": stack.name,
+                            "name": f"{stack.display_name} Dev Server",
+                            "command": command,
+                            "cwd": stack.working_dir,
+                            "port": int(port) if port else None,
+                        }
+                    )
+        if svc_list:
+            output.services_config = {"services": svc_list}
+
+    # Auto-populate multi_repo config for multi-stack compositions
+    if len(config.stacks) > 1:
+        if "pm" not in output.settings:
+            output.settings["pm"] = {}
+        output.settings["pm"]["multi_repo"] = {
+            "enabled": True,
+            "repositories": {
+                s.working_dir: f"./{s.working_dir}" for s in config.stacks
+            },
+            "stack_repo_map": {
+                s.name: s.working_dir for s in config.stacks
+            },
+        }
 
     return output

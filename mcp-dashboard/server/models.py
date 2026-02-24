@@ -99,3 +99,17 @@ class AgentInfo(BaseModel):
     name: str
     filename: str
     description: str = ""
+
+
+class ChatSendMessage(BaseModel):
+    """Request body for sending a chat message."""
+
+    message: str
+    session_id: str | None = None
+    model: str = "sonnet"
+
+
+class ChatSessionUpdate(BaseModel):
+    """Request body for updating a chat session."""
+
+    title: str

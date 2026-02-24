@@ -97,6 +97,9 @@ buildmate/
 │   ├── react-native/
 │   ├── fastapi/
 │   └── scraping/             # Web scraping (Python/Node.js)
+├── mcp-dashboard/            # Real-time web dashboard
+│   ├── server/               # FastAPI backend (REST, WebSocket, process mgmt)
+│   └── ui/                   # React + TypeScript + Tailwind frontend
 ├── tests/                    # Test suite
 ├── evals/                    # Evaluation configs
 └── CLAUDE.md                 # This file
@@ -329,6 +332,30 @@ Optional automation for branches, commits, and PRs. Configure in `.claude/settin
 ```
 
 Creates coordinated branches and linked PRs across repos.
+
+### MCP Dashboard
+Real-time web dashboard for monitoring tasks, managing services, and chatting with Claude about your codebase.
+
+**Running:** `cd mcp-dashboard && uv run python -m server.main` → `http://127.0.0.1:8420`
+
+**Server components:**
+- `server/main.py` — FastAPI app with REST API, WebSocket, static file serving
+- `server/database.py` — SQLite (WAL mode): tasks, activity_log, questions, artifacts, chat_sessions, chat_messages
+- `server/queue_manager.py` — Spawns `claude -p` for task orchestration, streams `stream-json` output
+- `server/chat_manager.py` — Spawns `claude --print -p` for chat, streams tokens via WebSocket, supports `--resume` for multi-turn
+- `server/service_manager.py` — Dev service lifecycle (start/stop/restart)
+- `server/mcp_tools.py` — MCP stdio tools for agent integration
+- `server/models.py` — Pydantic models (TaskCreate, ChatSendMessage, etc.)
+
+**UI components:**
+- `ui/src/context/DashboardContext.tsx` — Tasks, stats, WebSocket state; forwards `chat_*` events to ChatContext
+- `ui/src/context/ChatContext.tsx` — Chat sessions, messages, streaming state
+- `ui/src/components/ChatPanel.tsx` — Session list + active chat view (right sidebar)
+- `ui/src/components/ChatBubble.tsx` — User/assistant message bubbles with markdown rendering
+
+**Chat API routes:** `GET/POST /api/chat/sessions`, `GET/PATCH/DELETE /api/chat/sessions/{id}`, `GET /api/chat/sessions/{id}/messages`, `POST /api/chat/send`, `POST /api/chat/sessions/{id}/cancel`
+
+**Chat WebSocket events:** `chat_delta` (token), `chat_complete` (done), `chat_error` (fail), `chat_cancelled` (stopped)
 
 ## CLI Commands
 

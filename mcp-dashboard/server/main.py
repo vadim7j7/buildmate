@@ -21,20 +21,26 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .database import SyncDB, init_db
+from .chat_manager import ChatManager
 from .models import (
     AnswerRequest,
+    ChatSendMessage,
+    ChatSessionUpdate,
     RunTaskRequest,
     StatsResponse,
     TaskCreate,
     TaskUpdate,
 )
 from .queue_manager import QueueManager
+from .service_manager import ServiceManager
 
 logger = logging.getLogger(__name__)
 
 # Global state
 db: SyncDB | None = None
 queue: QueueManager | None = None
+chat_mgr: ChatManager | None = None
+services: ServiceManager | None = None
 ws_clients: list[WebSocket] = []
 _poll_task: asyncio.Task | None = None
 
@@ -45,20 +51,36 @@ def get_db_path() -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: init DB and start WebSocket poller."""
-    global db, queue, _poll_task
+    """Application lifespan: init DB, service manager, and start WebSocket poller."""
+    global db, queue, chat_mgr, services, _poll_task
 
     db_path = get_db_path()
     init_db(db_path)
     db = SyncDB(db_path)
     queue = QueueManager(db_path)
+    chat_mgr = ChatManager(db_path, _ws_broadcast, queue_mgr=queue)
+
+    # Recover orphaned processes from previous server run
+    queue.recover_orphans()
+
+    # Init service manager
+    services = ServiceManager(Path.cwd())
 
     # Start WebSocket polling task
     _poll_task = asyncio.create_task(_ws_poll_loop())
 
     yield
 
-    # Cleanup
+    # Cleanup: terminate running services and processes
+    if services:
+        await services.shutdown()
+
+    if chat_mgr:
+        await chat_mgr.shutdown()
+
+    if queue:
+        await queue.shutdown()
+
     if _poll_task:
         _poll_task.cancel()
         try:
@@ -104,6 +126,7 @@ async def _ws_poll_loop() -> None:
     prev_snapshot: str = ""
     last_activity_id: int = 0
     last_question_snapshot: str = ""
+    prev_service_snapshot: str = ""
 
     while True:
         await asyncio.sleep(0.5)
@@ -149,6 +172,16 @@ async def _ws_poll_loop() -> None:
                 await _ws_broadcast(
                     {"type": "processes", "data": processes}
                 )
+
+            # Broadcast service status changes
+            if services and services.has_services():
+                service_list = services.list_services()
+                s_snapshot = json.dumps(service_list, sort_keys=True)
+                if s_snapshot != prev_service_snapshot:
+                    prev_service_snapshot = s_snapshot
+                    await _ws_broadcast(
+                        {"type": "services", "data": service_list}
+                    )
         except Exception as e:
             logger.error(f"WebSocket poll error: {e}")
 
@@ -162,8 +195,9 @@ async def websocket_endpoint(websocket: WebSocket):
         if db:
             tasks = db.get_root_tasks()
             stats = db.get_stats()
+            svc_list = services.list_services() if services and services.has_services() else []
             await websocket.send_text(
-                json.dumps({"type": "init", "data": {"tasks": tasks, "stats": stats}})
+                json.dumps({"type": "init", "data": {"tasks": tasks, "stats": stats, "services": svc_list}})
             )
         # Keep connection alive
         while True:
@@ -245,6 +279,51 @@ async def get_questions(task_id: str, pending_only: bool = False, include_childr
     return db.get_questions(task_id, pending_only=pending_only, include_children=include_children)
 
 
+@app.get("/api/tasks/{task_id}/artifacts")
+async def get_artifacts(task_id: str, include_children: bool = True):
+    """Get artifacts for a task and optionally its children."""
+    return db.get_artifacts(task_id, include_children=include_children)
+
+
+@app.get("/api/artifacts/{artifact_id}")
+async def get_artifact(artifact_id: str):
+    """Get artifact metadata."""
+    artifact = db.get_artifact(artifact_id)
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return artifact
+
+
+@app.get("/api/artifacts/{artifact_id}/content")
+async def get_artifact_content(artifact_id: str):
+    """Serve the raw artifact file with correct Content-Type."""
+    artifact = db.get_artifact(artifact_id)
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    file_path = Path(artifact["file_path"])
+    # Resolve relative paths against cwd
+    if not file_path.is_absolute():
+        file_path = Path.cwd() / file_path
+
+    # Verify the file exists
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Artifact file not found on disk")
+
+    # Path containment: only serve files under .dashboard/artifacts/ or cwd
+    resolved = file_path.resolve()
+    artifacts_root = (Path.cwd() / ".dashboard" / "artifacts").resolve()
+    cwd_root = Path.cwd().resolve()
+    if not (resolved.is_relative_to(artifacts_root) or resolved.is_relative_to(cwd_root)):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=artifact.get("mime_type") or "application/octet-stream",
+        filename=file_path.name,
+    )
+
+
 @app.post("/api/tasks/{task_id}/questions/{question_id}/answer")
 async def answer_question(task_id: str, question_id: str, body: AnswerRequest):
     """Answer a pending question."""
@@ -256,6 +335,13 @@ async def answer_question(task_id: str, question_id: str, body: AnswerRequest):
     if question.get("answer") is not None:
         raise HTTPException(status_code=400, detail="Question already answered")
     result = db.answer_question(question_id, body.answer)
+
+    # If no more pending questions, unblock the task
+    remaining = db.get_questions(task_id, pending_only=True)
+    task = db.get_task(task_id)
+    if task and task["status"] == "blocked" and not remaining:
+        db.update_task(task_id, status="in_progress")
+
     return result
 
 
@@ -328,6 +414,159 @@ async def list_agents():
     return agents
 
 
+# --- Chat API ---
+
+
+@app.get("/api/chat/sessions")
+async def list_chat_sessions():
+    """List all chat sessions, most recent first."""
+    return db.list_chat_sessions()
+
+
+@app.post("/api/chat/sessions")
+async def create_chat_session():
+    """Create an empty chat session."""
+    session_id = str(uuid.uuid4())[:8]
+    session = db.create_chat_session(session_id, "New Chat")
+    return session
+
+
+@app.get("/api/chat/sessions/{session_id}")
+async def get_chat_session(session_id: str):
+    """Get chat session metadata."""
+    session = db.get_chat_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return session
+
+
+@app.patch("/api/chat/sessions/{session_id}")
+async def update_chat_session(session_id: str, body: ChatSessionUpdate):
+    """Rename a chat session."""
+    session = db.update_chat_session(session_id, title=body.title)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return session
+
+
+@app.delete("/api/chat/sessions/{session_id}")
+async def delete_chat_session(session_id: str):
+    """Delete a chat session and all its messages."""
+    if not db.delete_chat_session(session_id):
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return {"deleted": True}
+
+
+@app.get("/api/chat/sessions/{session_id}/messages")
+async def get_chat_messages(session_id: str):
+    """Get all messages for a chat session."""
+    session = db.get_chat_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return db.get_chat_messages(session_id)
+
+
+@app.post("/api/chat/send")
+async def chat_send(body: ChatSendMessage):
+    """Send a message to Claude and stream the response via WebSocket."""
+    session_id = body.session_id
+    claude_session_id = None
+
+    if not session_id:
+        # Create a new session with title from first 80 chars of message
+        session_id = str(uuid.uuid4())[:8]
+        title = body.message[:80].strip()
+        if len(body.message) > 80:
+            title += "..."
+        db.create_chat_session(session_id, title, model=body.model)
+    else:
+        session = db.get_chat_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        claude_session_id = session.get("claude_session_id")
+
+    # Store user message
+    db.add_chat_message(session_id, "user", body.message)
+
+    # Spawn Claude process
+    success = await chat_mgr.send_message(
+        session_id, body.message, claude_session_id=claude_session_id, model=body.model
+    )
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to start chat process")
+
+    return {"session_id": session_id, "status": "streaming"}
+
+
+@app.post("/api/chat/sessions/{session_id}/cancel")
+async def cancel_chat(session_id: str):
+    """Cancel a streaming chat response."""
+    cancelled = await chat_mgr.cancel(session_id)
+    if not cancelled:
+        raise HTTPException(status_code=404, detail="No active chat process for session")
+    return {"status": "cancelled", "session_id": session_id}
+
+
+# --- Services API ---
+
+
+@app.get("/api/services")
+async def list_services():
+    """List all managed services with current status."""
+    if not services:
+        return []
+    return services.list_services()
+
+
+@app.post("/api/services/{service_id}/start")
+async def start_service(service_id: str):
+    """Start a service."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    ok = await services.start(service_id)
+    if not ok:
+        status = services.get_status(service_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(status_code=500, detail="Failed to start service")
+    return services.get_status(service_id)
+
+
+@app.post("/api/services/{service_id}/stop")
+async def stop_service(service_id: str):
+    """Stop a running service."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    ok = await services.stop(service_id)
+    if not ok:
+        status = services.get_status(service_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Service not found")
+    return services.get_status(service_id)
+
+
+@app.post("/api/services/{service_id}/restart")
+async def restart_service(service_id: str):
+    """Restart a service."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    ok = await services.restart(service_id)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to restart service")
+    return services.get_status(service_id)
+
+
+@app.get("/api/services/{service_id}/logs")
+async def get_service_logs(service_id: str, limit: int = 200):
+    """Get recent log lines for a service."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    status = services.get_status(service_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Service not found")
+    return {"logs": services.get_logs(service_id, limit=limit)}
+
+
 # --- Static file serving ---
 
 # Serve the React frontend from ui/dist/
@@ -351,8 +590,9 @@ if UI_DIR.exists():
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """Serve static files or fall back to index.html for SPA routing."""
-        file_path = UI_DIR / full_path
-        if file_path.exists() and file_path.is_file():
+        file_path = (UI_DIR / full_path).resolve()
+        # Ensure the resolved path stays within UI_DIR
+        if file_path.is_relative_to(UI_DIR.resolve()) and file_path.exists() and file_path.is_file():
             return FileResponse(file_path)
         index = UI_DIR / "index.html"
         if index.exists():

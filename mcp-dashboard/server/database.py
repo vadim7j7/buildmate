@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     assigned_agent TEXT,
     phase TEXT,
     result TEXT,
+    pid INTEGER DEFAULT NULL,
     auto_accept BOOLEAN DEFAULT FALSE,
     source TEXT DEFAULT 'cli',
     created_at TEXT DEFAULT (datetime('now')),
@@ -58,6 +59,40 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_activity_log_task_id ON activity_log(task_id);
 CREATE INDEX IF NOT EXISTS idx_questions_task_id ON questions(task_id);
 CREATE INDEX IF NOT EXISTS idx_questions_answer ON questions(answer);
+
+CREATE TABLE IF NOT EXISTS artifacts (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    artifact_type TEXT NOT NULL,
+    label TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    mime_type TEXT,
+    metadata TEXT DEFAULT '{}',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_artifacts_task_id ON artifacts(task_id);
+
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    claude_session_id TEXT,
+    model TEXT DEFAULT 'sonnet',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    cost_usd REAL,
+    duration_ms INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated_at ON chat_sessions(updated_at);
 """
 
 
@@ -89,6 +124,11 @@ def init_db(db_path: str | None = None) -> None:
     conn = get_sync_connection(db_path)
     try:
         conn.executescript(SCHEMA)
+        # Migration: add pid column to existing databases
+        try:
+            conn.execute("ALTER TABLE tasks ADD COLUMN pid INTEGER DEFAULT NULL")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
         conn.commit()
     finally:
         conn.close()
@@ -98,6 +138,8 @@ def now_iso() -> str:
     """Get current UTC time as ISO string."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
+
+_UNSET = object()
 
 # --- Synchronous DB helpers for MCP tools ---
 
@@ -158,6 +200,7 @@ class SyncDB:
         phase: str | None = None,
         result: str | None = None,
         assigned_agent: str | None = None,
+        pid=_UNSET,
     ) -> dict | None:
         conn = self._conn()
         try:
@@ -175,6 +218,9 @@ class SyncDB:
             if assigned_agent is not None:
                 updates.append("assigned_agent = ?")
                 params.append(assigned_agent)
+            if pid is not _UNSET:
+                updates.append("pid = ?")
+                params.append(pid)
 
             if not updates:
                 return self.get_task(task_id)
@@ -231,6 +277,8 @@ class SyncDB:
                 (task_id,),
             ).fetchone()[0]
             task["pending_questions"] = count
+            # Attach eval score from child eval_report artifact
+            self._attach_eval_score(conn, task)
             return task
         finally:
             conn.close()
@@ -254,6 +302,7 @@ class SyncDB:
                     (task["id"],),
                 ).fetchone()[0]
                 task["pending_questions"] = count
+                self._attach_eval_score(conn, task)
                 tasks.append(task)
             return tasks
         finally:
@@ -486,6 +535,28 @@ class SyncDB:
         finally:
             conn.close()
 
+    def get_orphaned_tasks(self) -> list[dict]:
+        """Get tasks that are in_progress with a stored PID (potential orphans after restart)."""
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE status = 'in_progress' AND pid IS NOT NULL"
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def get_task_pid(self, task_id: str) -> int | None:
+        """Get the stored PID for a task."""
+        conn = self._conn()
+        try:
+            row = conn.execute(
+                "SELECT pid FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            return row["pid"] if row else None
+        finally:
+            conn.close()
+
     def get_activity_since_id(self, since_id: int) -> list[dict]:
         """Get activity entries with id > since_id. Uses auto-increment for reliable cursoring."""
         conn = self._conn()
@@ -514,3 +585,209 @@ class SyncDB:
             return result
         finally:
             conn.close()
+
+    # --- Artifact methods ---
+
+    def create_artifact(
+        self,
+        artifact_id: str,
+        task_id: str,
+        artifact_type: str,
+        label: str,
+        file_path: str,
+        mime_type: str | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
+        conn = self._conn()
+        try:
+            now = now_iso()
+            conn.execute(
+                """INSERT INTO artifacts (id, task_id, artifact_type, label, file_path,
+                   mime_type, metadata, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    artifact_id,
+                    task_id,
+                    artifact_type,
+                    label,
+                    file_path,
+                    mime_type,
+                    json.dumps(metadata or {}),
+                    now,
+                ),
+            )
+            conn.commit()
+            return self.get_artifact(artifact_id)
+        finally:
+            conn.close()
+
+    def get_artifact(self, artifact_id: str) -> dict | None:
+        conn = self._conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM artifacts WHERE id = ?", (artifact_id,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def get_artifacts(self, task_id: str, include_children: bool = False) -> list[dict]:
+        conn = self._conn()
+        try:
+            if include_children:
+                child_ids = [
+                    r["id"]
+                    for r in conn.execute(
+                        "SELECT id FROM tasks WHERE parent_id = ?", (task_id,)
+                    ).fetchall()
+                ]
+                all_ids = [task_id] + child_ids
+                placeholders = ",".join("?" for _ in all_ids)
+                rows = conn.execute(
+                    f"""SELECT * FROM artifacts WHERE task_id IN ({placeholders})
+                       ORDER BY created_at""",
+                    all_ids,
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM artifacts WHERE task_id = ? ORDER BY created_at",
+                    (task_id,),
+                ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    # --- Chat session methods ---
+
+    def create_chat_session(self, session_id: str, title: str, model: str = "sonnet") -> dict:
+        conn = self._conn()
+        try:
+            now = now_iso()
+            conn.execute(
+                """INSERT INTO chat_sessions (id, title, model, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (session_id, title, model, now, now),
+            )
+            conn.commit()
+            return self.get_chat_session(session_id)
+        finally:
+            conn.close()
+
+    def update_chat_session(
+        self,
+        session_id: str,
+        title: str | None = None,
+        claude_session_id: str | None = None,
+    ) -> dict | None:
+        conn = self._conn()
+        try:
+            updates = []
+            params = []
+            if title is not None:
+                updates.append("title = ?")
+                params.append(title)
+            if claude_session_id is not None:
+                updates.append("claude_session_id = ?")
+                params.append(claude_session_id)
+            if not updates:
+                return self.get_chat_session(session_id)
+            updates.append("updated_at = ?")
+            params.append(now_iso())
+            params.append(session_id)
+            conn.execute(
+                f"UPDATE chat_sessions SET {', '.join(updates)} WHERE id = ?", params
+            )
+            conn.commit()
+            return self.get_chat_session(session_id)
+        finally:
+            conn.close()
+
+    def get_chat_session(self, session_id: str) -> dict | None:
+        conn = self._conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM chat_sessions WHERE id = ?", (session_id,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def list_chat_sessions(self) -> list[dict]:
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM chat_sessions ORDER BY updated_at DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def delete_chat_session(self, session_id: str) -> bool:
+        conn = self._conn()
+        try:
+            cursor = conn.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def add_chat_message(
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        cost_usd: float | None = None,
+        duration_ms: int | None = None,
+    ) -> dict:
+        conn = self._conn()
+        try:
+            now = now_iso()
+            cursor = conn.execute(
+                """INSERT INTO chat_messages (session_id, role, content, cost_usd, duration_ms, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (session_id, role, content, cost_usd, duration_ms, now),
+            )
+            # Update session's updated_at
+            conn.execute(
+                "UPDATE chat_sessions SET updated_at = ? WHERE id = ?",
+                (now, session_id),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM chat_messages WHERE id = ?", (cursor.lastrowid,)
+            ).fetchone()
+            return dict(row)
+        finally:
+            conn.close()
+
+    def get_chat_messages(self, session_id: str) -> list[dict]:
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC, id ASC",
+                (session_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def _attach_eval_score(self, conn: sqlite3.Connection, task: dict) -> None:
+        """Attach eval_score and eval_grade from an eval_report artifact on a child task."""
+        task["eval_score"] = None
+        task["eval_grade"] = None
+        # Look for eval_report artifacts on child tasks
+        child_ids = [task["id"]] + [c["id"] for c in task.get("children", [])]
+        placeholders = ",".join("?" for _ in child_ids)
+        row = conn.execute(
+            f"""SELECT metadata FROM artifacts
+               WHERE task_id IN ({placeholders}) AND artifact_type = 'eval_report'
+               ORDER BY created_at DESC LIMIT 1""",
+            child_ids,
+        ).fetchone()
+        if row:
+            try:
+                meta = json.loads(row["metadata"])
+                task["eval_score"] = meta.get("final_score")
+                task["eval_grade"] = meta.get("grade")
+            except (json.JSONDecodeError, TypeError):
+                pass

@@ -9,8 +9,7 @@ description: Run a code review for React + Next.js projects using the frontend-r
 
 Identifies changed files, delegates a structured code review to the
 `frontend-reviewer` agent, and reports findings categorized as blockers,
-warnings, or suggestions. Specialized for React + Next.js with Mantine UI and
-TypeScript.
+warnings, or suggestions. Specialized for React + Next.js with TypeScript.
 
 ## Usage
 
@@ -78,7 +77,7 @@ The reviewer agent returns a structured review:
 |---|---|
 | React Best Practices | PASS / ISSUES |
 | Next.js Conventions | PASS / ISSUES |
-| Mantine UI Usage | PASS / ISSUES |
+| UI Library Usage | PASS / ISSUES |
 | Accessibility | PASS / ISSUES |
 | Performance | PASS / ISSUES |
 | TypeScript | PASS / ISSUES |
@@ -102,7 +101,7 @@ If running as part of a pipeline, write results to `.agent-pipeline/review.md`.
 |---|---|
 | Server vs Client | `'use client'` only when needed |
 | TypeScript | No `any`, `type` for props |
-| Mantine | Mantine components used, not raw HTML |
+| UI Library | UI library components used per style guide |
 | Accessibility | Labels, ARIA, keyboard nav |
 | Performance | No unnecessary re-renders, proper memoization |
 | Security | No XSS, no secrets in client code |

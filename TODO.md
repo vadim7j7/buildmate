@@ -355,6 +355,20 @@
 - [ ] Plugin system for custom stacks
 - [x] **Extensible projects** (`--add-stack`, `--set-option`, `--upgrade`)
 
+### MCP Dashboard
+- [x] FastAPI server with REST API + WebSocket
+- [x] React UI with Kanban board, task detail panel
+- [x] Process management (spawn/cancel Claude CLI)
+- [x] Activity log streaming from Claude stream-json
+- [x] Question/answer flow for agent interactions
+- [x] Artifact viewer (eval reports, screenshots)
+- [x] Service manager (start/stop/restart dev services)
+- [x] Chat with Claude (streaming responses, multi-turn via --resume, session management)
+- [ ] Chat: model selector per session
+- [ ] Chat: create task from chat conversation
+- [ ] Dashboard: task dependency visualization
+- [ ] Dashboard: agent performance metrics
+
 ---
 
 ## Extensibility Feature (DONE)

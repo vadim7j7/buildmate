@@ -164,12 +164,10 @@ if (ALLOWED_ORIGINS.includes(origin)) {
 Client-side validation improves UX but is NOT a security boundary:
 
 ```typescript
-// @mantine/form validation - good for UX
-const form = useForm({
-  validate: {
-    email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : 'Invalid email'),
-    name: (value) => (value.trim().length >= 2 ? null : 'Too short'),
-  },
+// Client-side form validation - good for UX
+const validate = (values: { email: string; name: string }) => ({
+  email: /^\S+@\S+\.\S+$/.test(values.email) ? null : 'Invalid email',
+  name: values.name.trim().length >= 2 ? null : 'Too short',
 });
 ```
 

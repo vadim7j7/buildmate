@@ -5,12 +5,50 @@ import type { Task, TaskStatus } from '../types'
 import { CreateTaskModal } from './CreateTaskModal'
 import { TaskCard } from './TaskCard'
 
-const COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
-  { status: 'pending', label: 'Pending', color: 'border-gray-600' },
-  { status: 'in_progress', label: 'In Progress', color: 'border-yellow-500' },
-  { status: 'completed', label: 'Completed', color: 'border-green-500' },
-  { status: 'failed', label: 'Failed', color: 'border-red-500' },
-  { status: 'blocked', label: 'Blocked', color: 'border-orange-500' },
+type ColumnConfig = {
+  status: TaskStatus
+  label: string
+  borderColor: string
+  headerBg: string
+  countBg: string
+}
+
+const COLUMNS: ColumnConfig[] = [
+  {
+    status: 'pending',
+    label: 'Pending',
+    borderColor: 'border-gray-600/50',
+    headerBg: 'bg-surface-800/50',
+    countBg: 'bg-surface-700',
+  },
+  {
+    status: 'in_progress',
+    label: 'In Progress',
+    borderColor: 'border-amber-500/30',
+    headerBg: 'bg-amber-500/10',
+    countBg: 'bg-amber-500/20',
+  },
+  {
+    status: 'completed',
+    label: 'Completed',
+    borderColor: 'border-emerald-500/30',
+    headerBg: 'bg-emerald-500/10',
+    countBg: 'bg-emerald-500/20',
+  },
+  {
+    status: 'failed',
+    label: 'Failed',
+    borderColor: 'border-red-500/30',
+    headerBg: 'bg-red-500/10',
+    countBg: 'bg-red-500/20',
+  },
+  {
+    status: 'blocked',
+    label: 'Blocked',
+    borderColor: 'border-orange-500/30',
+    headerBg: 'bg-orange-500/10',
+    countBg: 'bg-orange-500/20',
+  },
 ]
 
 export function KanbanBoard() {
@@ -22,38 +60,85 @@ export function KanbanBoard() {
 
   return (
     <>
-      <div className="flex-1 overflow-x-auto p-4">
-        <div className="flex gap-4 h-full min-w-max">
-          {COLUMNS.map(col => (
-            <div key={col.status} className="w-72 flex flex-col shrink-0">
-              <div className={`flex items-center justify-between mb-3 pb-2 border-b-2 ${col.color}`}>
-                <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
-                  {col.label}
-                </h2>
-                <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-                  {tasksByStatus(col.status).length}
-                </span>
+      <div className="flex-1 overflow-x-auto p-6">
+        <div className="flex gap-5 h-full min-w-max">
+          {COLUMNS.map((col, index) => (
+            <div
+              key={col.status}
+              className="w-80 flex flex-col shrink-0 animate-fade-in-up"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              {/* Column Header */}
+              <div
+                className={`
+                  flex items-center justify-between mb-4 pb-3
+                  border-b-2 ${col.borderColor}
+                `}
+              >
+                <div className={`flex items-center gap-3 px-3 py-1.5 rounded-lg ${col.headerBg}`}>
+                  <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
+                    {col.label}
+                  </h2>
+                  <span
+                    className={`
+                      text-xs font-semibold px-2 py-0.5 rounded-md
+                      ${col.countBg} text-gray-200
+                    `}
+                  >
+                    {tasksByStatus(col.status).length}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex-1 space-y-2 overflow-y-auto pb-4">
+              {/* Column Content */}
+              <div className="flex-1 space-y-3 overflow-y-auto pb-4 pr-1">
+                {/* Add Task Button - Only in Pending */}
                 {col.status === 'pending' && (
                   <button
                     onClick={() => setShowCreate(true)}
-                    className="w-full p-3 rounded-lg border border-dashed border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500 transition-colors flex items-center justify-center gap-2 text-sm"
+                    className="
+                      group w-full p-4 rounded-xl
+                      border-2 border-dashed border-surface-700
+                      bg-surface-900/30 backdrop-blur-sm
+                      text-gray-500 hover:text-gray-300
+                      hover:border-accent-500/50 hover:bg-accent-500/5
+                      transition-all duration-200
+                      flex items-center justify-center gap-2
+                    "
                   >
-                    <Plus className="w-4 h-4" />
-                    New Task
+                    <div className="w-8 h-8 rounded-lg bg-surface-800 group-hover:bg-accent-500/20 flex items-center justify-center transition-colors">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-medium">New Task</span>
                   </button>
                 )}
 
-                {tasksByStatus(col.status).map(task => (
-                  <TaskCard
+                {/* Task Cards */}
+                {tasksByStatus(col.status).map((task, taskIndex) => (
+                  <div
                     key={task.id}
-                    task={task}
-                    selected={state.selectedTaskId === task.id}
-                    onClick={() => selectTask(task.id)}
-                  />
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${(index * 50) + (taskIndex * 30)}ms` }}
+                  >
+                    <TaskCard
+                      task={task}
+                      selected={state.selectedTaskId === task.id}
+                      onClick={() => selectTask(task.id)}
+                    />
+                  </div>
                 ))}
+
+                {/* Empty State */}
+                {tasksByStatus(col.status).length === 0 && col.status !== 'pending' && (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-600">
+                    <div className="w-12 h-12 rounded-full bg-surface-800/50 flex items-center justify-center mb-3">
+                      <span className="text-xl opacity-50">
+                        {col.status === 'completed' ? 'done' : col.status === 'failed' ? 'x' : '-'}
+                      </span>
+                    </div>
+                    <p className="text-sm">No tasks</p>
+                  </div>
+                )}
               </div>
             </div>
           ))}

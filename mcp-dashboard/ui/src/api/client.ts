@@ -1,4 +1,4 @@
-import type { Activity, ProcessStatus, Question, Stats, Task } from '../types'
+import type { Activity, Artifact, ChatMessage, ChatSession, ProcessStatus, Question, Service, Stats, Task } from '../types'
 
 const BASE = '/api'
 
@@ -49,9 +49,45 @@ export const api = {
   getProcessStatus: (taskId: string) =>
     request<ProcessStatus>(`/tasks/${taskId}/process`),
 
+  // Artifacts
+  getArtifacts: (taskId: string) => request<Artifact[]>(`/tasks/${taskId}/artifacts`),
+  getArtifactContentUrl: (artifactId: string) => `${BASE}/artifacts/${artifactId}/content`,
+  getArtifactContent: async (artifactId: string): Promise<string> => {
+    const res = await fetch(`${BASE}/artifacts/${artifactId}/content`)
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+    return res.text()
+  },
+
   // Stats & Agents
   getStats: () => request<Stats>('/stats'),
   getAgents: () => request<{ name: string; filename: string; description: string }[]>('/agents'),
+
+  // Services
+  listServices: () => request<Service[]>('/services'),
+  startService: (id: string) => request<Service>(`/services/${id}/start`, { method: 'POST' }),
+  stopService: (id: string) => request<Service>(`/services/${id}/stop`, { method: 'POST' }),
+  restartService: (id: string) => request<Service>(`/services/${id}/restart`, { method: 'POST' }),
+  getServiceLogs: (id: string, limit = 200) => request<{ logs: string[] }>(`/services/${id}/logs?limit=${limit}`),
+
+  // Chat
+  listChatSessions: () => request<ChatSession[]>('/chat/sessions'),
+  createChatSession: () => request<ChatSession>('/chat/sessions', { method: 'POST' }),
+  getChatSession: (id: string) => request<ChatSession>(`/chat/sessions/${id}`),
+  updateChatSession: (id: string, title: string) =>
+    request<ChatSession>(`/chat/sessions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    }),
+  deleteChatSession: (id: string) =>
+    request<{ deleted: boolean }>(`/chat/sessions/${id}`, { method: 'DELETE' }),
+  getChatMessages: (id: string) => request<ChatMessage[]>(`/chat/sessions/${id}/messages`),
+  chatSend: (message: string, sessionId?: string, model?: string) =>
+    request<{ session_id: string; status: string }>('/chat/send', {
+      method: 'POST',
+      body: JSON.stringify({ message, session_id: sessionId, model }),
+    }),
+  cancelChat: (sessionId: string) =>
+    request<{ status: string }>(`/chat/sessions/${sessionId}/cancel`, { method: 'POST' }),
 }
 
 // --- WebSocket hook ---

@@ -69,7 +69,6 @@ Pages are async Server Components that fetch data directly. NO client-side fetch
 ```typescript
 // src/app/projects/page.tsx
 import { Metadata } from 'next';
-import { Stack, Title } from '@mantine/core';
 import { getProjects } from '@/lib/data/projects';
 import { ProjectList } from '@/components/projects/ProjectList';
 
@@ -82,10 +81,10 @@ export default async function ProjectsPage() {
   const projects = await getProjects();
 
   return (
-    <Stack gap="lg">
-      <Title order={1}>Projects</Title>
+    <div>
+      <h1>Projects</h1>
       <ProjectList projects={projects} />
-    </Stack>
+    </div>
   );
 }
 ```
@@ -151,8 +150,6 @@ Only use `'use client'` for interactivity. Keep them small and focused.
 'use client';
 
 import { useTransition } from 'react';
-import { ActionIcon } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
 import { deleteProject } from '@/lib/actions/projects';
 
 export function DeleteProjectButton({ projectId }: { projectId: string }) {
@@ -163,9 +160,9 @@ export function DeleteProjectButton({ projectId }: { projectId: string }) {
   };
 
   return (
-    <ActionIcon onClick={handleDelete} loading={isPending} color="red">
-      <IconTrash size={16} />
-    </ActionIcon>
+    <button onClick={handleDelete} disabled={isPending}>
+      {isPending ? 'Deleting...' : 'Delete'}
+    </button>
   );
 }
 ```
@@ -179,7 +176,6 @@ Forms use native `action` attribute with Server Actions.
 'use client';
 
 import { useActionState } from 'react';
-import { TextInput, Button, Stack } from '@mantine/core';
 import { createProject } from '@/lib/actions/projects';
 
 export function CreateProjectForm() {
@@ -187,11 +183,13 @@ export function CreateProjectForm() {
 
   return (
     <form action={formAction}>
-      <Stack gap="md">
-        <TextInput name="name" label="Name" required />
-        <TextInput name="description" label="Description" required />
-        <Button type="submit" loading={isPending}>Create</Button>
-      </Stack>
+      <label htmlFor="name">Name</label>
+      <input id="name" name="name" required />
+      <label htmlFor="description">Description</label>
+      <input id="description" name="description" required />
+      <button type="submit" disabled={isPending}>
+        {isPending ? 'Creating...' : 'Create'}
+      </button>
     </form>
   );
 }
@@ -206,7 +204,7 @@ export function CreateProjectForm() {
 5. **`type` for props** - Not `interface`
 6. **No `any` types** - Use `unknown` with type guards
 7. **Named exports** - Except pages (default export required by Next.js)
-8. **Mantine components** - No raw HTML when Mantine equivalent exists
+8. **{{ variables.ui_library }} components** - Use {{ variables.ui_library }} components where appropriate
 9. **`@/` imports** - Absolute imports for internal modules
 
 ## When to Use 'use client'

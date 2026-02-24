@@ -20,6 +20,7 @@ Bootstrap Claude Code agent configurations for your projects. Composes base agen
 - **Self-verification** - Agents test their own work via HTTP requests or MCP browser
 - **Git workflow automation** - Auto-create branches, commit, push, and create PRs
 - **Multi-repository support** - Coordinate git operations across multiple repos
+- **MCP Dashboard** - Real-time web UI for task monitoring, service management, and chatting with Claude
 
 ## Installation
 
@@ -206,6 +207,9 @@ buildmate/
 │       ├── skills/           # new-spider, analyze-target, etc.
 │       ├── patterns/         # anti-detection, pagination, auth
 │       └── styles/           # Python and Node.js styles
+├── mcp-dashboard/            # Real-time web dashboard
+│   ├── server/               # FastAPI backend (REST, WebSocket, process mgmt)
+│   └── ui/                   # React + TypeScript + Tailwind frontend
 ├── tests/                    # Test suite
 └── evals/                    # Evaluation configs
 ```
@@ -926,6 +930,145 @@ PRs automatically include references to related PRs in other repos:
 | backend | #42 | Open |
 | web | #18 | Open |
 ```
+
+## MCP Dashboard
+
+A real-time web dashboard for monitoring and controlling Buildmate tasks, processes, and agent orchestration. Includes a built-in chat interface for talking to Claude Code about your codebase.
+
+### Running the Dashboard
+
+```bash
+cd mcp-dashboard
+uv run python -m server.main
+
+# Options
+uv run python -m server.main --host 0.0.0.0 --port 8420 --db .dashboard/tasks.db
+```
+
+Open `http://127.0.0.1:8420` in your browser.
+
+### Features
+
+- **Kanban Board** - Visual task management with drag-and-drop columns (Pending, Active, Done, Failed, Blocked)
+- **Real-Time Updates** - WebSocket-driven live updates for tasks, activity logs, and process status
+- **Task Orchestration** - Create tasks and spawn Claude CLI processes directly from the UI
+- **Activity Feed** - Stream Claude's real-time output, tool usage, and progress per task
+- **Question & Answer** - Answer agent questions from the browser (plan approvals, clarifications)
+- **Artifacts** - View eval reports, screenshots, and generated files inline
+- **Service Manager** - Start/stop/restart managed services (dev servers, databases) with log tailing
+- **Chat with Claude** - Ask questions about your codebase, get explanations, and create tasks from a chat interface
+
+### Chat Interface
+
+The chat panel lets you have conversations with Claude Code about your project directly from the dashboard.
+
+- **Streaming responses** - See Claude's response tokens in real-time via WebSocket
+- **Multi-turn conversations** - Uses `claude --resume` for conversation continuity
+- **Session management** - Create, rename, and delete chat sessions
+- **Markdown rendering** - Full markdown with syntax highlighting in responses
+- **Cost tracking** - See cost and duration per response
+
+Toggle the chat panel via the "Chat" button in the stats bar.
+
+### Architecture
+
+```
+mcp-dashboard/
+├── server/
+│   ├── main.py              # FastAPI app, REST API, WebSocket, lifespan
+│   ├── database.py          # SQLite with WAL mode (tasks, activity, questions, artifacts, chat)
+│   ├── models.py            # Pydantic request/response models
+│   ├── queue_manager.py     # Claude CLI process lifecycle for tasks
+│   ├── chat_manager.py      # Claude CLI process lifecycle for chat
+│   ├── service_manager.py   # Dev service lifecycle (start/stop/restart)
+│   └── mcp_tools.py         # MCP stdio tools for agent integration
+├── ui/
+│   ├── src/
+│   │   ├── App.tsx                          # Root layout
+│   │   ├── api/client.ts                    # REST + WebSocket client
+│   │   ├── types/index.ts                   # TypeScript interfaces
+│   │   ├── context/
+│   │   │   ├── DashboardContext.tsx          # Task/stats/WS state
+│   │   │   └── ChatContext.tsx              # Chat sessions/messages/streaming state
+│   │   ├── components/
+│   │   │   ├── KanbanBoard.tsx              # Task columns
+│   │   │   ├── TaskCard.tsx                 # Individual task card
+│   │   │   ├── TaskDetailPanel.tsx          # Right sidebar: activity, questions, artifacts
+│   │   │   ├── ChatPanel.tsx                # Right sidebar: chat sessions and messages
+│   │   │   ├── ChatBubble.tsx               # User/assistant message bubbles with markdown
+│   │   │   ├── StatsBar.tsx                 # Top bar: stats, services toggle, chat toggle
+│   │   │   ├── ServicesPanel.tsx            # Service management UI
+│   │   │   ├── QuestionModal.tsx            # Answer agent questions
+│   │   │   ├── ArtifactModal.tsx            # View artifacts inline
+│   │   │   └── ToastContainer.tsx           # Notification toasts
+│   │   └── hooks/
+│   │       └── useNotifications.ts          # Browser + in-app notifications
+│   └── package.json
+└── pyproject.toml
+```
+
+### API Endpoints
+
+**Tasks:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks` | List root tasks |
+| POST | `/api/tasks` | Create task |
+| GET | `/api/tasks/{id}` | Get task with children |
+| PATCH | `/api/tasks/{id}` | Update task status/phase |
+| DELETE | `/api/tasks/{id}` | Delete task and children |
+| POST | `/api/tasks/{id}/run` | Spawn Claude process |
+| POST | `/api/tasks/{id}/cancel` | Cancel running process |
+
+**Chat:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/chat/sessions` | List chat sessions |
+| POST | `/api/chat/sessions` | Create empty session |
+| GET | `/api/chat/sessions/{id}` | Get session metadata |
+| PATCH | `/api/chat/sessions/{id}` | Rename session |
+| DELETE | `/api/chat/sessions/{id}` | Delete session + messages |
+| GET | `/api/chat/sessions/{id}/messages` | Get messages |
+| POST | `/api/chat/send` | Send message (streams response via WS) |
+| POST | `/api/chat/sessions/{id}/cancel` | Cancel streaming response |
+
+**Services:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/services` | List services |
+| POST | `/api/services/{id}/start` | Start service |
+| POST | `/api/services/{id}/stop` | Stop service |
+| POST | `/api/services/{id}/restart` | Restart service |
+| GET | `/api/services/{id}/logs` | Get service logs |
+
+### WebSocket Events
+
+The dashboard uses a single WebSocket at `/ws` for all real-time updates:
+
+| Event | Direction | Description |
+|-------|-----------|-------------|
+| `init` | Server → Client | Initial state (tasks, stats, services) |
+| `tasks_updated` | Server → Client | Task list changed |
+| `stats` | Server → Client | Stats counters updated |
+| `activity` | Server → Client | New activity log entries |
+| `questions` | Server → Client | New/answered questions |
+| `processes` | Server → Client | Process status changes |
+| `services` | Server → Client | Service status changes |
+| `chat_delta` | Server → Client | Streaming chat token |
+| `chat_complete` | Server → Client | Chat response finished |
+| `chat_error` | Server → Client | Chat process failed |
+| `chat_cancelled` | Server → Client | Chat cancelled by user |
+
+### Database Schema
+
+SQLite with WAL mode. Tables:
+
+- **tasks** - Task ID, title, description, status, phase, assigned agent, PID
+- **activity_log** - Timestamped events per task (status changes, tool usage, messages)
+- **questions** - Agent questions with options, answers, auto-accept status
+- **artifacts** - File attachments (eval reports, screenshots, generated files)
+- **chat_sessions** - Chat session metadata (title, Claude session ID for resume, model)
+- **chat_messages** - Chat messages with role, content, cost, and duration
 
 ## Development
 

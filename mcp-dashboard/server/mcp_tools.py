@@ -6,6 +6,7 @@ Runs as a stdio MCP server configured in .claude/settings.json.
 """
 
 import asyncio
+import mimetypes
 import os
 import time
 import uuid
@@ -234,6 +235,9 @@ async def dashboard_ask_question(
         context=context or None,
     )
 
+    # Mark task as blocked while waiting for answer
+    db.update_task(task_id, status="blocked")
+
     # Poll for answer using async sleep to avoid blocking the MCP event loop.
     # time.sleep() would freeze the entire stdio transport, preventing any
     # other MCP tool calls from being processed while waiting.
@@ -241,12 +245,102 @@ async def dashboard_ask_question(
     while time.time() - start_time < QUESTION_TIMEOUT:
         q = db.get_question(question_id)
         if q and q.get("answer") is not None:
+            # Restore to in_progress if no remaining unanswered questions
+            remaining = db.get_questions(task_id, pending_only=True)
+            if not remaining:
+                db.update_task(task_id, status="in_progress")
             return {"answer": q["answer"], "auto_accepted": False}
         await asyncio.sleep(QUESTION_POLL_INTERVAL)
 
     # Timeout
     db.answer_question(question_id, "[TIMEOUT - no answer received]")
+    # Restore to in_progress if no remaining unanswered questions
+    remaining = db.get_questions(task_id, pending_only=True)
+    if not remaining:
+        db.update_task(task_id, status="in_progress")
     return {"answer": "[TIMEOUT]", "auto_accepted": False, "timed_out": True}
+
+
+@mcp.tool()
+def dashboard_add_artifact(
+    task_id: str,
+    file_path: str,
+    artifact_type: str = "file",
+    label: str = "",
+    metadata: dict | None = None,
+) -> dict:
+    """
+    Register a file artifact (screenshot, report, eval result) for a task.
+
+    The file is served via the dashboard UI so users can view it inline.
+
+    Args:
+        task_id: Task this artifact belongs to
+        file_path: Path to the file (absolute or relative to project root)
+        artifact_type: Type of artifact ('screenshot', 'markdown_report', 'eval_report', 'file')
+        label: Display label (auto-generated from filename if empty)
+        metadata: Optional dict of structured data (e.g. eval scores)
+
+    Returns:
+        dict with artifact details including 'id'
+    """
+    import shutil
+    from pathlib import Path
+
+    from .database import get_db_path
+
+    db = _get_db()
+
+    # Validate task exists
+    task = db.get_task(task_id)
+    if not task:
+        return {"error": f"Task {task_id} not found"}
+
+    # Resolve source file
+    source = Path(file_path)
+    if not source.is_absolute():
+        source = Path.cwd() / source
+    source = source.resolve()
+    if not source.exists():
+        return {"error": f"File not found: {file_path}"}
+
+    # Path containment: only allow files under cwd
+    cwd_root = Path.cwd().resolve()
+    if not source.is_relative_to(cwd_root):
+        return {"error": f"Access denied: file must be within the project directory"}
+
+    # Auto-detect mime type
+    mime_type, _ = mimetypes.guess_type(file_path)
+
+    # Auto-generate label from filename if not provided
+    if not label:
+        label = source.name
+
+    artifact_id = str(uuid.uuid4())[:8]
+
+    # Snapshot: copy file to a stable artifact-scoped location so it
+    # survives being overwritten by the next task.
+    # Store under .dashboard/artifacts/{artifact_id}/{original_filename}
+    db_path = Path(get_db_path())
+    artifacts_dir = db_path.parent / "artifacts" / artifact_id
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    dest = artifacts_dir / source.name
+    shutil.copy2(str(source), str(dest))
+
+    artifact = db.create_artifact(
+        artifact_id=artifact_id,
+        task_id=task_id,
+        artifact_type=artifact_type,
+        label=label,
+        file_path=str(dest),
+        mime_type=mime_type,
+        metadata=metadata,
+    )
+
+    # Log activity
+    db.log_activity(task_id, "artifact", None, f"Artifact added: {label}")
+
+    return artifact
 
 
 @mcp.tool()

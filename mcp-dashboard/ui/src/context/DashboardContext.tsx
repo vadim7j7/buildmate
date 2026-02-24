@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { api, createWebSocket } from '../api/client'
-import type { Activity, ProcessStatus, Question, Stats, Task } from '../types'
+import type { Activity, Artifact, ProcessStatus, Question, Service, Stats, Task } from '../types'
+import { useNotifications } from '../hooks/useNotifications'
+import type { Toast } from '../hooks/useNotifications'
+import { chatWsHandlerRef } from './ChatContext'
 
 interface State {
   tasks: Task[]
@@ -9,8 +12,11 @@ interface State {
   selectedTaskId: string | null
   selectedActivity: Activity[]
   selectedQuestions: Question[]
+  selectedArtifacts: Artifact[]
   connected: boolean
   processes: Record<string, ProcessStatus>
+  services: Service[]
+  showServices: boolean
 }
 
 type Action =
@@ -22,8 +28,11 @@ type Action =
   | { type: 'ADD_ACTIVITY'; activity: Activity[] }
   | { type: 'SET_QUESTIONS'; questions: Question[] }
   | { type: 'UPDATE_QUESTIONS'; questions: Question[] }
+  | { type: 'SET_ARTIFACTS'; artifacts: Artifact[] }
   | { type: 'SET_CONNECTED'; connected: boolean }
   | { type: 'SET_PROCESSES'; processes: Record<string, ProcessStatus> }
+  | { type: 'SET_SERVICES'; services: Service[] }
+  | { type: 'TOGGLE_SERVICES' }
 
 const initialState: State = {
   tasks: [],
@@ -31,8 +40,11 @@ const initialState: State = {
   selectedTaskId: null,
   selectedActivity: [],
   selectedQuestions: [],
+  selectedArtifacts: [],
   connected: false,
   processes: {},
+  services: [],
+  showServices: false,
 }
 
 function reducer(state: State, action: Action): State {
@@ -59,7 +71,7 @@ function reducer(state: State, action: Action): State {
       return { ...state, stats: action.stats }
 
     case 'SELECT_TASK':
-      return { ...state, selectedTaskId: action.taskId, selectedActivity: [], selectedQuestions: [] }
+      return { ...state, selectedTaskId: action.taskId, selectedActivity: [], selectedQuestions: [], selectedArtifacts: [] }
 
     case 'SET_ACTIVITY':
       return { ...state, selectedActivity: action.activity }
@@ -87,11 +99,20 @@ function reducer(state: State, action: Action): State {
       return { ...state, selectedQuestions: questions }
     }
 
+    case 'SET_ARTIFACTS':
+      return { ...state, selectedArtifacts: action.artifacts }
+
     case 'SET_CONNECTED':
       return { ...state, connected: action.connected }
 
     case 'SET_PROCESSES':
       return { ...state, processes: action.processes }
+
+    case 'SET_SERVICES':
+      return { ...state, services: action.services }
+
+    case 'TOGGLE_SERVICES':
+      return { ...state, showServices: !state.showServices }
 
     default:
       return state
@@ -103,9 +124,15 @@ interface DashboardContextValue {
   selectTask: (taskId: string | null) => void
   refreshTasks: () => Promise<void>
   refreshStats: () => Promise<void>
+  toggleServices: () => void
+  toasts: Toast[]
+  dismissToast: (id: number) => void
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null)
+
+/** Ref that ChatContext can call to trigger task list + stats refresh from chat actions. */
+export const dashboardRefreshRef: { current: (() => void) | null } = { current: null }
 
 /** Get the set of task IDs relevant to a selected root task (itself + children). */
 function getRelevantTaskIds(tasks: Task[], selectedTaskId: string): Set<string> {
@@ -116,6 +143,7 @@ function getRelevantTaskIds(tasks: Task[], selectedTaskId: string): Set<string> 
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+  const { notify, toasts, dismissToast } = useNotifications()
   const selectedTaskIdRef = useRef(state.selectedTaskId)
   selectedTaskIdRef.current = state.selectedTaskId
   const tasksRef = useRef(state.tasks)
@@ -139,17 +167,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const toggleServices = useCallback(() => {
+    dispatch({ type: 'TOGGLE_SERVICES' })
+  }, [])
+
+  // Expose refresh functions via ref so ChatContext can trigger them
+  dashboardRefreshRef.current = () => {
+    refreshTasks()
+    refreshStats()
+  }
+
   const selectTask = useCallback(async (taskId: string | null) => {
     dispatch({ type: 'SELECT_TASK', taskId })
     if (taskId) {
       try {
-        const [activity, questions, task] = await Promise.all([
+        const [activity, questions, task, artifacts] = await Promise.all([
           api.getActivity(taskId),
           api.getQuestions(taskId),
           api.getTask(taskId),
+          api.getArtifacts(taskId),
         ])
         dispatch({ type: 'SET_ACTIVITY', activity })
         dispatch({ type: 'SET_QUESTIONS', questions })
+        dispatch({ type: 'SET_ARTIFACTS', artifacts })
         // Update the task in the list with fresh children
         dispatch({ type: 'UPDATE_TASKS', tasks: [task] })
       } catch {
@@ -164,13 +204,35 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       (msg) => {
         switch (msg.type) {
           case 'init': {
-            const data = msg.data as { tasks: Task[]; stats: Stats }
+            const data = msg.data as { tasks: Task[]; stats: Stats; services?: Service[] }
             dispatch({ type: 'SET_TASKS', tasks: data.tasks })
             dispatch({ type: 'SET_STATS', stats: data.stats })
+            if (data.services) {
+              dispatch({ type: 'SET_SERVICES', services: data.services })
+            }
             break
           }
           case 'tasks_updated': {
             const tasks = msg.data as Task[]
+            const prevTasks = tasksRef.current
+            for (const task of tasks) {
+              const prev = prevTasks.find(t => t.id === task.id)
+              if (prev && prev.status !== task.status) {
+                if (task.status === 'completed') {
+                  notify(`Task completed: ${task.title}`, {
+                    tag: 'task-' + task.id,
+                    type: 'success',
+                    onClick: () => dispatch({ type: 'SELECT_TASK', taskId: task.id }),
+                  })
+                } else if (task.status === 'failed') {
+                  notify(`Task failed: ${task.title}`, {
+                    tag: 'task-' + task.id,
+                    type: 'error',
+                    onClick: () => dispatch({ type: 'SELECT_TASK', taskId: task.id }),
+                  })
+                }
+              }
+            }
             dispatch({ type: 'SET_TASKS', tasks })
             break
           }
@@ -194,6 +256,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           }
           case 'questions': {
             const questions = msg.data as Question[]
+            // Notify for unanswered questions
+            const unanswered = questions.filter(q => !q.answer)
+            if (unanswered.length > 0) {
+              const q = unanswered[0]
+              notify('Question awaiting answer', {
+                body: q.question,
+                tag: 'question-' + q.id,
+                type: 'warning',
+                onClick: () => dispatch({ type: 'SELECT_TASK', taskId: q.task_id }),
+              })
+            }
             // Include questions from the selected task AND its subtasks
             const taskId = selectedTaskIdRef.current
             if (taskId) {
@@ -214,6 +287,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             dispatch({ type: 'SET_PROCESSES', processes })
             break
           }
+          case 'services': {
+            const svcList = msg.data as Service[]
+            dispatch({ type: 'SET_SERVICES', services: svcList })
+            break
+          }
+          case 'chat_delta':
+          case 'chat_complete':
+          case 'chat_error':
+          case 'chat_cancelled':
+          case 'chat_task_created':
+          case 'chat_task_list':
+          case 'chat_task_info':
+          case 'chat_task_cancelled':
+          case 'chat_task_deleted': {
+            chatWsHandlerRef.current?.(msg)
+            break
+          }
         }
       },
       (connected) => {
@@ -226,7 +316,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     )
 
     return () => ws.close()
-  }, [refreshTasks, refreshStats])
+  }, [refreshTasks, refreshStats, notify])
 
   // Periodic re-fetch of selected task details (activity, questions, children)
   // Acts as a safety net for subtask data that WebSocket filtering may miss
@@ -237,13 +327,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(async () => {
       try {
-        const [activity, questions, task] = await Promise.all([
+        const [activity, questions, task, artifacts] = await Promise.all([
           api.getActivity(taskId),
           api.getQuestions(taskId),
           api.getTask(taskId),
+          api.getArtifacts(taskId),
         ])
         dispatch({ type: 'SET_ACTIVITY', activity })
         dispatch({ type: 'SET_QUESTIONS', questions })
+        dispatch({ type: 'SET_ARTIFACTS', artifacts })
         dispatch({ type: 'UPDATE_TASKS', tasks: [task] })
       } catch {
         // ignore
@@ -254,7 +346,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }, [state.selectedTaskId])
 
   return (
-    <DashboardContext.Provider value={{ state, selectTask, refreshTasks, refreshStats }}>
+    <DashboardContext.Provider value={{ state, selectTask, refreshTasks, refreshStats, toggleServices, toasts, dismissToast }}>
       {children}
     </DashboardContext.Provider>
   )

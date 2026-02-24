@@ -16,6 +16,17 @@ STACKS_DIR = V2_ROOT / "stacks"
 BASE_DIR = V2_ROOT / "base"
 PROFILES_DIR = V2_ROOT / "profiles"
 
+# Default working directory overrides for multi-stack compositions.
+# When composing multiple stacks, each stack gets its own subdirectory
+# so that quality gates, agents, and dev servers target the right folder.
+MULTI_STACK_WORKING_DIRS: dict[str, str] = {
+    "nextjs": "web",
+    "rails": "backend",
+    "fastapi": "backend",
+    "react-native": "mobile",
+    "scraping": "scraping",
+}
+
 
 @dataclass
 class QualityGate:
@@ -482,6 +493,21 @@ def compose_stacks(
     # Add profile variables
     if profile:
         merged_variables.update(profile.variables)
+
+    # Multi-stack: override working_dir and prefix quality gate commands
+    if len(stacks) > 1:
+        for stack in stacks:
+            override = MULTI_STACK_WORKING_DIRS.get(stack.name)
+            if override:
+                stack.working_dir = override
+
+        for stack in stacks:
+            if stack.working_dir != ".":
+                wd = stack.working_dir
+                for gate in stack.quality_gates.values():
+                    gate.command = f"cd {wd} && {gate.command}"
+                    if gate.fix_command:
+                        gate.fix_command = f"cd {wd} && {gate.fix_command}"
 
     # Determine default model
     final_default_model = default_model or stacks[0].default_model

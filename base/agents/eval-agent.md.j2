@@ -113,7 +113,7 @@ Write your evaluation to `.agent-eval-results/eval-<timestamp>.md`:
 - TypeScript strict mode compliance
 - No `any` types
 - Server vs Client components correct
-- Mantine UI components used properly
+- {{ variables.ui_library }} components used properly
 - Proper error boundaries
 {% elif 'fastapi' in stack.name or 'python' in stack.name %}
 - Type hints on all functions
@@ -130,6 +130,12 @@ Write your evaluation to `.agent-eval-results/eval-<timestamp>.md`:
 {% endif %}
 
 {% endfor %}
+
+{% if dashboard %}
+## Dashboard Artifact Registration
+
+**Note:** You do NOT need to call `dashboard_add_artifact` yourself. The orchestrator will register your eval report with the dashboard after you finish, including the structured scores from your YAML front matter. Just make sure you save the report to disk and include the YAML front matter with scores as described in the output format.
+{% endif %}
 
 ## Important Notes
 

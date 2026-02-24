@@ -310,29 +310,26 @@ export default async function Page() {
 
 ---
 
-## 5. Mantine / UI Library Issues
+## 5. UI Library Issues
 
 ### Missing Provider
 
 ```typescript
-// WRONG - using Mantine without provider
+// WRONG - using UI library components without the required provider
 'use client';
 
-import { Button } from '@mantine/core';
-
 export default function Page() {
-  return <Button>Click</Button>;  // Broken styling!
+  return <StyledButton>Click</StyledButton>;  // Broken styling!
 }
 
-// CORRECT - wrap app in MantineProvider
+// CORRECT - wrap app in the UI library's provider (see style guides)
 // app/layout.tsx
-import { MantineProvider } from '@mantine/core';
-
 export default function RootLayout({ children }) {
   return (
     <html>
       <body>
-        <MantineProvider>{children}</MantineProvider>
+        {/* Add your UI library's provider here */}
+        {children}
       </body>
     </html>
   );
@@ -655,7 +652,7 @@ async function fetchUser(id: string): Promise<User> {
 | React Query stale data | Include all deps in queryKey |
 | Hooks in server component | Add 'use client' directive |
 | Layout waterfall | Use Suspense and parallel fetching |
-| Mantine broken styles | Add MantineProvider to layout |
+| UI library broken styles | Add UI library's provider to layout |
 | Zustand not reactive | Use hook inside component |
 | Memo not working | Stable props with useMemo/useCallback |
 | Large list lag | Use virtualization |

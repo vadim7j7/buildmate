@@ -122,7 +122,9 @@ def create_settings_local_template(claude_dir: Path) -> None:
 
 
 def install_dashboard(
-    target_path: Path, settings: dict[str, object]
+    target_path: Path,
+    settings: dict[str, object],
+    services_config: dict | None = None,
 ) -> None:
     """
     Install the MCP Dashboard to the target project.
@@ -134,6 +136,7 @@ def install_dashboard(
     Args:
         target_path: Project root directory
         settings: The settings.json dict to modify in-place
+        services_config: Optional services.json content for service manager
     """
     dashboard_dir = target_path / ".dashboard"
     ensure_directory(dashboard_dir)
@@ -231,10 +234,18 @@ def install_dashboard(
         "mcp__dashboard__dashboard_log",
         "mcp__dashboard__dashboard_ask_question",
         "mcp__dashboard__dashboard_get_task",
+        "mcp__dashboard__dashboard_add_artifact",
     ]
     for perm in dashboard_permissions:
         if perm not in allow_list:
             allow_list.append(perm)
+
+    # Write services.json for the service manager
+    if services_config:
+        services_path = dashboard_dir / "services.json"
+        with open(services_path, "w") as f:
+            json.dump(services_config, f, indent=2)
+            f.write("\n")
 
     # Add .dashboard/ to .gitignore
     gitignore_path = target_path / ".gitignore"
@@ -390,7 +401,7 @@ def install(
         if dry_run:
             print("[DRY RUN] Would install MCP Dashboard to .dashboard/")
         else:
-            install_dashboard(target_path, output.settings)
+            install_dashboard(target_path, output.settings, output.services_config)
 
     # Install settings.json
     settings_path = claude_dir / "settings.json"

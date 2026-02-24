@@ -30,6 +30,7 @@ The MCP Dashboard is enabled. Use these tools to track progress in the dashboard
 | `dashboard_log(task_id, message, agent)` | Log notable events visible in the dashboard |
 | `dashboard_ask_question(task_id, question, question_type, options)` | Ask user a question (blocks until answered) |
 | `dashboard_get_task(task_id)` | Check task state, children, pending questions |
+| `dashboard_add_artifact(task_id, file_path, artifact_type, label, metadata)` | Register a file artifact (screenshot, report, eval result) for display in the UI |
 
 **task_id convention:** The root task ID is returned by `dashboard_register_task`. Store it and pass it to all subsequent calls. Subtask IDs are returned by `dashboard_create_subtask`.
 
@@ -564,6 +565,7 @@ Verify the implemented endpoints:
 2. Make HTTP requests to test each endpoint
 3. Validate responses (status codes, body structure)
 4. Test error cases (invalid input, not found, unauthorized)
+5. Write your verification report to .agent-pipeline/backend-verification-report.md
 
 If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
 Report: VERIFIED or FAILED with details."
@@ -582,9 +584,11 @@ Verify the implemented components/pages:
 
 1. Ensure dev server is running
 2. Use MCP browser to navigate and take screenshots
-3. Check DOM for component existence
-4. Validate no console errors
-5. Run accessibility checks
+3. Save screenshots to .agent-pipeline/screenshots/ directory
+4. Check DOM for component existence
+5. Validate no console errors
+6. Run accessibility checks
+7. Write your verification report to .agent-pipeline/frontend-verification-report.md
 
 If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
 Report: VERIFIED or FAILED with details."
@@ -613,11 +617,28 @@ Report: VERIFIED or FAILED with details."
 {% endfor %}
 
 {% if dashboard %}
-After verification completes:
+**After verification completes, register artifacts yourself (the orchestrator). Do NOT rely on sub-agents to call dashboard_add_artifact — they may not have MCP access.**
+
 ```
 dashboard_log(task_id=<verify_subtask_id>, message="Completed: <VERIFIED or FAILED with details>", agent="orchestrator")
 dashboard_update_status(task_id=<verify_subtask_id>, status="completed", result="<VERIFIED or FAILED>")
+
+# Register verification artifacts that the verifier wrote to disk:
+{% for stack in stacks %}
+{% if 'nextjs' in stack.name %}
+# Register screenshots (check which files exist first using Glob)
+# Glob for .agent-pipeline/screenshots/*.png, then register each:
+dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/screenshots/<name>.png", artifact_type="screenshot", label="<name> screenshot")
+# Register the verification report
+dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/frontend-verification-report.md", artifact_type="markdown_report", label="Frontend Verification Report")
+{% endif %}
+{% if 'rails' in stack.name or 'fastapi' in stack.name %}
+dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/backend-verification-report.md", artifact_type="markdown_report", label="Backend Verification Report")
+{% endif %}
+{% endfor %}
 ```
+
+**IMPORTANT:** Use Glob to find actual screenshot files in `.agent-pipeline/screenshots/` and register each one. Only register files that exist.
 {% endif %}
 
 - If verifier returns **VERIFIED**: proceed to testing
@@ -793,8 +814,41 @@ Evaluate the implementation for this feature:
 Files to evaluate:
 <list of changed files>
 
-Write your evaluation report to .agent-eval-results/eval-<timestamp>.md"
+Write your evaluation report to .agent-eval-results/eval-<timestamp>.md
+
+Include a YAML front matter block at the top of the report with scores:
+---
+final_score: 0.XX
+grade: X
+scores:
+  correctness: 0.XX
+  code_quality: 0.XX
+  security: 0.XX
+  performance: 0.XX
+  test_coverage: 0.XX
+---"
 ```
+
+{% if dashboard %}
+**After the eval agent returns**, parse scores from the report and register the artifact yourself:
+
+```
+# Read the eval report to extract scores
+# Look for the YAML front matter or the Scores table in the report
+# Then register:
+dashboard_add_artifact(
+    task_id=<eval_subtask_id>,
+    file_path=".agent-eval-results/eval-<timestamp>.md",
+    artifact_type="eval_report",
+    label="Evaluation Report",
+    metadata={"final_score": <parsed_score>, "grade": "<parsed_grade>", "scores": {"correctness": ..., "code_quality": ..., "security": ..., "performance": ..., "test_coverage": ...}}
+)
+dashboard_log(task_id=<eval_subtask_id>, message="Completed: score <X.XX>, grade <X>", agent="orchestrator")
+dashboard_update_status(task_id=<eval_subtask_id>, status="completed", result="Score: <X.XX>, Grade: <X>")
+```
+
+**IMPORTANT:** Use Glob to find the actual eval report file in `.agent-eval-results/`, read it, parse the scores, then register it. Only register files that exist.
+{% endif %}
 
 ### 5.2 Generate Documentation
 
@@ -819,7 +873,10 @@ Write your documentation report to .agent-pipeline/docs.md"
 ```
 
 {% if dashboard %}
+**After the docs agent returns**, register the artifact yourself:
+
 ```
+dashboard_add_artifact(task_id=<docs_subtask_id>, file_path=".agent-pipeline/docs.md", artifact_type="markdown_report", label="Documentation Report")
 dashboard_log(task_id=<docs_subtask_id>, message="Completed: documentation generated", agent="orchestrator")
 dashboard_update_status(task_id=<docs_subtask_id>, status="completed", result="<summary>")
 ```

@@ -13,7 +13,7 @@ const createJestConfig = nextJest({ dir: './' });
 
 const config: Config = {
   testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  setupFilesAfterSetup: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
@@ -35,23 +35,24 @@ export default createJestConfig(config);
 import '@testing-library/jest-dom';
 ```
 
-### Mantine Test Wrapper
+### Test Wrapper (Optional)
 
-Many Mantine components require the MantineProvider. Create a test utility:
+If your UI library requires a provider (e.g., MantineProvider, ThemeProvider),
+create a test utility wrapper:
 
 ```typescript
 // src/test-utils/render.tsx
 import { render, type RenderOptions } from '@testing-library/react';
-import { MantineProvider } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
 import { type ReactElement } from 'react';
 
+// Add your UI library's provider here if needed
 function AllProviders({ children }: { children: React.ReactNode }) {
   return (
-    <MantineProvider>
-      <Notifications />
+    <>
+      {/* <YourUIProvider> */}
       {children}
-    </MantineProvider>
+      {/* </YourUIProvider> */}
+    </>
   );
 }
 
@@ -185,11 +186,10 @@ describe('ProjectListContainer', () => {
     jest.resetAllMocks();
   });
 
-  it('shows loading overlay while fetching', () => {
+  it('shows loading state while fetching', () => {
     mockFetchProjects.mockReturnValue(new Promise(() => {}));
     render(<ProjectListContainer />);
-    // Mantine LoadingOverlay sets aria-busy
-    expect(document.querySelector('[data-loading]')).toBeInTheDocument();
+    expect(screen.getByLabelText('Loading')).toBeInTheDocument();
   });
 
   it('renders project list on success', async () => {
@@ -380,10 +380,8 @@ describe('LoginForm accessibility', () => {
 
   it('has no a11y violations when showing errors', async () => {
     const { container } = render(<LoginForm />);
-    // Trigger validation errors
     const submitButton = container.querySelector('button[type="submit"]');
     submitButton?.click();
-    // Wait for error state
     await new Promise((resolve) => setTimeout(resolve, 0));
     const results = await axe(container);
     expect(results).toHaveNoViolations();

@@ -1,15 +1,15 @@
 ---
 name: component-gen
-description: Quick component generation for React + Next.js with Mantine UI and TypeScript
+description: Quick component generation for React + Next.js with TypeScript
 ---
 
 # /component-gen
 
 ## What This Does
 
-Quickly generates a React component scaffold with TypeScript types, Mantine UI,
-and proper Server/Client component designation. Useful for rapid prototyping
-when you need a component fast without the full new-component workflow.
+Quickly generates a React component scaffold with TypeScript types and proper
+Server/Client component designation. Useful for rapid prototyping when you need
+a component fast without the full new-component workflow.
 
 ## Usage
 
@@ -45,15 +45,13 @@ Create the component file at `src/components/<Name>.tsx`:
 #### Server Component Template
 
 ```typescript
-import { Card, Text, Stack } from '@mantine/core';
-
 type {{Name}}Props = {
   // generated from input
 };
 
 export function {{Name}}({ ...props }: {{Name}}Props) {
   return (
-    // Mantine UI layout
+    // Use project's configured UI library components (see style guides)
   );
 }
 ```
@@ -64,7 +62,6 @@ export function {{Name}}({ ...props }: {{Name}}Props) {
 'use client';
 
 import { useState } from 'react';
-import { Button, Modal, Stack } from '@mantine/core';
 
 type {{Name}}Props = {
   // generated from input
@@ -73,7 +70,7 @@ type {{Name}}Props = {
 export function {{Name}}({ ...props }: {{Name}}Props) {
   // state and event handlers
   return (
-    // Mantine UI layout
+    // Use project's configured UI library components (see style guides)
   );
 }
 ```
@@ -97,7 +94,7 @@ describe('{{Name}}', () => {
 ## Rules
 
 - Use `type` for props (not `interface`)
-- Use Mantine UI components (not raw HTML)
+- Use the project's configured UI library components (see style guides)
 - Use named exports
 - Add `'use client'` only when needed
 - Include all required props as non-optional

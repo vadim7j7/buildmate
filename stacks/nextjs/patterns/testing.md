@@ -76,12 +76,13 @@ describe('Button', () => {
 });
 ```
 
-### Testing with Mantine
+### Testing with UI Library Provider
+
+If your UI library requires a provider, create a test utility wrapper:
 
 ```typescript
 // test-utils/render.tsx
 import { render, RenderOptions } from '@testing-library/react';
-import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 function AllProviders({ children }: { children: React.ReactNode }) {
@@ -93,9 +94,8 @@ function AllProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <MantineProvider>
-        {children}
-      </MantineProvider>
+      {/* Add your UI library's provider here if needed */}
+      {children}
     </QueryClientProvider>
   );
 }

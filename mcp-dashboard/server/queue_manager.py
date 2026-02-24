@@ -102,20 +102,28 @@ class QueueManager:
             cmd.extend(["--allowedTools", ",".join(allowed_tools)])
 
         try:
+            # Claude's stream-json can emit very long single-line JSON blobs
+            # (tool results, base64 images, etc.). The default asyncio
+            # StreamReader limit is 64KB which is easily exceeded, causing
+            # "Separator is not found, and chunk exceed the limit" errors.
+            # 10MB gives plenty of headroom.
+            stream_limit = 10 * 1024 * 1024  # 10 MB
+
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 env=env,
                 cwd=str(project_root),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                limit=stream_limit,
             )
 
             self._processes[task_id] = ProcessInfo(
                 task_id=task_id, process=process, prompt=prompt
             )
 
-            # Update task status
-            self._db.update_task(task_id, status="in_progress")
+            # Update task status and persist PID
+            self._db.update_task(task_id, status="in_progress", pid=process.pid)
             self._db.log_activity(
                 task_id,
                 "message",
@@ -148,6 +156,8 @@ class QueueManager:
         """
         Cancel a running Claude process.
 
+        Falls back to PID-based kill for orphaned processes not in _processes.
+
         Args:
             task_id: The task to cancel
 
@@ -155,18 +165,18 @@ class QueueManager:
             True if process was found and terminated
         """
         info = self._processes.get(task_id)
-        if not info:
-            return False
-
-        try:
-            info.process.send_signal(signal.SIGTERM)
+        if info:
             try:
-                await asyncio.wait_for(info.process.wait(), timeout=5)
-            except asyncio.TimeoutError:
-                info.process.kill()
+                info.process.send_signal(signal.SIGTERM)
+                try:
+                    await asyncio.wait_for(info.process.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    info.process.kill()
+            except ProcessLookupError:
+                pass
 
             self._db.update_task(
-                task_id, status="failed", result="Cancelled by user"
+                task_id, status="failed", result="Cancelled by user", pid=None
             )
             self._db.log_activity(
                 task_id, "message", None, "Process cancelled by user"
@@ -175,9 +185,123 @@ class QueueManager:
             logger.info(f"Cancelled process for task {task_id}")
             return True
 
-        except ProcessLookupError:
-            del self._processes[task_id]
+        # Fallback: PID-based cancel for orphaned processes
+        pid = self._db.get_task_pid(task_id)
+        if pid and self._is_pid_alive(pid):
+            try:
+                os.kill(pid, signal.SIGTERM)
+                await asyncio.sleep(2)
+                if self._is_pid_alive(pid):
+                    os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            self._db.update_task(
+                task_id, status="failed", result="Cancelled by user", pid=None
+            )
+            self._db.log_activity(
+                task_id, "message", None, "Orphaned process cancelled by user"
+            )
+            logger.info(f"Cancelled orphaned process (PID {pid}) for task {task_id}")
             return True
+
+        # No live process but task has a stale PID — just clear it
+        if pid:
+            self._db.update_task(
+                task_id, status="failed", result="Cancelled by user", pid=None
+            )
+            return True
+
+        return False
+
+    @staticmethod
+    def _is_pid_alive(pid: int) -> bool:
+        """Check if a process is alive without sending a signal."""
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True  # Process exists but we don't own it
+
+    def recover_orphans(self) -> None:
+        """Recover orphaned tasks on server startup.
+
+        Tasks with status='in_progress' and a stored PID are checked:
+        - If the PID is still alive, log a warning (user can cancel from UI)
+        - If the PID is dead, mark the task as failed and clear the PID
+        """
+        orphans = self._db.get_orphaned_tasks()
+        if not orphans:
+            return
+
+        for task in orphans:
+            pid = task["pid"]
+            task_id = task["id"]
+
+            if self._is_pid_alive(pid):
+                logger.warning(
+                    f"Task {task_id} has live orphaned process (PID {pid}). "
+                    f"Cancel from UI if needed."
+                )
+                self._db.log_activity(
+                    task_id,
+                    "message",
+                    None,
+                    f"Server restarted — orphaned process (PID {pid}) still alive",
+                )
+            else:
+                logger.info(
+                    f"Task {task_id} orphaned process (PID {pid}) is dead, marking failed"
+                )
+                self._db.update_task(
+                    task_id,
+                    status="failed",
+                    result=f"Process (PID {pid}) died during server restart",
+                    pid=None,
+                )
+                self._db.log_activity(
+                    task_id,
+                    "message",
+                    None,
+                    f"Server restarted — process (PID {pid}) no longer running, marked failed",
+                )
+
+    async def shutdown(self) -> None:
+        """Gracefully terminate all in-memory processes on server shutdown."""
+        if not self._processes:
+            return
+
+        logger.info(f"Shutting down {len(self._processes)} running process(es)...")
+
+        # Send SIGTERM to all
+        for task_id, info in list(self._processes.items()):
+            try:
+                info.process.send_signal(signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+
+        # Wait up to 5 seconds for graceful exit
+        await asyncio.sleep(5)
+
+        # SIGKILL any survivors
+        for task_id, info in list(self._processes.items()):
+            if info.process.returncode is None:
+                try:
+                    info.process.kill()
+                    logger.warning(f"Force-killed process for task {task_id}")
+                except ProcessLookupError:
+                    pass
+
+            self._db.update_task(
+                task_id, status="failed", result="Server shutting down", pid=None
+            )
+            self._db.log_activity(
+                task_id, "message", None, "Process terminated — server shutdown"
+            )
+
+        self._processes.clear()
+        logger.info("All processes terminated")
 
     @staticmethod
     def _write_mcp_config(project_root: Path) -> Path | None:
@@ -239,6 +363,7 @@ class QueueManager:
         "mcp__dashboard__dashboard_log",
         "mcp__dashboard__dashboard_ask_question",
         "mcp__dashboard__dashboard_get_task",
+        "mcp__dashboard__dashboard_add_artifact",
     ]
 
     @staticmethod
@@ -268,30 +393,45 @@ class QueueManager:
         """
         Get the process status for a task.
 
-        Returns dict with 'status' key: 'running', 'completed', 'failed', or 'not_found'
+        Returns dict with 'status' key: 'running', 'completed', 'failed', or 'not_found'.
+        Falls back to DB PID check for orphaned processes.
         """
         info = self._processes.get(task_id)
-        if not info:
-            return {"status": "not_found"}
+        if info:
+            if info.process.returncode is None:
+                return {"status": "running", "pid": info.process.pid}
+            elif info.process.returncode == 0:
+                return {"status": "completed", "pid": info.process.pid}
+            else:
+                return {
+                    "status": "failed",
+                    "pid": info.process.pid,
+                    "exit_code": info.process.returncode,
+                }
 
-        if info.process.returncode is None:
-            return {"status": "running", "pid": info.process.pid}
-        elif info.process.returncode == 0:
-            return {"status": "completed", "pid": info.process.pid}
-        else:
-            return {
-                "status": "failed",
-                "pid": info.process.pid,
-                "exit_code": info.process.returncode,
-            }
+        # Fallback: check DB for orphaned process
+        pid = self._db.get_task_pid(task_id)
+        if pid:
+            task = self._db.get_task(task_id)
+            if task and task.get("status") == "in_progress" and self._is_pid_alive(pid):
+                return {"status": "running", "pid": pid, "orphaned": True}
+
+        return {"status": "not_found"}
 
     def list_running(self) -> list[str]:
-        """Return task IDs that have running processes."""
-        return [
+        """Return task IDs that have running processes (in-memory + orphaned)."""
+        running = {
             tid
             for tid, info in self._processes.items()
             if info.process.returncode is None
-        ]
+        }
+
+        # Merge orphaned tasks with live PIDs
+        for task in self._db.get_orphaned_tasks():
+            if task["id"] not in running and self._is_pid_alive(task["pid"]):
+                running.add(task["id"])
+
+        return list(running)
 
     async def _stream_and_monitor(self, task_id: str) -> None:
         """Stream stdout to activity log and handle process exit."""
@@ -304,7 +444,15 @@ class QueueManager:
             async def _read_stdout():
                 assert info.process.stdout
                 while True:
-                    line = await info.process.stdout.readline()
+                    try:
+                        line = await info.process.stdout.readline()
+                    except ValueError:
+                        # Line exceeded even the raised limit — read and
+                        # discard the oversized chunk so we don't stall.
+                        chunk = await info.process.stdout.read(65536)
+                        if not chunk:
+                            break
+                        continue
                     if not line:
                         break
                     text = line.decode("utf-8", errors="replace").strip()
@@ -318,7 +466,14 @@ class QueueManager:
                 assert info.process.stderr
                 chunks = []
                 while True:
-                    line = await info.process.stderr.readline()
+                    try:
+                        line = await info.process.stderr.readline()
+                    except ValueError:
+                        chunk = await info.process.stderr.read(65536)
+                        if not chunk:
+                            break
+                        chunks.append(chunk.decode("utf-8", errors="replace"))
+                        continue
                     if not line:
                         break
                     chunks.append(line.decode("utf-8", errors="replace"))
@@ -368,6 +523,7 @@ class QueueManager:
             )
         finally:
             self._processes.pop(task_id, None)
+            self._db.update_task(task_id, pid=None)
 
     def _log_stream_line(self, task_id: str, text: str) -> None:
         """Parse a stream-json line and log meaningful content.

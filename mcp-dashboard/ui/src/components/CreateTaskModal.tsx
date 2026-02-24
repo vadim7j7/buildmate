@@ -1,13 +1,13 @@
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
 
-interface Props {
+type CreateTaskModalProps = {
   onClose: () => void
 }
 
-export function CreateTaskModal({ onClose }: Props) {
+export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const { refreshTasks, refreshStats } = useDashboard()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -32,62 +32,119 @@ export function CreateTaskModal({ onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">New Task</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+    <div
+      className="modal-backdrop animate-fade-in p-6"
+      onClick={onClose}
+    >
+      <div
+        className="modal-content w-full max-w-md"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-accent-500/15 border border-accent-500/20">
+              <Plus className="w-5 h-5 text-accent-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-white">New Task</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g., Build user authentication"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-              autoFocus
-            />
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-6 pb-6">
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Title
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="e.g., Build user authentication"
+                className="
+                  w-full bg-surface-850 border border-surface-700 rounded-xl
+                  px-4 py-3 text-sm text-white placeholder-gray-500
+                  transition-all duration-200
+                  focus:outline-none focus:border-accent-500/50 focus:ring-2 focus:ring-accent-500/20
+                "
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Detailed requirements..."
+                rows={4}
+                className="
+                  w-full bg-surface-850 border border-surface-700 rounded-xl
+                  px-4 py-3 text-sm text-white placeholder-gray-500
+                  resize-none transition-all duration-200
+                  focus:outline-none focus:border-accent-500/50 focus:ring-2 focus:ring-accent-500/20
+                "
+              />
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={autoAccept}
+                  onChange={e => setAutoAccept(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="
+                  w-5 h-5 rounded-md border border-surface-600 bg-surface-800
+                  peer-checked:bg-accent-500 peer-checked:border-accent-500
+                  transition-all duration-200
+                  flex items-center justify-center
+                ">
+                  {autoAccept && (
+                    <svg className="w-3 h-3 text-white" viewBox="0 0 12 10" fill="none">
+                      <path d="M1 5L4.5 8.5L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <span className="text-sm text-gray-300 group-hover:text-gray-200 transition-colors">
+                  Auto-accept questions
+                </span>
+                <span className="text-xs text-gray-500 ml-2">(skip approval prompts)</span>
+              </div>
+            </label>
           </div>
 
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Detailed requirements..."
-              rows={3}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
-            />
-          </div>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoAccept}
-              onChange={e => setAutoAccept(e.target.checked)}
-              className="rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-300">Auto-accept questions</span>
-            <span className="text-xs text-gray-500">(skip approval prompts)</span>
-          </label>
-
-          <div className="flex justify-end gap-3 pt-2">
+          {/* Footer */}
+          <div className="flex justify-end gap-3 mt-6 pt-5 border-t border-surface-800/50">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              className="px-5 py-2.5 text-sm font-medium text-gray-400 hover:text-white rounded-xl hover:bg-surface-800 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!title.trim() || loading}
-              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              className="
+                px-5 py-2.5 text-sm font-medium rounded-xl
+                bg-gradient-to-r from-accent-600 to-accent-500 text-white
+                shadow-glow-sm hover:from-accent-500 hover:to-accent-400
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none
+                transition-all duration-200 active:scale-[0.98]
+              "
             >
               {loading ? 'Creating...' : 'Create Task'}
             </button>

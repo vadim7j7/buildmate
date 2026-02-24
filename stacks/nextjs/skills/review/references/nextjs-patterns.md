@@ -45,15 +45,14 @@ Add `'use client'` directive ONLY when the component needs:
 
 // This MUST be a client component because it uses useState and onClick
 import { useState } from 'react';
-import { Button, Text } from '@mantine/core';
 
 export function Counter() {
   const [count, setCount] = useState(0);
   return (
-    <>
-      <Text>{count}</Text>
-      <Button onClick={() => setCount(count + 1)}>Increment</Button>
-    </>
+    <div>
+      <p>{count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
   );
 }
 ```
@@ -63,16 +62,15 @@ export function Counter() {
 ```typescript
 // WRONG: This does NOT need 'use client' -- it's purely presentational
 'use client'; // REMOVE THIS
-import { Card, Text } from '@mantine/core';
 
 type InfoCardProps = { title: string; body: string };
 
 export function InfoCard({ title, body }: InfoCardProps) {
   return (
-    <Card>
-      <Text fw={500}>{title}</Text>
-      <Text>{body}</Text>
-    </Card>
+    <div className="card">
+      <h3>{title}</h3>
+      <p>{body}</p>
+    </div>
   );
 }
 ```
@@ -114,11 +112,6 @@ src/app/
 
 ```typescript
 // src/app/layout.tsx
-import { MantineProvider } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
-import '@mantine/core/styles.css';
-import '@mantine/notifications/styles.css';
-
 export const metadata = {
   title: { default: 'My App', template: '%s | My App' },
   description: 'Application description',
@@ -128,10 +121,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <MantineProvider>
-          <Notifications position="top-right" />
-          {children}
-        </MantineProvider>
+        {/* Add your UI library's provider here if needed */}
+        {children}
       </body>
     </html>
   );
@@ -142,13 +133,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ```typescript
 // src/app/projects/loading.tsx
-import { Center, Loader } from '@mantine/core';
-
 export default function Loading() {
   return (
-    <Center h="60vh">
-      <Loader size="xl" />
-    </Center>
+    <div className="flex items-center justify-center h-[60vh]">
+      <div className="spinner" aria-label="Loading" />
+    </div>
   );
 }
 ```
@@ -159,8 +148,6 @@ export default function Loading() {
 // src/app/projects/error.tsx
 'use client';
 
-import { Alert, Button, Stack } from '@mantine/core';
-
 export default function Error({
   error,
   reset,
@@ -169,12 +156,13 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <Stack align="center" mt="xl">
-      <Alert color="red" title="Something went wrong">
-        {error.message}
-      </Alert>
-      <Button onClick={reset}>Try again</Button>
-    </Stack>
+    <div className="flex flex-col items-center gap-4 mt-12">
+      <div role="alert" className="alert alert-error max-w-lg">
+        <h3>Something went wrong</h3>
+        <p>{error.message}</p>
+      </div>
+      <button onClick={reset} className="btn btn-outline">Try again</button>
+    </div>
   );
 }
 ```

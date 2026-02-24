@@ -1,25 +1,96 @@
-const AGENT_COLORS: Record<string, string> = {
-  orchestrator: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  'frontend-developer': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  'frontend-tester': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-  'frontend-reviewer': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-  'backend-developer': 'bg-green-500/20 text-green-300 border-green-500/30',
-  'backend-tester': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  'backend-reviewer': 'bg-teal-500/20 text-teal-300 border-teal-500/30',
-  'mobile-developer': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-  'mobile-tester': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  grind: 'bg-red-500/20 text-red-300 border-red-500/30',
-  'eval-agent': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-  'security-auditor': 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+type AgentColorConfig = {
+  bg: string
+  text: string
+  border: string
 }
 
-const DEFAULT_COLOR = 'bg-gray-500/20 text-gray-300 border-gray-500/30'
+const AGENT_COLORS: Record<string, AgentColorConfig> = {
+  orchestrator: {
+    bg: 'bg-purple-500/15',
+    text: 'text-purple-300',
+    border: 'border-purple-500/25',
+  },
+  'frontend-developer': {
+    bg: 'bg-accent-500/15',
+    text: 'text-accent-300',
+    border: 'border-accent-500/25',
+  },
+  'frontend-tester': {
+    bg: 'bg-cyan-500/15',
+    text: 'text-cyan-300',
+    border: 'border-cyan-500/25',
+  },
+  'frontend-reviewer': {
+    bg: 'bg-indigo-500/15',
+    text: 'text-indigo-300',
+    border: 'border-indigo-500/25',
+  },
+  'backend-developer': {
+    bg: 'bg-emerald-500/15',
+    text: 'text-emerald-300',
+    border: 'border-emerald-500/25',
+  },
+  'backend-tester': {
+    bg: 'bg-teal-500/15',
+    text: 'text-teal-300',
+    border: 'border-teal-500/25',
+  },
+  'backend-reviewer': {
+    bg: 'bg-green-500/15',
+    text: 'text-green-300',
+    border: 'border-green-500/25',
+  },
+  'mobile-developer': {
+    bg: 'bg-orange-500/15',
+    text: 'text-orange-300',
+    border: 'border-orange-500/25',
+  },
+  'mobile-tester': {
+    bg: 'bg-amber-500/15',
+    text: 'text-amber-300',
+    border: 'border-amber-500/25',
+  },
+  grind: {
+    bg: 'bg-red-500/15',
+    text: 'text-red-300',
+    border: 'border-red-500/25',
+  },
+  'eval-agent': {
+    bg: 'bg-yellow-500/15',
+    text: 'text-yellow-300',
+    border: 'border-yellow-500/25',
+  },
+  'security-auditor': {
+    bg: 'bg-rose-500/15',
+    text: 'text-rose-300',
+    border: 'border-rose-500/25',
+  },
+}
 
-export function AgentBadge({ agent }: { agent: string | null }) {
+const DEFAULT_COLOR: AgentColorConfig = {
+  bg: 'bg-surface-700/50',
+  text: 'text-gray-300',
+  border: 'border-surface-600/50',
+}
+
+type AgentBadgeProps = {
+  agent: string | null
+}
+
+export function AgentBadge({ agent }: AgentBadgeProps) {
   if (!agent) return null
-  const color = AGENT_COLORS[agent] || DEFAULT_COLOR
+
+  const config = AGENT_COLORS[agent] || DEFAULT_COLOR
+
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${color}`}>
+    <span
+      className={`
+        inline-flex items-center px-2.5 py-1 rounded-lg
+        text-[11px] font-medium tracking-wide
+        border backdrop-blur-sm transition-colors duration-200
+        ${config.bg} ${config.text} ${config.border}
+      `}
+    >
       {agent}
     </span>
   )
