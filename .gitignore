@@ -63,3 +63,6 @@ build/
 # Logs
 *.log
 /agent-tests/
+
+# Test app (local testing only)
+/test-app/
