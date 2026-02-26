@@ -58,6 +58,7 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 dist/
+!mcp-dashboard/ui/dist/
 build/
 
 # Logs
