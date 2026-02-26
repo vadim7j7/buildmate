@@ -21,6 +21,19 @@ from pathlib import Path
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Check dependencies before importing lib modules
+_missing = []
+for _pkg in ("yaml", "jinja2", "jsonschema"):
+    try:
+        __import__(_pkg)
+    except ImportError:
+        _missing.append({"yaml": "pyyaml", "jinja2": "jinja2", "jsonschema": "jsonschema"}[_pkg])
+if _missing:
+    print(f"Error: Missing required packages: {', '.join(_missing)}")
+    print(f"Install with: pip install {' '.join(_missing)}")
+    print(f"Or run: pip install -e .")
+    sys.exit(1)
+
 from lib import __version__
 from lib.config import (
     compose_stacks,
