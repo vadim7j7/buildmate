@@ -633,6 +633,15 @@ async def get_service_logs(service_id: str, limit: int = 200):
     return {"logs": services.get_logs(service_id, limit=limit)}
 
 
+@app.post("/api/services/reload")
+async def reload_services_config():
+    """Reload services configuration from disk."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    services.reload_config()
+    return {"status": "ok", "services": services.list_services()}
+
+
 # --- Static file serving ---
 
 # Serve the React frontend from ui/dist/

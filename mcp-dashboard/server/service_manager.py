@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 MAX_LOG_LINES = 500
 
+# Matches URLs frameworks print when they start listening:
+#   Next.js:  "- Local: http://localhost:3001"
+#   Vite:     "Local:   http://localhost:5174/"
+#   FastAPI:  "Uvicorn running on http://127.0.0.1:8001"
+#   Rails:    "Listening on http://127.0.0.1:3001"
+PORT_DETECT_RE = re.compile(r"https?://(?:localhost|127\.0\.0\.1):(\d+)")
+
 
 @dataclass
 class ServiceInfo:
@@ -29,6 +36,7 @@ class ServiceInfo:
     command: str
     cwd: str
     port: int | None = None
+    configured_port: int | None = None
     process: asyncio.subprocess.Process | None = field(default=None, repr=False)
     status: str = "stopped"  # stopped | starting | running | failed
     pid: int | None = None
@@ -64,12 +72,14 @@ class ServiceManager:
 
         for svc in data.get("services", []):
             sid = svc["id"]
+            port = svc.get("port")
             self._services[sid] = ServiceInfo(
                 id=sid,
                 name=svc.get("name", sid),
                 command=svc["command"],
                 cwd=svc.get("cwd", "."),
-                port=svc.get("port"),
+                port=port,
+                configured_port=port,
             )
         logger.info("Loaded %d service(s) from services.json", len(self._services))
 
@@ -138,6 +148,7 @@ class ServiceManager:
         svc.process = None
         svc.pid = None
         svc.started_at = None
+        svc.port = svc.configured_port
 
         if svc._reader_task and not svc._reader_task.done():
             svc._reader_task.cancel()
@@ -173,6 +184,19 @@ class ServiceManager:
     def has_services(self) -> bool:
         return bool(self._services)
 
+    def reload_config(self) -> None:
+        """Reload services configuration from disk."""
+        old_services = set(self._services.keys())
+        self._services.clear()
+        self._load_config()
+        new_services = set(self._services.keys())
+        logger.info(
+            "Reloaded config: %d service(s) (added: %s, removed: %s)",
+            len(self._services),
+            new_services - old_services or "none",
+            old_services - new_services or "none",
+        )
+
     async def shutdown(self) -> None:
         for sid in list(self._services):
             await self.stop(sid)
@@ -187,11 +211,24 @@ class ServiceManager:
         proc = svc.process
         if not proc or not proc.stdout:
             return
+        port_detected = False
         try:
             async for raw_line in proc.stdout:
                 line = raw_line.decode("utf-8", errors="replace").rstrip("\n")
                 clean = ANSI_ESCAPE.sub("", line)
                 svc.log_buffer.append(clean)
+
+                if not port_detected:
+                    m = PORT_DETECT_RE.search(clean)
+                    if m:
+                        detected = int(m.group(1))
+                        port_detected = True
+                        if detected != svc.configured_port:
+                            logger.info(
+                                "Service %s: detected port %d (configured %s)",
+                                svc.id, detected, svc.configured_port,
+                            )
+                            svc.port = detected
         except asyncio.CancelledError:
             return
         except Exception as exc:

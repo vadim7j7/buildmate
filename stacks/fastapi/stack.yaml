@@ -148,6 +148,6 @@ verification:
   auto_verify: true
   max_retries: 3
   dev_server:
-    command: uv run fastapi dev src/app/main.py --port 8000
+    command: uv run uvicorn app.main:app --reload --port 8000
     port: 8000
     health_check: /docs

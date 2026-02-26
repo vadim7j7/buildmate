@@ -73,6 +73,7 @@ export const api = {
   stopService: (id: string) => request<Service>(`/services/${id}/stop`, { method: 'POST' }),
   restartService: (id: string) => request<Service>(`/services/${id}/restart`, { method: 'POST' }),
   getServiceLogs: (id: string, limit = 200) => request<{ logs: string[] }>(`/services/${id}/logs?limit=${limit}`),
+  reloadServices: () => request<{ status: string; services: Service[] }>('/services/reload', { method: 'POST' }),
 
   // Chat
   listChatSessions: () => request<ChatSession[]>('/chat/sessions'),
