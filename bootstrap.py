@@ -36,8 +36,8 @@ if _missing:
     print("Or run: pip install -e .")
     sys.exit(1)
 
-from lib import __version__
-from lib.config import (
+from lib import __version__  # noqa: E402
+from lib.config import (  # noqa: E402
     compose_stacks,
     get_stack_options,
     list_available_profiles,
@@ -46,13 +46,13 @@ from lib.config import (
     load_stack,
     parse_stack_arg,
 )
-from lib.installer import install, print_summary
-from lib.lockfile import (
+from lib.installer import install, print_summary  # noqa: E402
+from lib.lockfile import (  # noqa: E402
     get_modified_files,
     load_lock,
 )
-from lib.renderer import render_all
-from lib.schema import validate_stack_file
+from lib.renderer import render_all  # noqa: E402
+from lib.schema import validate_stack_file  # noqa: E402
 
 
 def print_header():
