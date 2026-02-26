@@ -1,0 +1,40 @@
+name: javascript
+display_name: JavaScript / TypeScript
+description: Generic JavaScript and TypeScript development
+
+default_model: opus
+
+compatible_with:
+  - react-native
+  - scraping
+
+agents: []
+
+skills:
+  - test
+  - review
+  - docs
+  - verify
+
+quality_gates:
+  typecheck:
+    command: npx tsc --noEmit
+    description: TypeScript type checking
+  lint:
+    command: npm run lint
+    fix_command: npm run lint -- --fix
+    description: ESLint checks
+  tests:
+    command: npm test
+    description: Test suite
+
+patterns:
+  - patterns/typescript-patterns.md
+
+styles:
+  - styles/typescript.md
+
+variables:
+  language: TypeScript
+  package_manager: npm
+  runtime: Node.js 22+

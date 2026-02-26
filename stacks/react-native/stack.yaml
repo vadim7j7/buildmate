@@ -6,7 +6,19 @@ default_model: opus
 
 compatible_with:
   - rails
+  - ruby
+  - sinatra
   - fastapi
+  - flask
+  - python
+  - django
+  - express
+  - go
+  - gin
+  - fiber
+  - chi
+  - elixir
+  - phoenix
 
 options:
   ui:

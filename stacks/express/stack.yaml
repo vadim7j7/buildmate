@@ -1,0 +1,75 @@
+name: express
+extends: javascript
+display_name: Express.js API
+description: Backend API development with Express.js and TypeScript
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Express.js backend developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-router
+      - new-middleware
+      - new-controller
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Jest testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Express.js code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - new-router
+  - new-middleware
+  - new-controller
+
+patterns:
+  - patterns/express-patterns.md
+
+variables:
+  framework: Express 5+
+  test_framework: Jest
+  orm: Prisma
+  validation: Zod
+  dev_port: 3000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: npm run dev
+    port: 3000
+    health_check: /health

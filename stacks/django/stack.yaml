@@ -1,0 +1,52 @@
+name: django
+extends: python
+display_name: Django Web Application
+description: Web development with Django and Django REST Framework
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Django web developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-view
+      - new-serializer
+      - new-url-config
+      - new-model
+      - new-service
+
+skills:
+  - new-view
+  - new-serializer
+  - new-url-config
+
+patterns:
+  - patterns/django-patterns.md
+
+variables:
+  framework: Django 5+
+  orm: Django ORM
+  migrations: Django migrations
+  validation: DRF serializers
+  dev_port: 8000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: uv run python manage.py runserver 8000
+    port: 8000
+    health_check: /api/health/

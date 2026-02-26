@@ -1,0 +1,51 @@
+name: gin
+extends: go
+display_name: Gin Web Framework
+description: Web development with Gin HTTP framework
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Gin web developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-router
+      - new-middleware
+      - new-handler
+      - new-service
+      - new-model
+
+skills:
+  - new-router
+  - new-middleware
+  - new-handler
+
+patterns:
+  - patterns/gin-patterns.md
+
+variables:
+  framework: Gin
+  validation: go-playground/validator
+  dev_port: 8080
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: go run cmd/server/main.go
+    port: 8080
+    health_check: /health

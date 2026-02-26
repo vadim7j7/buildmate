@@ -1,0 +1,49 @@
+name: flask
+extends: python
+display_name: Flask Web Application
+description: Web development with Flask and modern Python tooling
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Flask web developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-blueprint
+      - new-route
+      - new-model
+      - new-schema
+      - new-service
+      - new-test
+
+skills:
+  - new-blueprint
+  - new-route
+
+patterns:
+  - patterns/flask-patterns.md
+
+variables:
+  framework: Flask 3+
+  dev_port: 5000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: uv run flask run --debug --port 5000
+    port: 5000
+    health_check: /

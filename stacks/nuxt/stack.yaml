@@ -1,0 +1,89 @@
+name: nuxt
+extends: javascript
+display_name: Nuxt 3
+description: Full-stack Vue development with Nuxt 3
+
+compatible_with:
+  - rails
+  - ruby
+  - sinatra
+  - fastapi
+  - flask
+  - python
+  - django
+  - express
+  - scraping
+  - go
+  - gin
+  - fiber
+  - chi
+  - elixir
+  - phoenix
+
+agents:
+  - name: frontend-developer
+    template: agents/frontend-developer.md.j2
+    description: Nuxt 3 / Vue developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-page
+      - new-composable
+      - new-server-route
+
+  - name: frontend-tester
+    template: agents/frontend-tester.md.j2
+    description: Vitest testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test
+
+  - name: frontend-reviewer
+    template: agents/frontend-reviewer.md.j2
+    description: Vue / Nuxt code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - new-page
+  - new-composable
+  - new-server-route
+
+quality_gates:
+  tests:
+    command: npx vitest run
+    description: Vitest test suite
+
+patterns:
+  - patterns/nuxt-patterns.md
+
+variables:
+  framework: Nuxt 3+
+  test_framework: Vitest
+  ui_framework: Vue 3
+  dev_port: 3000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: npx nuxt dev
+    port: 3000

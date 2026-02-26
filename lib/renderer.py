@@ -140,7 +140,8 @@ def render_stack_agents(
     agents = {}
 
     for agent in stack.agents:
-        template_path = f"stacks/{stack.name}/{agent.template}"
+        source = agent.source_stack or stack.name
+        template_path = f"stacks/{source}/{agent.template}"
 
         # Add agent-specific context
         agent_context = {
@@ -211,11 +212,14 @@ def collect_skills(config: ComposedConfig) -> dict[str, Path]:
     # Stack-specific skills
     for stack in config.stacks:
         stack_skills_dir = stack.stack_path / "skills"
-        if stack_skills_dir.exists():
-            for skill_name in stack.skills:
-                skill_dir = stack_skills_dir / skill_name
-                if skill_dir.exists():
-                    skills[skill_name] = skill_dir
+        for skill_name in stack.skills:
+            skill_dir = stack_skills_dir / skill_name
+            if skill_dir.exists():
+                skills[skill_name] = skill_dir
+            elif stack.parent_stack_path:
+                parent_skill = stack.parent_stack_path / "skills" / skill_name
+                if parent_skill.exists():
+                    skills[skill_name] = parent_skill
 
     return skills
 
@@ -246,6 +250,14 @@ def collect_hooks(config: ComposedConfig) -> tuple[dict[str, str], dict[str, Pat
 
     # Stack-specific hooks (override base)
     for stack in config.stacks:
+        # Check parent stack hooks first so child hooks override them
+        if stack.parent_stack_path:
+            parent_hooks_dir = stack.parent_stack_path / "hooks"
+            if parent_hooks_dir.exists():
+                for hook_file in parent_hooks_dir.iterdir():
+                    if hook_file.is_file():
+                        static[hook_file.name] = hook_file
+
         stack_hooks_dir = stack.stack_path / "hooks"
         if stack_hooks_dir.exists():
             for hook_file in stack_hooks_dir.iterdir():

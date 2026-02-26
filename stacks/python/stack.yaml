@@ -1,0 +1,128 @@
+name: python
+display_name: Python
+description: Generic Python development with modern tooling
+
+default_model: opus
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL with async driver
+        variables:
+          database: PostgreSQL
+          db_adapter: asyncpg
+      mysql:
+        description: MySQL with async driver
+        variables:
+          database: MySQL
+          db_adapter: aiomysql
+      sqlite:
+        description: SQLite for simple projects
+        variables:
+          database: SQLite
+          db_adapter: aiosqlite
+      mongodb:
+        description: MongoDB with async driver
+        patterns:
+          - patterns/mongodb.md
+        variables:
+          database: MongoDB
+          db_adapter: motor
+          orm: Motor + Beanie
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Python developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-model
+      - new-schema
+      - new-service
+      - new-migration
+      - new-test
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: pytest testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-test
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Python code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - verify
+  - new-model
+  - new-schema
+  - new-service
+  - new-test
+  - new-migration
+  - db-migrate
+
+quality_gates:
+  format:
+    command: uv run ruff format --check src/ tests/
+    fix_command: uv run ruff format src/ tests/
+    description: Code formatting check
+  lint:
+    command: uv run ruff check src/ tests/
+    fix_command: uv run ruff check --fix src/ tests/
+    description: Ruff linting
+  typecheck:
+    command: uv run mypy src/
+    description: Type checking with mypy
+  tests:
+    command: uv run pytest
+    description: pytest test suite
+
+patterns:
+  - patterns/backend-patterns.md
+
+styles:
+  - styles/backend-python.md
+
+variables:
+  framework: Python
+  language: Python 3.12+
+  test_framework: pytest
+  orm: SQLAlchemy 2.0 (async)
+  validation: Pydantic v2
+  migrations: Alembic (async)
+  database: PostgreSQL
+  package_manager: uv

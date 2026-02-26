@@ -1,0 +1,54 @@
+name: phoenix
+extends: elixir
+display_name: Phoenix Framework
+description: Web development with Phoenix and LiveView
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Phoenix web developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-context
+      - new-live
+      - new-controller
+      - new-channel
+      - new-module
+      - new-genserver
+
+skills:
+  - new-context
+  - new-live
+  - new-controller
+  - new-channel
+
+patterns:
+  - patterns/phoenix-patterns.md
+
+variables:
+  framework: Phoenix 1.7+
+  template_engine: HEEx
+  realtime: Phoenix.PubSub
+  dev_port: 4000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: mix phx.server
+    port: 4000
+    health_check: /

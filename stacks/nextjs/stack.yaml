@@ -1,13 +1,24 @@
 name: nextjs
+extends: javascript
 display_name: React + Next.js
 description: Frontend development with React and Next.js App Router
 
-default_model: opus
-
 compatible_with:
   - rails
+  - ruby
+  - sinatra
   - fastapi
+  - flask
+  - python
+  - django
+  - express
   - scraping
+  - go
+  - gin
+  - fiber
+  - chi
+  - elixir
+  - phoenix
 
 options:
   ui:
@@ -143,10 +154,6 @@ agents:
       - Bash
 
 skills:
-  - test
-  - review
-  - docs
-  - verify
   - new-component
   - new-page
   - new-container
@@ -158,20 +165,6 @@ skills:
   - new-layout
   - clone-page
   - analyze-site
-
-quality_gates:
-  typecheck:
-    command: npx tsc --noEmit
-    description: TypeScript type checking
-  lint:
-    command: npm run lint
-    fix_command: npm run lint -- --fix
-    description: ESLint checks
-  tests:
-    command: npm test
-    description: Jest test suite
-
-working_dir: "."
 
 patterns:
   - patterns/frontend-patterns.md

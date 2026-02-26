@@ -8,9 +8,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.config import (
+    STACKS_DIR,
     Agent,
     ComposedConfig,
     QualityGate,
+    _resolve_inheritance,
     compose_stacks,
     load_stack,
     parse_stack_arg,
@@ -183,3 +185,242 @@ class TestComposeStacks:
 
         assert hasattr(composed, "default_model")
         assert composed.default_model in ["opus", "sonnet", "haiku"]
+
+
+class TestStackInheritance:
+    """Tests for stack inheritance via extends."""
+
+    def _make_parent(self, tmp_path):
+        """Create a minimal parent stack config dict and directory."""
+        parent_dir = tmp_path / "parent-stack"
+        parent_dir.mkdir()
+        return {
+            "name": "parent-stack",
+            "display_name": "Parent Stack",
+            "description": "A parent stack",
+            "default_model": "sonnet",
+            "compatible_with": ["nextjs"],
+            "agents": [
+                {"name": "dev-agent", "template": "agents/dev.md.j2", "tools": ["Read", "Write"]},
+                {"name": "test-agent", "template": "agents/test.md.j2", "tools": ["Bash"]},
+            ],
+            "skills": ["test", "review"],
+            "quality_gates": {
+                "lint": {"command": "lint-cmd"},
+                "test": {"command": "test-cmd"},
+            },
+            "patterns": ["patterns/p1.md"],
+            "styles": ["styles/s1.md"],
+            "variables": {"language": "Ruby", "framework": "Rails"},
+            "options": {
+                "ui": {
+                    "description": "UI library",
+                    "default": "tailwind",
+                    "choices": {
+                        "tailwind": {"description": "Tailwind CSS"},
+                    },
+                }
+            },
+        }, parent_dir
+
+    def _write_parent_yaml(self, parent_config, parent_dir):
+        """Write a parent stack.yaml to disk (for real resolution via STACKS_DIR)."""
+        import yaml
+
+        stack_yaml = parent_dir / "stack.yaml"
+        with open(stack_yaml, "w") as f:
+            yaml.dump(parent_config, f)
+
+    def _make_child(self, parent_name="parent-stack"):
+        """Create a minimal child config dict."""
+        return {
+            "name": "child-stack",
+            "extends": parent_name,
+        }
+
+    def test_no_extends_passthrough(self):
+        """Config without extends should be returned unchanged."""
+        config = {"name": "plain", "display_name": "Plain", "agents": [], "skills": [], "quality_gates": {}}
+        resolved, parent_path = _resolve_inheritance(config, Path("/fake"))
+        assert resolved is config
+        assert parent_path is None
+
+    def test_agents_inherited(self, tmp_path, monkeypatch):
+        """Parent agents should appear in resolved output."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        resolved, parent_path = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        agent_names = [a["name"] for a in resolved["agents"]]
+        assert "dev-agent" in agent_names
+        assert "test-agent" in agent_names
+        assert parent_path == parent_dir
+
+    def test_child_agent_overrides_parent(self, tmp_path, monkeypatch):
+        """Child agent with same name should replace parent's."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["agents"] = [
+            {"name": "dev-agent", "template": "agents/custom-dev.md.j2", "tools": ["Read", "Write", "Bash"]},
+        ]
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        agents_by_name = {a["name"]: a for a in resolved["agents"]}
+        assert agents_by_name["dev-agent"]["template"] == "agents/custom-dev.md.j2"
+        assert agents_by_name["dev-agent"]["tools"] == ["Read", "Write", "Bash"]
+        # Parent's test-agent should still be present
+        assert "test-agent" in agents_by_name
+
+    def test_source_stack_set_correctly(self, tmp_path, monkeypatch):
+        """Inherited agents tagged with parent name, child agents with child name."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["agents"] = [
+            {"name": "new-agent", "template": "agents/new.md.j2", "tools": ["Read"]},
+        ]
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        agents_by_name = {a["name"]: a for a in resolved["agents"]}
+        # Inherited agents should have parent's _source_stack
+        assert agents_by_name["dev-agent"]["_source_stack"] == "parent-stack"
+        assert agents_by_name["test-agent"]["_source_stack"] == "parent-stack"
+        # Child's own agent should have child's _source_stack
+        assert agents_by_name["new-agent"]["_source_stack"] == "child-stack"
+
+    def test_skills_merged(self, tmp_path, monkeypatch):
+        """Skills should be union of parent + child, deduplicated."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["skills"] = ["review", "deploy"]  # "review" duplicates parent
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert resolved["skills"] == ["test", "review", "deploy"]
+
+    def test_quality_gates_child_overrides(self, tmp_path, monkeypatch):
+        """Child quality gate should override parent gate with same name."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["quality_gates"] = {
+            "lint": {"command": "child-lint-cmd"},
+        }
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert resolved["quality_gates"]["lint"]["command"] == "child-lint-cmd"
+        # Parent's test gate should still be present
+        assert resolved["quality_gates"]["test"]["command"] == "test-cmd"
+
+    def test_variables_child_overrides(self, tmp_path, monkeypatch):
+        """Child variables should override parent variables."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["variables"] = {"language": "Python", "new_var": "value"}
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert resolved["variables"]["language"] == "Python"
+        assert resolved["variables"]["framework"] == "Rails"  # from parent
+        assert resolved["variables"]["new_var"] == "value"
+
+    def test_patterns_merged(self, tmp_path, monkeypatch):
+        """Both parent and child patterns should be present."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["patterns"] = ["patterns/p2.md"]
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert "patterns/p1.md" in resolved["patterns"]
+        assert "patterns/p2.md" in resolved["patterns"]
+
+    def test_compatible_with_union(self, tmp_path, monkeypatch):
+        """compatible_with should be union of both parent and child."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["compatible_with"] = ["fastapi"]
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert "nextjs" in resolved["compatible_with"]
+        assert "fastapi" in resolved["compatible_with"]
+
+    def test_display_name_inherited(self, tmp_path, monkeypatch):
+        """Child should inherit display_name from parent if omitted."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert resolved["display_name"] == "Parent Stack"
+
+    def test_options_inherited(self, tmp_path, monkeypatch):
+        """Parent options should be available in child."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert "ui" in resolved["options"]
+        assert resolved["options"]["ui"]["default"] == "tailwind"
+
+    def test_multi_level_raises(self, tmp_path, monkeypatch):
+        """Parent with extends should raise ValueError."""
+        # Create grandparent
+        grandparent_dir = tmp_path / "grandparent"
+        grandparent_dir.mkdir()
+
+        # Create parent that also extends
+        parent_config = {
+            "name": "parent-stack",
+            "extends": "grandparent",
+            "display_name": "Parent",
+            "agents": [],
+            "skills": [],
+            "quality_gates": {},
+        }
+        parent_dir = tmp_path / "parent-stack"
+        parent_dir.mkdir()
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        with pytest.raises(ValueError, match="Multi-level inheritance"):
+            _resolve_inheritance(child, tmp_path / "child-stack")
+
+    def test_self_extends_raises(self):
+        """Extending self should raise ValueError."""
+        config = {"name": "my-stack", "extends": "my-stack"}
+        with pytest.raises(ValueError, match="cannot extend itself"):
+            _resolve_inheritance(config, Path("/fake"))
+
+    def test_nonexistent_parent_raises(self, tmp_path, monkeypatch):
+        """Missing parent should raise FileNotFoundError."""
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = {"name": "child-stack", "extends": "nonexistent-parent"}
+        with pytest.raises(FileNotFoundError, match="nonexistent-parent"):
+            _resolve_inheritance(child, tmp_path / "child-stack")

@@ -96,6 +96,11 @@ def validate_stack_file(yaml_path: Path, raise_on_error: bool = True) -> list[st
     with open(yaml_path) as f:
         config = yaml.safe_load(f)
 
+    if config.get("extends"):
+        from .config import _resolve_inheritance
+
+        config, _ = _resolve_inheritance(config, yaml_path.parent)
+
     return validate_stack_config(config, raise_on_error=raise_on_error)
 
 

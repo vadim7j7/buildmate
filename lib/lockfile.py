@@ -8,6 +8,8 @@ The lock file (.claude/bootstrap.lock) tracks:
 - File checksums for detecting user modifications
 """
 
+from __future__ import annotations
+
 import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone

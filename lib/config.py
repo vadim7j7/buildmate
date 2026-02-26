@@ -2,6 +2,8 @@
 Stack configuration loading and management.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -23,8 +25,22 @@ MULTI_STACK_WORKING_DIRS: dict[str, str] = {
     "nextjs": "web",
     "rails": "backend",
     "fastapi": "backend",
+    "python": "backend",
+    "flask": "backend",
     "react-native": "mobile",
     "scraping": "scraping",
+    "ruby": "backend",
+    "sinatra": "backend",
+    "javascript": "backend",
+    "express": "backend",
+    "nuxt": "web",
+    "django": "backend",
+    "go": "backend",
+    "gin": "backend",
+    "fiber": "backend",
+    "chi": "backend",
+    "elixir": "backend",
+    "phoenix": "backend",
 }
 
 
@@ -49,6 +65,7 @@ class Agent:
     model: str | None = None  # None means use stack default
     skills: list[str] = field(default_factory=list)  # Skills this agent can use
     memory: str | None = None  # Memory scope: user, project, or local
+    source_stack: str | None = None  # Which stack directory owns this agent's template
 
 
 @dataclass
@@ -116,6 +133,8 @@ class StackConfig:
     styles: list[str]
     variables: dict[str, Any]
     options: dict[str, StackOption] = field(default_factory=dict)
+    extends: str | None = None
+    parent_stack_path: Path | None = None
 
     # Internal - path to the stack directory
     stack_path: Path = field(default_factory=Path)
@@ -132,6 +151,7 @@ class StackConfig:
                 model=a.get("model"),
                 skills=a.get("skills", []),
                 memory=a.get("memory"),
+                source_stack=a.get("_source_stack"),
             )
             for a in data.get("agents", [])
         ]
@@ -153,7 +173,7 @@ class StackConfig:
 
         return cls(
             name=data["name"],
-            display_name=data["display_name"],
+            display_name=data.get("display_name", ""),
             description=data.get("description", ""),
             default_model=data.get("default_model", "sonnet"),
             compatible_with=data.get("compatible_with", []),
@@ -165,6 +185,7 @@ class StackConfig:
             styles=data.get("styles", []),
             variables=data.get("variables", {}),
             options=options,
+            extends=data.get("extends"),
             stack_path=stack_path,
         )
 
@@ -230,6 +251,141 @@ def list_available_profiles() -> list[str]:
     return sorted(profiles)
 
 
+def _resolve_inheritance(
+    child_config: dict[str, Any], child_stack_path: Path
+) -> tuple[dict[str, Any], Path | None]:
+    """
+    Resolve single-level stack inheritance.
+
+    If the child config has an ``extends`` field, loads the parent stack.yaml
+    and merges fields according to inheritance rules. Returns the resolved config
+    dict and the parent stack path (or None if no inheritance).
+
+    Raises:
+        FileNotFoundError: If the parent stack doesn't exist
+        ValueError: If multi-level inheritance or self-inheritance is detected
+    """
+    parent_name = child_config.get("extends")
+    if not parent_name:
+        return child_config, None
+
+    child_name = child_config.get("name", "")
+
+    # Reject self-inheritance
+    if parent_name == child_name:
+        raise ValueError(
+            f"Stack '{child_name}' cannot extend itself"
+        )
+
+    # Load parent stack.yaml
+    parent_stack_path = STACKS_DIR / parent_name
+    parent_config_file = parent_stack_path / "stack.yaml"
+    if not parent_config_file.exists():
+        raise FileNotFoundError(
+            f"Parent stack '{parent_name}' not found at {parent_config_file}"
+        )
+
+    with open(parent_config_file) as f:
+        parent_config = yaml.safe_load(f)
+
+    # Reject multi-level inheritance
+    if parent_config.get("extends"):
+        raise ValueError(
+            f"Multi-level inheritance is not supported. "
+            f"Parent stack '{parent_name}' also extends '{parent_config['extends']}'"
+        )
+
+    resolved: dict[str, Any] = {}
+
+    # name: always child
+    resolved["name"] = child_name
+
+    # display_name, description, default_model, working_dir: child wins if present
+    for key in ("display_name", "description", "default_model", "working_dir"):
+        if key in child_config:
+            resolved[key] = child_config[key]
+        elif key in parent_config:
+            resolved[key] = parent_config[key]
+
+    # compatible_with: union
+    parent_compat = set(parent_config.get("compatible_with", []))
+    child_compat = set(child_config.get("compatible_with", []))
+    combined_compat = sorted(parent_compat | child_compat)
+    if combined_compat:
+        resolved["compatible_with"] = combined_compat
+
+    # agents: parent base, child overrides by name; tag each with _source_stack
+    parent_agents = {a["name"]: a for a in parent_config.get("agents", [])}
+    child_agents = {a["name"]: a for a in child_config.get("agents", [])}
+
+    # Start with parent agents, tagged with parent stack name
+    merged_agents: dict[str, dict[str, Any]] = {}
+    for name, agent in parent_agents.items():
+        agent_copy = dict(agent)
+        agent_copy["_source_stack"] = parent_name
+        merged_agents[name] = agent_copy
+
+    # Child agents override or add, tagged with child stack name
+    for name, agent in child_agents.items():
+        agent_copy = dict(agent)
+        agent_copy["_source_stack"] = child_name
+        merged_agents[name] = agent_copy
+
+    resolved["agents"] = list(merged_agents.values())
+
+    # skills: merge, deduplicated (parent first, then child)
+    parent_skills = parent_config.get("skills", [])
+    child_skills = child_config.get("skills", [])
+    seen_skills: set[str] = set()
+    merged_skills: list[str] = []
+    for skill in parent_skills + child_skills:
+        if skill not in seen_skills:
+            seen_skills.add(skill)
+            merged_skills.append(skill)
+    resolved["skills"] = merged_skills
+
+    # quality_gates: parent base, child overrides by name
+    parent_gates = dict(parent_config.get("quality_gates", {}))
+    child_gates = dict(child_config.get("quality_gates", {}))
+    parent_gates.update(child_gates)
+    resolved["quality_gates"] = parent_gates
+
+    # patterns, styles: merge, deduplicated
+    for key in ("patterns", "styles"):
+        parent_items = parent_config.get(key, [])
+        child_items = child_config.get(key, [])
+        seen: set[str] = set()
+        merged: list[str] = []
+        for item in parent_items + child_items:
+            if item not in seen:
+                seen.add(item)
+                merged.append(item)
+        if merged:
+            resolved[key] = merged
+
+    # variables: parent base, child overrides
+    parent_vars = dict(parent_config.get("variables", {}))
+    child_vars = dict(child_config.get("variables", {}))
+    parent_vars.update(child_vars)
+    if parent_vars:
+        resolved["variables"] = parent_vars
+
+    # options: parent base, child overrides by name
+    parent_options = dict(parent_config.get("options", {}))
+    child_options = dict(child_config.get("options", {}))
+    parent_options.update(child_options)
+    if parent_options:
+        resolved["options"] = parent_options
+
+    # verification: child wins if present, else parent (pass-through)
+    if "verification" in child_config:
+        resolved["verification"] = child_config["verification"]
+    elif "verification" in parent_config:
+        resolved["verification"] = parent_config["verification"]
+
+    return resolved, parent_stack_path
+
+
 def load_stack(stack_name: str, validate: bool = True) -> StackConfig:
     """
     Load a single stack configuration.
@@ -257,10 +413,14 @@ def load_stack(stack_name: str, validate: bool = True) -> StackConfig:
     with open(config_file) as f:
         raw_config = yaml.safe_load(f)
 
-    if validate:
-        validate_stack_config(raw_config, raise_on_error=True)
+    resolved, parent_path = _resolve_inheritance(raw_config, stack_path)
 
-    return StackConfig.from_dict(raw_config, stack_path)
+    if validate:
+        validate_stack_config(resolved, raise_on_error=True)
+
+    config = StackConfig.from_dict(resolved, stack_path)
+    config.parent_stack_path = parent_path
+    return config
 
 
 def load_profile(profile_name: str) -> Profile:
@@ -404,7 +564,9 @@ def compose_stacks(
         for name in stack_names:
             config_file = STACKS_DIR / name / "stack.yaml"
             with open(config_file) as f:
-                raw_configs.append(yaml.safe_load(f))
+                raw = yaml.safe_load(f)
+            resolved_raw, _ = _resolve_inheritance(raw, STACKS_DIR / name)
+            raw_configs.append(resolved_raw)
 
         errors = check_compatibility(raw_configs)
         if errors:
@@ -447,12 +609,16 @@ def compose_stacks(
         # Add base patterns
         for pattern in stack.patterns:
             pattern_path = stack.stack_path / pattern
+            if not pattern_path.exists() and stack.parent_stack_path:
+                pattern_path = stack.parent_stack_path / pattern
             if pattern_path.exists():
                 all_patterns[pattern_path.name] = pattern_path
 
         # Add base styles
         for style in stack.styles:
             style_path = stack.stack_path / style
+            if not style_path.exists() and stack.parent_stack_path:
+                style_path = stack.parent_stack_path / style
             if style_path.exists():
                 all_styles[style_path.name] = style_path
 
@@ -469,12 +635,16 @@ def compose_stacks(
             # Add option-based patterns
             for pattern in extra_patterns:
                 pattern_path = stack.stack_path / pattern
+                if not pattern_path.exists() and stack.parent_stack_path:
+                    pattern_path = stack.parent_stack_path / pattern
                 if pattern_path.exists():
                     all_patterns[pattern_path.name] = pattern_path
 
             # Add option-based styles
             for style in extra_styles:
                 style_path = stack.stack_path / style
+                if not style_path.exists() and stack.parent_stack_path:
+                    style_path = stack.parent_stack_path / style
                 if style_path.exists():
                     all_styles[style_path.name] = style_path
 

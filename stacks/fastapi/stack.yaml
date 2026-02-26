@@ -1,42 +1,13 @@
 name: fastapi
+extends: python
 display_name: Python FastAPI
 description: Backend development with Python FastAPI
 
-default_model: opus
-
 compatible_with:
   - nextjs
+  - nuxt
   - react-native
   - scraping
-
-options:
-  db:
-    description: Database system
-    default: postgresql
-    choices:
-      postgresql:
-        description: PostgreSQL (recommended for production)
-        variables:
-          database: PostgreSQL
-          db_adapter: asyncpg
-      mysql:
-        description: MySQL / MariaDB
-        variables:
-          database: MySQL
-          db_adapter: aiomysql
-      sqlite:
-        description: SQLite (development only)
-        variables:
-          database: SQLite
-          db_adapter: aiosqlite
-      mongodb:
-        description: MongoDB with Motor async driver
-        patterns:
-          - patterns/mongodb.md
-        variables:
-          database: MongoDB
-          db_adapter: motor
-          orm: Motor + Beanie
 
 agents:
   - name: backend-developer
@@ -84,41 +55,13 @@ agents:
       - Bash
 
 skills:
-  - test
-  - review
-  - docs
-  - verify
   - new-router
-  - new-schema
-  - new-model
-  - new-service
-  - new-migration
-  - db-migrate
-  - new-test
   - new-task
   - new-middleware
   - new-dependency
 
-quality_gates:
-  format:
-    command: uv run ruff format --check src/ tests/
-    fix_command: uv run ruff format src/ tests/
-    description: Code formatting check
-  lint:
-    command: uv run ruff check src/ tests/
-    fix_command: uv run ruff check --fix src/ tests/
-    description: Ruff linting
-  typecheck:
-    command: uv run mypy src/
-    description: Type checking with mypy
-  tests:
-    command: uv run pytest
-    description: pytest test suite
-
-working_dir: "."
-
 patterns:
-  - patterns/backend-patterns.md
+  - patterns/fastapi-patterns.md
   - patterns/oauth.md
   - patterns/pagination.md
   - patterns/rate-limiting.md
@@ -128,19 +71,12 @@ patterns:
   - patterns/verification.md
 
 styles:
-  - styles/backend-python.md
   - styles/async-patterns.md
 
 variables:
   framework: FastAPI
-  language: Python 3.12+
   test_framework: pytest + pytest-asyncio
-  orm: SQLAlchemy 2.0 (async)
-  validation: Pydantic v2
-  migrations: Alembic (async)
   tasks: Celery
-  database: PostgreSQL
-  package_manager: uv
   dev_port: 8000
 
 verification:

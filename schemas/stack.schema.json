@@ -4,12 +4,19 @@
   "title": "Stack Configuration",
   "description": "Configuration schema for agent stack definitions",
   "type": "object",
-  "required": ["name", "display_name", "agents", "skills", "quality_gates"],
+  "required": ["name"],
+  "if": { "not": { "required": ["extends"] } },
+  "then": { "required": ["display_name", "agents", "skills", "quality_gates"] },
   "properties": {
     "name": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*$",
       "description": "Unique identifier for the stack (lowercase, hyphens allowed)"
+    },
+    "extends": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Parent stack to inherit from (single-level only)"
     },
     "display_name": {
       "type": "string",
@@ -43,7 +50,7 @@
     },
     "agents": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "items": {
         "$ref": "#/$defs/agent"
       },

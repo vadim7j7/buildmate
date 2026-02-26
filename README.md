@@ -43,6 +43,7 @@ python3 -m venv .venv
 # Bootstrap a project
 buildmate rails /path/to/my-rails-app
 buildmate nextjs /path/to/my-nextjs-app
+buildmate django /path/to/my-django-app
 
 # Use a profile (pre-defined stack combination)
 buildmate --profile saas /path/to/my-saas-app
@@ -54,17 +55,56 @@ buildmate rails /path/to/app --jobs=good_job --db=postgresql
 
 # Combine stacks manually
 buildmate rails+nextjs /path/to/my-fullstack-app
+buildmate django+nuxt /path/to/my-fullstack-app
+buildmate express+nextjs /path/to/my-fullstack-app
+buildmate gin+nextjs /path/to/my-fullstack-app
+buildmate phoenix+nuxt /path/to/my-fullstack-app
 ```
 
 ## Available Stacks
 
-| Stack | Description | Agents | Key Skills |
-|-------|-------------|--------|------------|
-| `rails` | Ruby on Rails API | backend-developer, backend-tester, backend-reviewer | new-model, new-controller, new-service, db-migrate |
-| `nextjs` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer | new-component, new-page, new-container, new-form |
-| `react-native` | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer | new-screen, new-store, new-query, platform-check |
-| `fastapi` | Python FastAPI | backend-developer, backend-tester, backend-reviewer | new-router, new-schema, new-model, new-service |
-| `scraping` | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer, site-analyzer, ui-cloner, api-generator | new-spider, new-scraper, analyze-target, clone-page, clone-site |
+Buildmate organizes stacks into **language parents** and **framework children**. Child stacks inherit agents, quality gates, patterns, styles, and options from their parent via the `extends` field, then override or add framework-specific configuration.
+
+### Stack Hierarchy
+
+```
+ruby (parent)           → rails, sinatra
+javascript (parent)     → nextjs, express, nuxt
+python (parent)         → flask, fastapi, django
+go (parent)             → gin, fiber, chi
+elixir (parent)         → phoenix
+standalone              → react-native, scraping
+```
+
+### All Stacks
+
+| Stack | Extends | Description | Agents | Key Skills |
+|-------|---------|-------------|--------|------------|
+| **Ruby Ecosystem** |
+| `ruby` | — | Generic Ruby development | backend-developer, backend-tester, backend-reviewer | test, review, new-model, new-service, new-spec |
+| `rails` | `ruby` | Ruby on Rails API | backend-developer, backend-tester, backend-reviewer | new-controller, new-presenter, new-job, db-migrate |
+| `sinatra` | `ruby` | Sinatra Web Application | backend-developer, backend-tester, backend-reviewer | new-route, new-helper |
+| **JavaScript Ecosystem** |
+| `javascript` | — | Generic TypeScript/JS development | *(none — children define their own)* | test, review, docs, verify |
+| `nextjs` | `javascript` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer | new-component, new-page, new-container, new-form |
+| `express` | `javascript` | Express.js API | backend-developer, backend-tester, backend-reviewer | new-router, new-middleware, new-controller |
+| `nuxt` | `javascript` | Nuxt 3 (Vue) | frontend-developer, frontend-tester, frontend-reviewer | new-page, new-composable, new-server-route |
+| **Python Ecosystem** |
+| `python` | — | Generic Python development | backend-developer, backend-tester, backend-reviewer | test, review, new-model, new-schema, new-service, db-migrate |
+| `flask` | `python` | Flask Web Application | backend-developer, backend-tester, backend-reviewer | new-blueprint, new-route |
+| `fastapi` | `python` | Python FastAPI | backend-developer, backend-tester, backend-reviewer | new-router, new-dependency, new-middleware, new-task |
+| `django` | `python` | Django Web Application | backend-developer, backend-tester, backend-reviewer | new-view, new-serializer, new-url-config |
+| **Go Ecosystem** |
+| `go` | — | Generic Go development | backend-developer, backend-tester, backend-reviewer | test, review, new-handler, new-service, new-model |
+| `gin` | `go` | Gin Web Framework | backend-developer, backend-tester, backend-reviewer | new-router, new-middleware, new-handler |
+| `fiber` | `go` | Fiber Web Framework | backend-developer, backend-tester, backend-reviewer | new-router, new-middleware, new-handler |
+| `chi` | `go` | Chi Router | backend-developer, backend-tester, backend-reviewer | new-router, new-middleware, new-handler |
+| **Elixir Ecosystem** |
+| `elixir` | — | Generic Elixir development | backend-developer, backend-tester, backend-reviewer | test, review, new-module, new-genserver, new-supervisor |
+| `phoenix` | `elixir` | Phoenix Framework | backend-developer, backend-tester, backend-reviewer | new-context, new-live, new-controller, new-channel |
+| **Standalone** |
+| `react-native` | — | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer | new-screen, new-store, new-query, platform-check |
+| `scraping` | — | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer, site-analyzer, ui-cloner, api-generator | new-spider, new-scraper, analyze-target, clone-page, clone-site |
 
 ## Profiles
 
@@ -103,11 +143,36 @@ buildmate --options nextjs
 | `--ui` | mantine, tailwind, shadcn | mantine |
 | `--state` | zustand, context, none | zustand |
 
-### Rails Options
+### Rails Options (inherited `--db` from ruby)
 
 | Option | Choices | Default |
 |--------|---------|---------|
 | `--jobs` | sidekiq, good_job, solid_queue, active_job | sidekiq |
+| `--serializer` | alba, blueprinter, jbuilder | alba |
+| `--db` | postgresql, mysql, sqlite, mongodb | postgresql |
+
+### Ruby / Sinatra Options
+
+| Option | Choices | Default |
+|--------|---------|---------|
+| `--db` | postgresql, mysql, sqlite, mongodb | postgresql |
+
+### Python / Flask / FastAPI / Django Options
+
+| Option | Choices | Default |
+|--------|---------|---------|
+| `--db` | postgresql, sqlite, mongodb, mysql | postgresql |
+
+### Go / Gin / Fiber / Chi Options
+
+| Option | Choices | Default |
+|--------|---------|---------|
+| `--db` | postgresql, mysql, sqlite, mongodb | postgresql |
+
+### Elixir / Phoenix Options
+
+| Option | Choices | Default |
+|--------|---------|---------|
 | `--db` | postgresql, mysql, sqlite | postgresql |
 
 ### Scraping Options
@@ -140,8 +205,14 @@ buildmate rails /path/to/app --dry-run    # Preview without installing
 buildmate rails /path/to/app --preserve   # Keep existing files, add new ones
 
 # Multi-stack composition
-buildmate rails+nextjs /path/to/app       # Fullstack Rails + Next.js
+buildmate rails+nextjs /path/to/app          # Fullstack Rails + Next.js
+buildmate express+nextjs /path/to/app        # Fullstack Express + Next.js
+buildmate django+nuxt /path/to/app           # Fullstack Django + Nuxt
 buildmate fastapi+react-native /path/to/app  # API + Mobile
+buildmate sinatra+nextjs /path/to/app        # Sinatra API + Next.js
+buildmate gin+nextjs /path/to/app            # Fullstack Gin + Next.js
+buildmate phoenix+nuxt /path/to/app          # Fullstack Phoenix + Nuxt
+buildmate fiber+nextjs /path/to/app          # Fullstack Fiber + Next.js
 ```
 
 ## Directory Structure
@@ -189,24 +260,25 @@ buildmate/
 │   ├── README.md.j2          # .claude/README.md template
 │   └── settings.json         # Base settings
 ├── stacks/
-│   ├── rails/
-│   │   ├── stack.yaml        # Stack configuration
-│   │   ├── agents/           # Rails-specific agent templates
-│   │   ├── skills/           # Rails-specific skills
-│   │   ├── patterns/         # Code pattern references
-│   │   └── styles/           # Style guide references
-│   ├── nextjs/
-│   │   └── ...
-│   ├── react-native/
-│   │   └── ...
-│   ├── fastapi/
-│   │   └── ...
-│   └── scraping/
-│       ├── stack.yaml        # Scraping stack (Python/Node.js)
-│       ├── agents/           # scraper-developer, tester, reviewer
-│       ├── skills/           # new-spider, analyze-target, etc.
-│       ├── patterns/         # anti-detection, pagination, auth
-│       └── styles/           # Python and Node.js styles
+│   ├── ruby/                # Language parent (agents, gates, patterns, styles)
+│   ├── rails/               # extends: ruby (overrides agents, adds skills)
+│   ├── sinatra/             # extends: ruby (overrides developer agent)
+│   ├── javascript/          # Language parent (gates, patterns, styles; no agents)
+│   ├── nextjs/              # extends: javascript (frontend-* agents)
+│   ├── express/             # extends: javascript (backend-* agents)
+│   ├── nuxt/                # extends: javascript (frontend-* agents, Vue)
+│   ├── python/              # Language parent (agents, gates, patterns, styles)
+│   ├── flask/               # extends: python (overrides developer agent)
+│   ├── fastapi/             # extends: python (overrides all agents)
+│   ├── django/              # extends: python (overrides developer agent)
+│   ├── go/                  # Language parent (agents, gates, patterns, styles)
+│   ├── gin/                 # extends: go (overrides developer agent)
+│   ├── fiber/               # extends: go (overrides developer agent)
+│   ├── chi/                 # extends: go (overrides developer agent)
+│   ├── elixir/              # Language parent (agents, gates, patterns, styles)
+│   ├── phoenix/             # extends: elixir (overrides developer agent)
+│   ├── react-native/        # Standalone (mobile-* agents)
+│   └── scraping/            # Standalone (scraper-* agents)
 ├── mcp-dashboard/            # Real-time web dashboard
 │   ├── server/               # FastAPI backend (REST, WebSocket, process mgmt)
 │   └── ui/                   # React + TypeScript + Tailwind frontend
@@ -216,81 +288,145 @@ buildmate/
 
 ## Stack Configuration (stack.yaml)
 
-Each stack is defined by a `stack.yaml` file:
+Each stack is defined by a `stack.yaml` file. Stacks can optionally **extend** a parent stack to inherit its configuration.
+
+### Standalone Stack (no parent)
 
 ```yaml
-name: rails
-display_name: Ruby on Rails API
-description: Backend development with Ruby on Rails
+name: ruby
+display_name: Ruby
+description: Generic Ruby development with modern tooling
 
 default_model: opus
 
-# Which stacks can be combined with this one
 compatible_with:
   - nextjs
+  - nuxt
   - react-native
+  - scraping
 
-# Agent definitions
 agents:
   - name: backend-developer
     template: agents/backend-developer.md.j2
-    description: Senior Rails developer for production code
+    description: Senior Ruby developer
     model: opus
-    tools:
-      - Read
-      - Write
-      - Edit
-      - Bash
-      - Grep
-      - Glob
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
     description: RSpec testing specialist
     model: sonnet
-    tools:
-      - Read
-      - Write
-      - Edit
-      - Bash
-      - Grep
-      - Glob
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
 
-# Skills to include (from this stack's skills/ directory)
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Ruby code reviewer
+    model: opus
+    tools: [Read, Grep, Glob]
+
 skills:
   - test
   - review
   - docs
-  - new-model
-  - new-controller
+  - verify
 
-# Quality gates (commands that must pass)
 quality_gates:
   lint:
     command: bundle exec rubocop
     fix_command: bundle exec rubocop -A
-    description: Ruby linting
   tests:
     command: bundle exec rspec
-    description: RSpec test suite
 
-# Working directory relative to project root
-working_dir: "."
-
-# Pattern and style references
 patterns:
   - patterns/backend-patterns.md
 
 styles:
   - styles/backend-ruby.md
 
-# Variables available in templates
 variables:
-  framework: Ruby on Rails 7+
-  language: Ruby
+  framework: Ruby
+  language: Ruby 3.2+
   test_framework: RSpec
-  orm: ActiveRecord
+  orm: Sequel
+
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL
+      mysql:
+        description: MySQL
+      sqlite:
+        description: SQLite
+      mongodb:
+        description: MongoDB
 ```
+
+### Child Stack (with `extends`)
+
+Child stacks use `extends` to inherit from a parent. They only need to specify what they add or override:
+
+```yaml
+name: rails
+extends: ruby                    # Inherits agents, gates, patterns, styles, options
+display_name: Ruby on Rails API
+description: Backend development with Ruby on Rails
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+# Override all 3 agents with Rails-specific templates
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Senior Rails developer
+    model: opus
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    skills: [new-controller, new-presenter, new-job, db-migrate]
+  # ... backend-tester, backend-reviewer
+
+# Rails-specific skills (inherited: test, review, docs, verify)
+skills:
+  - new-controller
+  - new-presenter
+  - new-job
+  - db-migrate
+
+# quality_gates: inherited from ruby (rubocop + rspec)
+# styles: inherited from ruby (backend-ruby.md)
+# db option: inherited from ruby
+
+# Rails-specific patterns (merged with ruby's)
+patterns:
+  - patterns/auth.md
+  - patterns/pagination.md
+
+# Override variables
+variables:
+  framework: Rails 7+
+  orm: ActiveRecord
+  # language, test_framework inherited from ruby
+```
+
+### Inheritance Rules
+
+| Field | Behavior |
+|-------|----------|
+| `agents` | Child agents override parent agents with the same name; unmatched parent agents are inherited |
+| `skills` | Union of parent + child (deduplicated) |
+| `quality_gates` | Child gates override parent gates with the same key; unmatched parent gates are inherited |
+| `variables` | Child values override parent values for the same key; unmatched parent values are inherited |
+| `patterns` | Merged (parent patterns + child patterns) |
+| `styles` | Merged (parent styles + child styles) |
+| `options` | Child options override parent options with the same key; unmatched parent options are inherited |
+| `compatible_with` | Union of parent + child |
+
+Only single-level inheritance is supported (no grandparent chains).
 
 ## Writing Agent Templates
 
@@ -365,6 +501,8 @@ See `.claude/skills/new-stack/SKILL.md` for the complete workflow.
    ```
 
 2. **Create `stack.yaml`:**
+
+   **Standalone stack:**
    ```yaml
    name: my-stack
    display_name: My Stack
@@ -400,6 +538,34 @@ See `.claude/skills/new-stack/SKILL.md` for the complete workflow.
    variables:
      framework: My Framework
      language: My Language
+   ```
+
+   **Child stack (extending a parent):**
+   ```yaml
+   name: my-framework
+   extends: my-parent            # Inherits agents, gates, patterns, styles, options
+   display_name: My Framework
+   description: Description of my framework
+
+   compatible_with:
+     - nextjs
+
+   # Override only the developer agent; inherit tester and reviewer
+   agents:
+     - name: my-developer
+       template: agents/my-developer.md.j2
+       description: Framework-specific developer
+       model: opus
+       tools: [Read, Write, Edit, Bash, Grep, Glob]
+
+   # Framework-specific skills (parent skills are inherited automatically)
+   skills:
+     - new-widget
+     - new-handler
+
+   # Only override variables that differ from parent
+   variables:
+     framework: My Framework 2+
    ```
 
 3. **Create agent templates in `agents/`:**
@@ -445,15 +611,33 @@ See `.claude/skills/new-stack/SKILL.md` for the complete workflow.
 
 ## Stack Composition
 
-When composing multiple stacks (e.g., `rails,nextjs`):
+When composing multiple stacks (e.g., `rails+nextjs`):
 
-1. **Agents are merged** - All agents from all stacks are included
-2. **Skills are merged** - All skills from all stacks are included
-3. **Quality gates are merged** - All gates from all stacks
-4. **Patterns/styles are merged** - All pattern and style files
-5. **Compatibility is checked** - Warning if stacks aren't in each other's `compatible_with`
+1. **Inheritance is resolved first** - Each stack's `extends` parent is merged before composition
+2. **Agents are merged** - All agents from all stacks are included (names must not conflict across stacks)
+3. **Skills are merged** - All skills from all stacks are included
+4. **Quality gates are namespaced** - Gates are grouped by stack name (e.g., `rails.lint`, `nextjs.typecheck`)
+5. **Patterns/styles are merged** - All pattern and style files from all stacks
+6. **Compatibility is checked** - Warning if stacks aren't in each other's `compatible_with`
 
 The orchestrator template automatically detects multiple stacks and generates appropriate delegation logic for each.
+
+### Compatibility Matrix
+
+Backend stacks compose with frontend/mobile stacks. Same-domain stacks (e.g., two backends) are not compatible.
+
+| | nextjs | nuxt | react-native | scraping |
+|---|---|---|---|---|
+| **rails** | Yes | Yes | Yes | Yes |
+| **sinatra** | Yes | Yes | Yes | Yes |
+| **express** | Yes | Yes | Yes | Yes |
+| **fastapi** | Yes | Yes | Yes | Yes |
+| **flask** | Yes | Yes | Yes | — |
+| **django** | Yes | Yes | Yes | — |
+| **gin** | Yes | Yes | Yes | Yes |
+| **fiber** | Yes | Yes | Yes | Yes |
+| **chi** | Yes | Yes | Yes | Yes |
+| **phoenix** | Yes | Yes | Yes | Yes |
 
 ## Output Structure
 
@@ -653,12 +837,12 @@ Agents automatically test their own implementations in a verify-fix loop.
 implement → verify → (fail?) → analyze error → fix → verify again
 ```
 
-**Backend (Rails/FastAPI):**
+**Backend (Rails/FastAPI/Express/Django/Sinatra/Flask/Gin/Fiber/Chi/Phoenix):**
 - Makes actual HTTP requests to dev server
 - Validates response status codes and body structure
 - Tests error handling with invalid inputs
 
-**Frontend (Next.js):**
+**Frontend (Next.js/Nuxt):**
 - Uses MCP browser to render the page
 - Takes screenshots for visual verification
 - Checks DOM for component existence
@@ -703,8 +887,8 @@ buildmate nextjs /path/to/app --no-auto-verify
 
 | Agent | Stack | Testing Method |
 |-------|-------|----------------|
-| `backend-verifier` | Rails, FastAPI | HTTP requests (curl/httpie) |
-| `frontend-verifier` | Next.js | MCP browser (Puppeteer) |
+| `backend-verifier` | Rails, FastAPI, Express, Django, Sinatra, Flask, Gin, Fiber, Chi, Phoenix | HTTP requests (curl/httpie) |
+| `frontend-verifier` | Next.js, Nuxt | MCP browser (Puppeteer) |
 | `mobile-verifier` | React Native | Jest + TypeScript |
 
 ## Web Scraping
@@ -895,8 +1079,17 @@ For workspaces with multiple repositories (e.g., separate backend, web, mobile r
       },
       "stack_repo_map": {
         "rails": "backend",
+        "sinatra": "backend",
         "fastapi": "backend",
+        "flask": "backend",
+        "django": "backend",
+        "express": "backend",
+        "gin": "backend",
+        "fiber": "backend",
+        "chi": "backend",
+        "phoenix": "backend",
         "nextjs": "web",
+        "nuxt": "web",
         "react-native": "mobile"
       }
     }
@@ -1084,15 +1277,22 @@ pip install -e ".[dev]"
 pytest tests/ -v
 
 # Validate all stacks
-buildmate --validate rails
-buildmate --validate nextjs
-buildmate --validate react-native
-buildmate --validate fastapi
+for stack in ruby rails sinatra javascript nextjs express nuxt python flask fastapi django go gin fiber chi elixir phoenix react-native scraping; do
+  buildmate --validate $stack
+done
 
 # Test bootstrap
 mkdir -p /tmp/test-app
 buildmate rails /tmp/test-app
 ls -la /tmp/test-app/.claude/
+
+# Test multi-stack
+buildmate rails+nextjs /tmp/test-fullstack
+buildmate django+nuxt /tmp/test-django-nuxt
+buildmate express+nextjs /tmp/test-express-nextjs
+buildmate gin+nextjs /tmp/test-gin-nextjs
+buildmate phoenix+nuxt /tmp/test-phoenix-nuxt
+buildmate fiber+nextjs /tmp/test-fiber-nextjs
 ```
 
 ## License

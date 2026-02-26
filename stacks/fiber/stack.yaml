@@ -1,0 +1,51 @@
+name: fiber
+extends: go
+display_name: Fiber Web Framework
+description: Express-inspired web development with Fiber
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Fiber web developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-router
+      - new-middleware
+      - new-handler
+      - new-service
+      - new-model
+
+skills:
+  - new-router
+  - new-middleware
+  - new-handler
+
+patterns:
+  - patterns/fiber-patterns.md
+
+variables:
+  framework: Fiber v2+
+  validation: go-playground/validator
+  dev_port: 3000
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: go run cmd/server/main.go
+    port: 3000
+    health_check: /health

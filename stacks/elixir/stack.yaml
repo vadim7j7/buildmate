@@ -1,0 +1,112 @@
+name: elixir
+display_name: Elixir
+description: Generic Elixir development on the BEAM VM
+
+default_model: opus
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL with Postgrex driver
+        variables:
+          database: PostgreSQL
+          db_adapter: Postgrex
+      mysql:
+        description: MySQL with MyXQL driver
+        variables:
+          database: MySQL
+          db_adapter: MyXQL
+      sqlite:
+        description: SQLite with Exqlite driver
+        variables:
+          database: SQLite
+          db_adapter: Exqlite
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Elixir developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-module
+      - new-genserver
+      - new-supervisor
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: ExUnit testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Elixir code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - verify
+  - new-module
+  - new-genserver
+  - new-supervisor
+
+quality_gates:
+  format:
+    command: mix format --check-formatted
+    fix_command: mix format
+    description: Elixir code formatting
+  lint:
+    command: mix credo --strict
+    description: Credo static analysis
+  dialyzer:
+    command: mix dialyzer
+    description: Dialyzer type checking
+  tests:
+    command: mix test
+    description: ExUnit test suite
+
+patterns:
+  - patterns/backend-patterns.md
+
+styles:
+  - styles/backend-elixir.md
+
+variables:
+  framework: Elixir
+  language: Elixir 1.16+
+  runtime: BEAM/OTP 26+
+  test_framework: ExUnit
+  linter: Credo
+  orm: Ecto
+  database: PostgreSQL

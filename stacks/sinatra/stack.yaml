@@ -1,0 +1,48 @@
+name: sinatra
+extends: ruby
+display_name: Sinatra Web Application
+description: Lightweight web development with Sinatra
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Sinatra web developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-route
+      - new-helper
+      - new-model
+      - new-service
+
+skills:
+  - new-route
+  - new-helper
+
+patterns:
+  - patterns/sinatra-patterns.md
+
+variables:
+  framework: Sinatra 4+
+  dev_port: 4567
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: bundle exec ruby app.rb
+    port: 4567
+    health_check: /health

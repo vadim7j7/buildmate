@@ -1,0 +1,113 @@
+name: ruby
+display_name: Ruby
+description: Generic Ruby development with modern tooling
+
+default_model: opus
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL (recommended for production)
+        variables:
+          database: PostgreSQL
+          db_adapter: postgresql
+      mysql:
+        description: MySQL / MariaDB
+        variables:
+          database: MySQL
+          db_adapter: mysql2
+      sqlite:
+        description: SQLite (development only)
+        variables:
+          database: SQLite
+          db_adapter: sqlite3
+      mongodb:
+        description: MongoDB with Mongoid ODM
+        patterns:
+          - patterns/mongoid.md
+        variables:
+          database: MongoDB
+          db_adapter: mongoid
+          orm: Mongoid
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Ruby developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-model
+      - new-service
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: RSpec testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-spec
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Ruby code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - verify
+  - new-model
+  - new-service
+  - new-spec
+
+quality_gates:
+  lint:
+    command: bundle exec rubocop
+    fix_command: bundle exec rubocop -A
+    description: Ruby style and lint checks
+  tests:
+    command: bundle exec rspec
+    description: RSpec test suite
+
+patterns:
+  - patterns/backend-patterns.md
+
+styles:
+  - styles/backend-ruby.md
+
+variables:
+  framework: Ruby
+  language: Ruby 3.2+
+  test_framework: RSpec
+  orm: Sequel
+  linter: RuboCop
+  database: PostgreSQL

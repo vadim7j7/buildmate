@@ -1,12 +1,13 @@
 name: rails
+extends: ruby
 display_name: Ruby on Rails API
 description: Backend API development with Ruby on Rails
 
-default_model: opus
-
 compatible_with:
   - nextjs
+  - nuxt
   - react-native
+  - scraping
 
 options:
   jobs:
@@ -57,34 +58,6 @@ options:
         variables:
           serializer_library: Blueprinter
 
-  db:
-    description: Database system
-    default: postgresql
-    choices:
-      postgresql:
-        description: PostgreSQL (recommended for production)
-        variables:
-          database: PostgreSQL
-          db_adapter: postgresql
-      mysql:
-        description: MySQL / MariaDB
-        variables:
-          database: MySQL
-          db_adapter: mysql2
-      sqlite:
-        description: SQLite (development only)
-        variables:
-          database: SQLite
-          db_adapter: sqlite3
-      mongodb:
-        description: MongoDB with Mongoid ODM
-        patterns:
-          - patterns/mongoid.md
-        variables:
-          database: MongoDB
-          db_adapter: mongoid
-          orm: Mongoid
-
 agents:
   - name: backend-developer
     template: agents/backend-developer.md.j2
@@ -131,10 +104,6 @@ agents:
       - Bash
 
 skills:
-  - test
-  - review
-  - docs
-  - verify
   - new-model
   - new-controller
   - new-service
@@ -148,17 +117,6 @@ skills:
   - new-concern
   - new-serializer
 
-quality_gates:
-  lint:
-    command: bundle exec rubocop
-    fix_command: bundle exec rubocop -A
-    description: Ruby style and lint checks
-  tests:
-    command: bundle exec rspec
-    description: RSpec test suite
-
-working_dir: "."
-
 patterns:
   - patterns/backend-patterns.md
   - patterns/auth.md
@@ -170,9 +128,6 @@ patterns:
   - patterns/logging.md
   - patterns/error-tracking.md
   - patterns/verification.md
-
-styles:
-  - styles/backend-ruby.md
 
 variables:
   framework: Rails 7+

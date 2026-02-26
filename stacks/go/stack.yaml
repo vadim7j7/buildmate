@@ -1,0 +1,116 @@
+name: go
+display_name: Go
+description: Generic Go development with modern tooling
+
+default_model: opus
+
+compatible_with:
+  - nextjs
+  - nuxt
+  - react-native
+  - scraping
+
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL with pgx driver
+        variables:
+          database: PostgreSQL
+          db_driver: pgx
+      mysql:
+        description: MySQL with go-sql-driver
+        variables:
+          database: MySQL
+          db_driver: go-sql-driver/mysql
+      sqlite:
+        description: SQLite with modernc driver
+        variables:
+          database: SQLite
+          db_driver: modernc.org/sqlite
+      mongodb:
+        description: MongoDB with official Go driver
+        patterns:
+          - patterns/mongodb.md
+        variables:
+          database: MongoDB
+          db_driver: go.mongodb.org/mongo-driver
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Go developer
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-handler
+      - new-service
+      - new-model
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Go testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Go code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - verify
+  - new-handler
+  - new-service
+  - new-model
+
+quality_gates:
+  format:
+    command: gofmt -l .
+    fix_command: gofmt -w .
+    description: Go code formatting
+  lint:
+    command: golangci-lint run ./...
+    fix_command: golangci-lint run --fix ./...
+    description: Go linting with golangci-lint
+  tests:
+    command: go test ./...
+    description: Go test suite
+
+patterns:
+  - patterns/backend-patterns.md
+
+styles:
+  - styles/backend-go.md
+
+variables:
+  framework: Go
+  language: Go 1.22+
+  test_framework: testing + testify
+  linter: golangci-lint
+  orm: database/sql
+  database: PostgreSQL
