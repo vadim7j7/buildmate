@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.config import compose_stacks
-from lib.renderer import RenderedOutput, render_all
+from lib.renderer import render_all
 
 
 class TestServicesJsonRendering:

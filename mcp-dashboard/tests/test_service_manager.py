@@ -1,12 +1,12 @@
 """Tests for ServiceManager: config loading, regex, serialization."""
 
 import json
-import re
-from pathlib import Path
 
-import pytest
-
-from server.service_manager import ANSI_ESCAPE, PORT_DETECT_RE, ServiceInfo, ServiceManager
+from server.service_manager import (
+    ANSI_ESCAPE,
+    PORT_DETECT_RE,
+    ServiceManager,
+)
 
 
 class TestPortDetectRegex:

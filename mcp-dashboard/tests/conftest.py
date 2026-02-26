@@ -1,11 +1,8 @@
 """Shared fixtures for MCP Dashboard tests."""
 
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
-
 from server.database import SyncDB
 
 

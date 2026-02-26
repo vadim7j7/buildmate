@@ -33,7 +33,7 @@ for _pkg in ("yaml", "jinja2", "jsonschema"):
 if _missing:
     print(f"Error: Missing required packages: {', '.join(_missing)}")
     print(f"Install with: pip install {' '.join(_missing)}")
-    print(f"Or run: pip install -e .")
+    print("Or run: pip install -e .")
     sys.exit(1)
 
 from lib import __version__

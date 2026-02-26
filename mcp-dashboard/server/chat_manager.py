@@ -13,7 +13,7 @@ import signal
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Awaitable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 from .database import SyncDB
 

@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 
 class TestTaskCRUD:
     def test_create_task(self, tmp_db):
@@ -102,7 +100,6 @@ class TestTaskCRUD:
     def test_root_tasks_order(self, tmp_db):
         """Root tasks are returned newest first (DESC)."""
         # Use direct SQL to force different timestamps
-        import sqlite3
         from server.database import get_sync_connection
 
         conn = get_sync_connection(tmp_db.db_path)
@@ -310,7 +307,6 @@ class TestChatSessions:
 
     def test_list_order(self, tmp_db):
         """Sessions are listed by updated_at DESC."""
-        import sqlite3
         from server.database import get_sync_connection
 
         conn = get_sync_connection(tmp_db.db_path)

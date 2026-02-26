@@ -13,16 +13,15 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import yaml
-
 import uvicorn
+import yaml
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .database import SyncDB, init_db
 from .chat_manager import ChatManager
+from .database import SyncDB, init_db
 from .models import (
     AnswerRequest,
     ChatSendMessage,
@@ -694,7 +693,7 @@ def cli_main():
     if args.db:
         os.environ["DASHBOARD_DB_PATH"] = args.db
 
-    print(f"\n  MCP Dashboard")
+    print("\n  MCP Dashboard")
     print(f"  http://{args.host}:{args.port}\n")
 
     uvicorn.run(

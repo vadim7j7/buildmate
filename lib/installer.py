@@ -263,7 +263,7 @@ def install_dashboard(
             f.write(f"\n# MCP Dashboard\n{entry}\n")
 
     print(f"  Dashboard installed to {dashboard_dir}")
-    print(f"  Start with: .dashboard/start-dashboard.sh")
+    print("  Start with: .dashboard/start-dashboard.sh")
 
 
 def install(

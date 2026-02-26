@@ -310,7 +310,7 @@ def dashboard_add_artifact(
     # Path containment: only allow files under cwd
     cwd_root = Path.cwd().resolve()
     if not source.is_relative_to(cwd_root):
-        return {"error": f"Access denied: file must be within the project directory"}
+        return {"error": "Access denied: file must be within the project directory"}
 
     # Auto-detect mime type
     mime_type, _ = mimetypes.guess_type(file_path)

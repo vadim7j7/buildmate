@@ -1,6 +1,5 @@
 """Tests for FastAPI API endpoints via TestClient."""
 
-import pytest
 
 
 class TestTaskEndpoints:

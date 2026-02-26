@@ -8,7 +8,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.config import (
-    STACKS_DIR,
     Agent,
     ComposedConfig,
     QualityGate,
