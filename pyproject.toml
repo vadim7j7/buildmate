@@ -3,7 +3,7 @@ name = "buildmate"
 version = "2.0.0"
 description = "Bootstrap Claude Code agent configurations for your projects"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = {text = "Polyform Noncommercial 1.0.0"}
 authors = [
     {name = "Vadim Karnopelev"}
@@ -41,7 +41,7 @@ addopts = "-v --tb=short"
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
