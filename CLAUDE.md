@@ -277,6 +277,8 @@ You are a {{ variables.framework }} developer.
 
 ### Adding a New Stack
 
+Use the `/new-stack` skill for guided creation. See `.claude/skills/new-stack/SKILL.md` for the full workflow.
+
 **Standalone stack:**
 1. Create `stacks/my-stack/stack.yaml`
 2. Create agent templates in `stacks/my-stack/agents/`
@@ -292,6 +294,87 @@ You are a {{ variables.framework }} developer.
 5. Test: `buildmate --validate my-framework`
 
 See `README.md` for detailed instructions.
+
+### Stack Consistency Checklist
+
+Every stack (parent or child) **must** satisfy all items below. Use this as a mandatory checklist when creating or modifying any stack. The `/new-stack` skill enforces these rules automatically.
+
+#### 1. Agents (3 required)
+
+- [ ] Stack defines **developer**, **tester**, and **reviewer** agents
+- [ ] Each agent has its **own `.md.j2` template** in `stacks/<name>/agents/` (child stacks must NOT rely on generic parent templates — create framework-specific overrides)
+- [ ] Agent names follow role convention: `backend-*`, `frontend-*`, `mobile-*`, or `scraper-*`
+- [ ] Developer agent model: `opus`; Tester agent model: `sonnet` or `opus`; Reviewer agent model: `opus`
+- [ ] Developer + tester tools: `[Read, Write, Edit, Bash, Grep, Glob]`; Reviewer tools: `[Read, Grep, Glob, Bash]`
+
+#### 2. Skills — Agent-Level and Top-Level Must Match
+
+- [ ] Every skill listed in any agent's `skills:` array **must also appear** in the top-level `skills:` array
+- [ ] Every skill in the top-level `skills:` array **must have a `SKILL.md` file** — either in `stacks/<name>/skills/<skill>/SKILL.md`, the parent stack's skills, or `base/skills/<skill>/SKILL.md`
+- [ ] No orphaned skill directories (skill folder exists but not referenced in `stack.yaml`)
+- [ ] The `test` skill must be in both the tester agent's skills AND the top-level skills
+
+#### 3. Variables (minimum required)
+
+- [ ] `framework` — framework name and version (e.g., `Rails 7+`, `FastAPI`, `Gin`)
+- [ ] `dev_port` — development server port (e.g., `3000`, `8080`)
+- [ ] `test_framework` — test runner name (e.g., `RSpec`, `pytest`, `Vitest`)
+- [ ] `language` — language and version (inherited from parent is OK, but verify the parent defines it)
+
+Parent stacks must additionally define: `orm`, `database`, `linter`, `package_manager` (where applicable).
+
+#### 4. Verification Block (required for all framework stacks)
+
+Every framework child and standalone stack **must** have a `verification:` block:
+
+```yaml
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: <start command>    # e.g., "bundle exec rails server"
+    port: <dev_port>            # must match variables.dev_port
+    health_check: /health       # standardized across all backend stacks
+```
+
+Rules:
+- `dev_server.port` must match the `variables.dev_port` value
+- Backend stacks use `health_check: /health` (standardized — not `/api/health`, not `/`)
+- Frontend stacks (nextjs, nuxt) may omit `health_check` but must have `command` and `port`
+- Parent language stacks (ruby, python, go, javascript, elixir) do NOT need verification (children define their own)
+
+#### 5. Quality Gates
+
+- [ ] Parent stacks define `quality_gates` (lint, tests, optionally format/typecheck)
+- [ ] Child stacks inherit parent gates — only override if the child uses a different tool
+- [ ] If a child overrides `quality_gates`, it must not accidentally drop parent gates (e.g., nuxt overrides with only `tests` — this loses `typecheck` and `lint` from javascript parent)
+
+#### 6. Patterns and Styles
+
+- [ ] Every file listed in `patterns:` and `styles:` arrays **must exist on disk** at `stacks/<name>/<path>`
+- [ ] No orphaned pattern/style files on disk that aren't referenced in `stack.yaml`
+- [ ] Parent stacks define base patterns (e.g., `patterns/backend-patterns.md`) and styles
+- [ ] Child stacks add framework-specific patterns; parent patterns are merged automatically
+- [ ] Option-referenced patterns (e.g., MongoDB pattern in `options.db.mongodb.patterns`) must also exist on disk
+
+#### 7. Compatible With
+
+- [ ] Backend stacks list frontend/mobile stacks they work with: `[nextjs, nuxt, react-native, scraping]`
+- [ ] Frontend stacks list all backend stacks they work with
+- [ ] Stacks of the same role (two backends) should NOT list each other
+
+#### 8. Options (if applicable)
+
+- [ ] Every option choice that references `patterns`, `styles`, `skills`, or `quality_gates` must point to files/skills that exist
+- [ ] Option-injected skills must have corresponding `SKILL.md` files
+- [ ] Option-injected quality_gates should not silently replace all parent gates
+
+#### 9. Final Validation
+
+- [ ] `buildmate --validate <name>` passes
+- [ ] All tests pass: `.venv/bin/python -m pytest tests/ -v`
+- [ ] Dry-run produces correct output: `buildmate <name> /tmp/test --dry-run`
 
 ## Output Structure
 

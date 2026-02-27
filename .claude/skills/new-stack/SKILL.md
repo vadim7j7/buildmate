@@ -156,7 +156,6 @@ agents:
   - name: <role>-developer
     template: agents/<role>-developer.md.j2
     description: Senior <framework> developer
-    role: developer
     model: opus
     tools:
       - Read
@@ -165,11 +164,13 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - <skill_1>
+      - <skill_2>
 
   - name: <role>-tester
     template: agents/<role>-tester.md.j2
     description: <test_framework> testing specialist
-    role: tester
     model: sonnet
     tools:
       - Read
@@ -178,20 +179,24 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - test                 # REQUIRED: must always be here
 
   - name: <role>-reviewer
     template: agents/<role>-reviewer.md.j2
     description: <framework> code reviewer
-    role: reviewer
     model: opus
     tools:
       - Read
       - Grep
       - Glob
+      - Bash
 
+# Top-level skills: MUST include every agent-level skill + test
 skills:
   - <skill_1>
   - <skill_2>
+  - test                     # REQUIRED: matches tester agent
 
 quality_gates:
   lint:
@@ -209,11 +214,21 @@ styles:
   - styles/<role>-<language>.md
 
 variables:
-  framework: <framework>
-  language: <language>
-  test_framework: <test_framework>
+  framework: <framework>     # REQUIRED
+  language: <language>        # REQUIRED (or inherited from parent)
+  test_framework: <test_fw>  # REQUIRED
+  dev_port: <port>           # REQUIRED
   orm: <orm>
-  package_manager: <package_manager>
+  package_manager: <pkg_mgr>
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: <start_command>  # e.g., "bundle exec rails server"
+    port: <port>             # MUST match variables.dev_port
+    health_check: /health    # Standardized for all backend stacks
 ```
 
 ---
@@ -515,13 +530,86 @@ Present a summary:
 3. **Role determines agent prefix** — Backend uses `backend-*`, frontend uses `frontend-*`, mobile uses `mobile-*`
 4. **Validate before reporting** — Always run `--validate` to catch errors
 5. **Update README** — The stack should appear in documentation
+6. **Never skip the consistency checklist** — Run through every item in the checklist below before declaring the stack complete
+
+---
+
+## Mandatory Consistency Checklist
+
+**Do NOT skip any item.** Run through this entire checklist before reporting the stack as complete. This prevents the gaps that require expensive multi-session audits to fix later.
+
+### Agents
+
+- [ ] Stack defines exactly 3 agents: **developer**, **tester**, **reviewer**
+- [ ] Each agent has its **own framework-specific `.md.j2` template** in `stacks/<name>/agents/` — never rely on generic parent templates for child stacks
+- [ ] Agent names follow role convention: `backend-*` (API stacks), `frontend-*` (web UI), `mobile-*` (mobile), `scraper-*` (scraping)
+- [ ] Developer model: `opus`; Tester model: `sonnet` or `opus`; Reviewer model: `opus`
+- [ ] Developer + tester tools: `[Read, Write, Edit, Bash, Grep, Glob]`; Reviewer tools: `[Read, Grep, Glob, Bash]`
+- [ ] Every skill listed in any agent's `skills:` array also appears in the top-level `skills:` array
+
+### Skills
+
+- [ ] Every top-level skill has a `SKILL.md` file — in `stacks/<name>/skills/<skill>/SKILL.md`, the parent's skills, or `base/skills/<skill>/SKILL.md`
+- [ ] The `test` skill is in **both** the tester agent's skills AND the top-level skills list
+- [ ] No orphaned skill directories on disk (folder exists but not in stack.yaml)
+- [ ] Agent-level skills are a **subset** of top-level skills (top-level can have extras the agent doesn't list)
+
+### Variables (minimum required)
+
+- [ ] `framework` — name + version (e.g., `Rails 7+`, `Gin`, `Phoenix 1.7+`)
+- [ ] `dev_port` — development server port number
+- [ ] `test_framework` — test runner (e.g., `RSpec`, `pytest`, `Vitest`, `ExUnit`)
+- [ ] `language` — inherited from parent is OK, but verify parent actually defines it
+- [ ] Parent stacks must also define: `orm`, `database`, `linter`, `package_manager`
+
+### Verification Block
+
+- [ ] Every framework child and standalone stack has a `verification:` block
+- [ ] Contains `enabled: true`, `auto_verify: true`, `max_retries: 3`
+- [ ] `dev_server.command` is set to the correct start command
+- [ ] `dev_server.port` matches `variables.dev_port`
+- [ ] Backend stacks use `health_check: /health` (standardized — never `/api/health`, `/docs`, or `/`)
+- [ ] Frontend stacks may omit `health_check` but must have `command` and `port`
+- [ ] Parent language stacks (ruby, python, go, javascript, elixir) do NOT need verification
+
+### Quality Gates
+
+- [ ] Parent stacks define `quality_gates` with at least `lint` and `tests`
+- [ ] Child stacks inherit parent gates — only override if using a different tool
+- [ ] If overriding, don't accidentally drop parent gates (e.g., overriding with only `tests` loses `lint` and `typecheck`)
+
+### Patterns and Styles
+
+- [ ] Every file in `patterns:` and `styles:` arrays exists on disk at `stacks/<name>/<path>`
+- [ ] No orphaned pattern/style files on disk that aren't referenced
+- [ ] Option-referenced patterns (e.g., MongoDB in `options.db.mongodb.patterns`) must exist on disk
+- [ ] Option-referenced styles must exist on disk
+
+### Compatible With
+
+- [ ] Backend stacks list: `[nextjs, nuxt, react-native, scraping]`
+- [ ] Frontend stacks list all backend stacks they work with
+- [ ] Stacks of the same role (e.g., two backends) do NOT list each other
+
+### Options (if applicable)
+
+- [ ] Option-referenced `patterns`, `styles`, `skills`, `quality_gates` all point to existing files/skills
+- [ ] Option-injected skills have `SKILL.md` files
+- [ ] Option quality_gates don't silently replace all parent gates
+
+### Final
+
+- [ ] `buildmate --validate <name>` passes
+- [ ] All tests pass: `.venv/bin/python -m pytest tests/ -v`
+- [ ] `buildmate <name> /tmp/test --dry-run` produces correct output
+- [ ] Compare side-by-side with a sibling stack to verify nothing was missed
 
 ---
 
 ## Reference Files
 
 Templates are in `.claude/skills/new-stack/references/`:
-- `stack-yaml-template.yaml` — stack.yaml structure
+- `stack-yaml-template.yaml` — stack.yaml structure (includes verification block)
 - `developer-agent.md.j2.txt` — Developer agent template
 - `tester-agent.md.j2.txt` — Tester agent template
 - `reviewer-agent.md.j2.txt` — Reviewer agent template

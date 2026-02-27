@@ -1,24 +1,32 @@
 # Stack YAML Template
-# Copy and customize this for your new stack
+# Copy and customize this for your new stack.
+#
+# IMPORTANT: After creating, run through the Mandatory Consistency Checklist
+# in .claude/skills/new-stack/SKILL.md before declaring the stack complete.
 
 name: STACK_NAME
+# extends: PARENT_NAME         # Uncomment for child stacks (e.g., extends: ruby)
 display_name: DISPLAY_NAME
 description: DESCRIPTION
 
 default_model: opus
 
-# List stacks that can be combined with this one
-# Stacks with the same role (e.g., two backends) typically conflict
+# List stacks that can be combined with this one.
+# Backend stacks: [nextjs, nuxt, react-native, scraping]
+# Frontend stacks: list all backend stacks they work with
+# Stacks with the same role (e.g., two backends) must NOT list each other
 compatible_with:
   - nextjs
+  - nuxt
   - react-native
+  - scraping
 
-# Agent definitions
+# Agent definitions — all 3 are REQUIRED
+# Each agent MUST have its own .md.j2 template in stacks/<name>/agents/
 agents:
   - name: ROLE-developer
     template: agents/ROLE-developer.md.j2
     description: Senior FRAMEWORK developer
-    role: developer
     model: opus
     tools:
       - Read
@@ -27,11 +35,14 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:                    # Agent-level skills
+      - new-model
+      - new-controller
+      - new-service
 
   - name: ROLE-tester
     template: agents/ROLE-tester.md.j2
     description: TEST_FRAMEWORK testing specialist
-    role: tester
     model: sonnet
     tools:
       - Read
@@ -40,25 +51,31 @@ agents:
       - Bash
       - Grep
       - Glob
+    skills:
+      - test                   # REQUIRED: tester must always have test
 
   - name: ROLE-reviewer
     template: agents/ROLE-reviewer.md.j2
     description: FRAMEWORK code reviewer
-    role: reviewer
     model: opus
     tools:
       - Read
       - Grep
       - Glob
+      - Bash
 
-# Skills included with this stack
+# Top-level skills — MUST include every agent-level skill + test
+# Each skill needs a SKILL.md file (own stack, parent stack, or base/skills/)
 skills:
   - new-model
   - new-controller
   - new-service
   - db-migrate
+  - test                       # REQUIRED: matches tester agent
 
-# Quality gates - commands that must pass
+# Quality gates — commands that must pass
+# Child stacks inherit parent gates. Only override if using a different tool.
+# WARNING: overriding replaces ALL parent gates — don't accidentally drop gates
 quality_gates:
   lint:
     command: LINT_COMMAND
@@ -73,6 +90,7 @@ quality_gates:
   #   description: Type checking
 
 # Pattern and style reference files
+# Every listed file MUST exist on disk at stacks/<name>/<path>
 patterns:
   - patterns/ROLE-patterns.md
 
@@ -80,20 +98,44 @@ styles:
   - styles/ROLE-LANGUAGE.md
 
 # Variables available in Jinja2 templates
+# REQUIRED: framework, dev_port, test_framework, language
+# Parent stacks should also define: orm, database, linter, package_manager
 variables:
-  framework: FRAMEWORK
-  language: LANGUAGE
-  test_framework: TEST_FRAMEWORK
+  framework: FRAMEWORK         # REQUIRED — e.g., "Rails 7+", "FastAPI", "Gin"
+  language: LANGUAGE            # REQUIRED — e.g., "Ruby 3.2+", "Python 3.12+"
+  test_framework: TEST_FRAMEWORK  # REQUIRED — e.g., "RSpec", "pytest", "Vitest"
+  dev_port: DEV_PORT           # REQUIRED — e.g., 3000, 8080
   orm: ORM
   package_manager: PACKAGE_MANAGER
 
+# Verification — REQUIRED for all framework children and standalone stacks
+# Parent language stacks (ruby, python, go, javascript, elixir) do NOT need this
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: START_COMMAND      # e.g., "bundle exec rails server", "npm run dev"
+    port: DEV_PORT             # MUST match variables.dev_port
+    health_check: /health      # Standardized for ALL backend stacks
+
 # Working directory (relative to project root)
 # Use "." for root, or "api" / "backend" for subdirectory
-working_dir: "."
+# working_dir: "."
 
 # Optional: Stack-specific options
 # options:
 #   db:
 #     description: Database
-#     choices: [postgresql, mysql, sqlite]
 #     default: postgresql
+#     choices:
+#       postgresql:
+#         description: PostgreSQL (recommended)
+#         variables:
+#           database: PostgreSQL
+#       mongodb:
+#         description: MongoDB
+#         patterns:            # Option-referenced files MUST exist on disk
+#           - patterns/mongodb.md
+#         variables:
+#           database: MongoDB
