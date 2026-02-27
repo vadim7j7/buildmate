@@ -69,6 +69,12 @@ skills:
 patterns:
   - patterns/django-patterns.md
 
+setup:
+  install_command: uv sync
+  post_install:
+    - uv run python manage.py migrate
+  dev_server_check: uv run python --version
+
 variables:
   framework: Django 5+
   orm: Django ORM

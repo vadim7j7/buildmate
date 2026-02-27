@@ -107,6 +107,10 @@ patterns:
 styles:
   - styles/backend-go.md
 
+setup:
+  install_command: go mod download
+  dev_server_check: go version
+
 variables:
   framework: Go
   language: Go 1.22+

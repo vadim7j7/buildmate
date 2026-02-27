@@ -59,6 +59,19 @@ class TestLoadElixirStack:
         assert "mysql" in db_option.choices
         assert "sqlite" in db_option.choices
 
+    def test_elixir_stack_setup(self):
+        """Elixir stack should have setup block."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "elixir" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+
+        assert "setup" in raw
+        assert raw["setup"]["install_command"] == "mix deps.get && mix compile"
+        assert raw["setup"]["dev_server_check"] == "elixir -v && mix --version"
+        assert "post_install" not in raw["setup"]
+
     def test_elixir_stack_skills(self):
         """Elixir stack should have expected skills."""
         config = load_stack("elixir")
@@ -152,6 +165,19 @@ class TestLoadPhoenix:
         assert config.variables["orm"] == "Ecto"
         assert config.variables["template_engine"] == "HEEx"
         assert config.variables["realtime"] == "Phoenix.PubSub"
+
+    def test_phoenix_setup_overrides_elixir(self):
+        """Phoenix should override elixir setup with post_install."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "phoenix" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+
+        assert "setup" in raw
+        assert raw["setup"]["install_command"] == "mix deps.get && mix compile"
+        assert raw["setup"]["post_install"] == ["mix ecto.setup"]
+        assert raw["setup"]["dev_server_check"] == "elixir -v && mix --version"
 
     def test_phoenix_has_verification(self):
         """Phoenix stack.yaml should have verification section."""

@@ -104,6 +104,10 @@ patterns:
 styles:
   - styles/backend-ruby.md
 
+setup:
+  install_command: bundle install
+  dev_server_check: ruby -v && bundle -v
+
 variables:
   framework: Ruby
   language: Ruby 3.2+

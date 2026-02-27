@@ -56,6 +56,19 @@ class TestLoadRubyStack:
         assert "sqlite" in db_option.choices
         assert "mongodb" in db_option.choices
 
+    def test_ruby_stack_setup(self):
+        """Ruby stack should have setup block."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "ruby" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+
+        assert "setup" in raw
+        assert raw["setup"]["install_command"] == "bundle install"
+        assert raw["setup"]["dev_server_check"] == "ruby -v && bundle -v"
+        assert "post_install" not in raw["setup"]
+
     def test_ruby_stack_skills(self):
         """Ruby stack should have expected skills."""
         config = load_stack("ruby")
@@ -121,6 +134,19 @@ class TestLoadRailsRefactored:
         # Inherited from ruby
         assert "test" in config.skills
         assert "review" in config.skills
+
+    def test_rails_setup_overrides_ruby(self):
+        """Rails should override ruby setup with post_install."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "rails" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+
+        assert "setup" in raw
+        assert raw["setup"]["install_command"] == "bundle install"
+        assert raw["setup"]["post_install"] == ["bundle exec rails db:setup"]
+        assert raw["setup"]["dev_server_check"] == "ruby -v && bundle -v"
 
     def test_rails_has_own_options(self):
         """Rails should have jobs, serializer options plus inherited db."""
@@ -198,6 +224,22 @@ class TestLoadSinatra:
         # Also inherited
         assert "test" in config.skills
         assert "review" in config.skills
+
+    def test_sinatra_inherits_ruby_setup(self):
+        """Sinatra should inherit setup from ruby (no own setup defined)."""
+        import yaml
+
+        # Sinatra's own stack.yaml should NOT have setup
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "sinatra" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+        assert "setup" not in raw
+
+        # But after inheritance resolution, setup should come from ruby
+        config_yaml = Path(__file__).parent.parent / "stacks" / "ruby" / "stack.yaml"
+        with open(config_yaml) as f:
+            parent_raw = yaml.safe_load(f)
+        assert parent_raw["setup"]["install_command"] == "bundle install"
 
     def test_sinatra_has_verification(self):
         """Sinatra stack.yaml should have verification section."""

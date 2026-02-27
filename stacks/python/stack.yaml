@@ -117,6 +117,10 @@ patterns:
 styles:
   - styles/backend-python.md
 
+setup:
+  install_command: uv sync
+  dev_server_check: uv run python --version
+
 variables:
   framework: Python
   language: Python 3.12+

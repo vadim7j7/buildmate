@@ -57,6 +57,19 @@ class TestLoadPythonStack:
         assert "sqlite" in db_option.choices
         assert "mongodb" in db_option.choices
 
+    def test_python_stack_setup(self):
+        """Python stack should have setup block."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "python" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+
+        assert "setup" in raw
+        assert raw["setup"]["install_command"] == "uv sync"
+        assert raw["setup"]["dev_server_check"] == "uv run python --version"
+        assert "post_install" not in raw["setup"]
+
     def test_python_stack_skills(self):
         """Python stack should have expected skills."""
         config = load_stack("python")
@@ -140,6 +153,21 @@ class TestLoadFlaskStack:
         assert "test" in config.skills
         assert "review" in config.skills
         assert "new-model" in config.skills
+
+    def test_flask_inherits_python_setup(self):
+        """Flask should inherit setup from python (no own setup defined)."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "flask" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+        assert "setup" not in raw
+
+        # Parent python defines setup
+        config_yaml = Path(__file__).parent.parent / "stacks" / "python" / "stack.yaml"
+        with open(config_yaml) as f:
+            parent_raw = yaml.safe_load(f)
+        assert parent_raw["setup"]["install_command"] == "uv sync"
 
     def test_flask_has_verification(self):
         """Flask stack.yaml should have verification section."""
@@ -438,6 +466,19 @@ class TestLoadDjango:
         # Also inherited
         assert "test" in config.skills
         assert "review" in config.skills
+
+    def test_django_setup_overrides_python(self):
+        """Django should override python setup with post_install."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "django" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+
+        assert "setup" in raw
+        assert raw["setup"]["install_command"] == "uv sync"
+        assert raw["setup"]["post_install"] == ["uv run python manage.py migrate"]
+        assert raw["setup"]["dev_server_check"] == "uv run python --version"
 
     def test_django_has_verification(self):
         """Django stack.yaml should have verification section."""

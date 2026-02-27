@@ -200,6 +200,10 @@ patterns:
 styles:
   - styles/backend-ruby.md
 
+setup:
+  install_command: bundle install
+  dev_server_check: ruby -v && bundle -v
+
 variables:
   framework: Ruby
   language: Ruby 3.2+
@@ -232,6 +236,13 @@ patterns:
   - patterns/auth.md
   - patterns/pagination.md
 
+# Override parent setup to add post_install
+setup:
+  install_command: bundle install
+  post_install:
+    - bundle exec rails db:setup
+  dev_server_check: ruby -v && bundle -v
+
 variables:
   framework: Rails 7+
   orm: ActiveRecord
@@ -250,6 +261,8 @@ variables:
 | `styles` | Merged (parent + child) |
 | `options` | Child overrides parent by key; unmatched parent options inherited |
 | `compatible_with` | Union of parent + child |
+| `verification` | Child wins if present, else parent (pass-through) |
+| `setup` | Child wins if present, else parent (pass-through) |
 
 Only single-level inheritance is supported (no grandparent chains).
 
@@ -344,13 +357,29 @@ Rules:
 - Frontend stacks (nextjs, nuxt) may omit `health_check` but must have `command` and `port`
 - Parent language stacks (ruby, python, go, javascript, elixir) do NOT need verification (children define their own)
 
-#### 5. Quality Gates
+#### 5. Setup Block
+
+- [ ] Every parent stack and standalone stack **must** have a `setup:` block with at least `install_command`
+- [ ] Child stacks that need `post_install` commands (e.g., database setup, migrations) must define their own `setup:` block
+- [ ] Child stacks that don't need `post_install` inherit setup from their parent (no `setup:` in their stack.yaml)
+- [ ] `install_command` matches the stack's package manager (e.g., `bundle install`, `uv sync`, `npm install`, `go mod download`, `mix deps.get && mix compile`)
+- [ ] `dev_server_check` (optional) verifies the development environment is working
+
+```yaml
+setup:
+  install_command: "bundle install"          # REQUIRED
+  post_install:                              # Optional — child stacks add this
+    - "bundle exec rails db:setup"
+  dev_server_check: "ruby -v && bundle -v"   # Optional
+```
+
+#### 6. Quality Gates
 
 - [ ] Parent stacks define `quality_gates` (lint, tests, optionally format/typecheck)
 - [ ] Child stacks inherit parent gates — only override if the child uses a different tool
 - [ ] If a child overrides `quality_gates`, it must not accidentally drop parent gates (e.g., nuxt overrides with only `tests` — this loses `typecheck` and `lint` from javascript parent)
 
-#### 6. Patterns and Styles
+#### 7. Patterns and Styles
 
 - [ ] Every file listed in `patterns:` and `styles:` arrays **must exist on disk** at `stacks/<name>/<path>`
 - [ ] No orphaned pattern/style files on disk that aren't referenced in `stack.yaml`
@@ -358,19 +387,19 @@ Rules:
 - [ ] Child stacks add framework-specific patterns; parent patterns are merged automatically
 - [ ] Option-referenced patterns (e.g., MongoDB pattern in `options.db.mongodb.patterns`) must also exist on disk
 
-#### 7. Compatible With
+#### 8. Compatible With
 
 - [ ] Backend stacks list frontend/mobile stacks they work with: `[nextjs, nuxt, react-native, scraping]`
 - [ ] Frontend stacks list all backend stacks they work with
 - [ ] Stacks of the same role (two backends) should NOT list each other
 
-#### 8. Options (if applicable)
+#### 9. Options (if applicable)
 
 - [ ] Every option choice that references `patterns`, `styles`, `skills`, or `quality_gates` must point to files/skills that exist
 - [ ] Option-injected skills must have corresponding `SKILL.md` files
 - [ ] Option-injected quality_gates should not silently replace all parent gates
 
-#### 9. Final Validation
+#### 10. Final Validation
 
 - [ ] `buildmate --validate <name>` passes
 - [ ] All tests pass: `.venv/bin/python -m pytest tests/ -v`

@@ -57,6 +57,46 @@ class TestLoadGoStack:
         assert "sqlite" in db_option.choices
         assert "mongodb" in db_option.choices
 
+    def test_go_stack_setup(self):
+        """Go stack should have setup block."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "go" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+
+        assert "setup" in raw
+        assert raw["setup"]["install_command"] == "go mod download"
+        assert raw["setup"]["dev_server_check"] == "go version"
+        assert "post_install" not in raw["setup"]
+
+    def test_gin_inherits_go_setup(self):
+        """Gin should inherit setup from go (no own setup defined)."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "gin" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+        assert "setup" not in raw
+
+    def test_fiber_inherits_go_setup(self):
+        """Fiber should inherit setup from go (no own setup defined)."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "fiber" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+        assert "setup" not in raw
+
+    def test_chi_inherits_go_setup(self):
+        """Chi should inherit setup from go (no own setup defined)."""
+        import yaml
+
+        stack_yaml = Path(__file__).parent.parent / "stacks" / "chi" / "stack.yaml"
+        with open(stack_yaml) as f:
+            raw = yaml.safe_load(f)
+        assert "setup" not in raw
+
     def test_go_stack_skills(self):
         """Go stack should have expected skills."""
         config = load_stack("go")

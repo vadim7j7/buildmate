@@ -102,6 +102,10 @@ patterns:
 styles:
   - styles/backend-elixir.md
 
+setup:
+  install_command: mix deps.get && mix compile
+  dev_server_check: elixir -v && mix --version
+
 variables:
   framework: Elixir
   language: Elixir 1.16+

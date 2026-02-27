@@ -65,6 +65,12 @@ skills:
 patterns:
   - patterns/phoenix-patterns.md
 
+setup:
+  install_command: mix deps.get && mix compile
+  post_install:
+    - mix ecto.setup
+  dev_server_check: elixir -v && mix --version
+
 variables:
   framework: Phoenix 1.7+
   template_engine: HEEx

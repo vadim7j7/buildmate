@@ -195,6 +195,10 @@ patterns:
 styles:
   - styles/scraping-general.md
 
+setup:
+  install_command: uv sync
+  dev_server_check: uv run python --version
+
 variables:
   domain: Web Scraping
   focus: Data extraction and automation

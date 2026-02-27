@@ -129,6 +129,12 @@ patterns:
   - patterns/error-tracking.md
   - patterns/verification.md
 
+setup:
+  install_command: bundle install
+  post_install:
+    - bundle exec rails db:setup
+  dev_server_check: ruby -v && bundle -v
+
 variables:
   framework: Rails 7+
   language: Ruby

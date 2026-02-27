@@ -34,6 +34,10 @@ patterns:
 styles:
   - styles/typescript.md
 
+setup:
+  install_command: npm install
+  dev_server_check: node -v && npm -v
+
 variables:
   language: TypeScript
   package_manager: npm

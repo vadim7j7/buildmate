@@ -385,6 +385,12 @@ def _resolve_inheritance(
     elif "verification" in parent_config:
         resolved["verification"] = parent_config["verification"]
 
+    # setup: child wins if present, else parent (pass-through)
+    if "setup" in child_config:
+        resolved["setup"] = child_config["setup"]
+    elif "setup" in parent_config:
+        resolved["setup"] = parent_config["setup"]
+
     return resolved, parent_stack_path
 
 

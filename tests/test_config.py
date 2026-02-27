@@ -416,6 +416,56 @@ class TestStackInheritance:
         with pytest.raises(ValueError, match="cannot extend itself"):
             _resolve_inheritance(config, Path("/fake"))
 
+    def test_setup_inherited(self, tmp_path, monkeypatch):
+        """Parent setup should be inherited when child has none."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        parent_config["setup"] = {
+            "install_command": "bundle install",
+            "dev_server_check": "ruby -v",
+        }
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert "setup" in resolved
+        assert resolved["setup"]["install_command"] == "bundle install"
+        assert resolved["setup"]["dev_server_check"] == "ruby -v"
+
+    def test_setup_child_overrides(self, tmp_path, monkeypatch):
+        """Child setup should override parent setup entirely."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        parent_config["setup"] = {
+            "install_command": "bundle install",
+            "dev_server_check": "ruby -v",
+        }
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        child["setup"] = {
+            "install_command": "bundle install",
+            "post_install": ["bundle exec rails db:setup"],
+            "dev_server_check": "ruby -v && bundle -v",
+        }
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert resolved["setup"]["install_command"] == "bundle install"
+        assert resolved["setup"]["post_install"] == ["bundle exec rails db:setup"]
+        assert resolved["setup"]["dev_server_check"] == "ruby -v && bundle -v"
+
+    def test_setup_absent_when_neither_defines(self, tmp_path, monkeypatch):
+        """No setup key when neither parent nor child define it."""
+        parent_config, parent_dir = self._make_parent(tmp_path)
+        self._write_parent_yaml(parent_config, parent_dir)
+        monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)
+
+        child = self._make_child()
+        resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
+
+        assert "setup" not in resolved
+
     def test_nonexistent_parent_raises(self, tmp_path, monkeypatch):
         """Missing parent should raise FileNotFoundError."""
         monkeypatch.setattr("lib.config.STACKS_DIR", tmp_path)

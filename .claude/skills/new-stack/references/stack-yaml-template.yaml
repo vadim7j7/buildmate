@@ -108,6 +108,14 @@ variables:
   orm: ORM
   package_manager: PACKAGE_MANAGER
 
+# Setup — REQUIRED for all parent stacks and standalone stacks
+# Child stacks override if they need post_install; otherwise inherit from parent
+setup:
+  install_command: INSTALL_COMMAND  # REQUIRED — e.g., "bundle install", "uv sync"
+  # post_install:                   # Optional — for child stacks needing db setup etc.
+  #   - "POST_INSTALL_COMMAND"
+  dev_server_check: CHECK_COMMAND   # Optional — e.g., "ruby -v && bundle -v"
+
 # Verification — REQUIRED for all framework children and standalone stacks
 # Parent language stacks (ruby, python, go, javascript, elixir) do NOT need this
 verification:

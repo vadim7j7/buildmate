@@ -221,6 +221,12 @@ variables:
   orm: <orm>
   package_manager: <pkg_mgr>
 
+setup:
+  install_command: <install_cmd>  # REQUIRED — e.g., "bundle install", "uv sync"
+  # post_install:                 # Optional — e.g., database setup
+  #   - "<post_install_cmd>"
+  dev_server_check: <check_cmd>   # Optional — e.g., "ruby -v && bundle -v"
+
 verification:
   enabled: true
   auto_verify: true
@@ -571,6 +577,14 @@ Present a summary:
 - [ ] Backend stacks use `health_check: /health` (standardized — never `/api/health`, `/docs`, or `/`)
 - [ ] Frontend stacks may omit `health_check` but must have `command` and `port`
 - [ ] Parent language stacks (ruby, python, go, javascript, elixir) do NOT need verification
+
+### Setup Block
+
+- [ ] Every parent stack and standalone stack has a `setup:` block with at least `install_command`
+- [ ] Child stacks that need `post_install` (e.g., database setup) define their own `setup:` block
+- [ ] Child stacks without `post_install` inherit setup from parent (no `setup:` in their stack.yaml)
+- [ ] `install_command` matches the stack's package manager
+- [ ] `dev_server_check` (optional) verifies the dev environment
 
 ### Quality Gates
 

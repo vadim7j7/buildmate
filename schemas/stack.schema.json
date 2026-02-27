@@ -94,6 +94,9 @@
       "type": "object",
       "additionalProperties": true,
       "description": "Custom variables available in Jinja2 templates"
+    },
+    "setup": {
+      "$ref": "#/$defs/setup"
     }
   },
   "$defs": {
@@ -181,6 +184,27 @@
           },
           "minProperties": 1,
           "description": "Available choices for this option"
+        }
+      }
+    },
+    "setup": {
+      "type": "object",
+      "required": ["install_command"],
+      "properties": {
+        "install_command": {
+          "type": "string",
+          "description": "Command to install dependencies (e.g., 'bundle install', 'npm install')"
+        },
+        "post_install": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Commands to run after install (e.g., database setup, migrations)"
+        },
+        "dev_server_check": {
+          "type": "string",
+          "description": "Command to verify the development environment is working"
         }
       }
     },
