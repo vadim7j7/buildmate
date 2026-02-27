@@ -56,6 +56,11 @@ agents:
 
 skills:
   - new-router
+  - new-schema
+  - new-model
+  - new-service
+  - new-migration
+  - new-test
   - new-task
   - new-middleware
   - new-dependency
@@ -86,4 +91,4 @@ verification:
   dev_server:
     command: uv run uvicorn app.main:app --reload --port 8000
     port: 8000
-    health_check: /docs
+    health_check: /health

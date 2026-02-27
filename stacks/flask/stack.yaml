@@ -27,10 +27,43 @@ agents:
       - new-schema
       - new-service
       - new-test
+      - new-migration
+      - db-migrate
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Flask/pytest testing specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-test
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Flask code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
 
 skills:
   - new-blueprint
   - new-route
+  - new-model
+  - new-schema
+  - new-service
+  - new-test
+  - new-migration
+  - db-migrate
 
 patterns:
   - patterns/flask-patterns.md
@@ -46,4 +79,4 @@ verification:
   dev_server:
     command: uv run flask run --debug --port 5000
     port: 5000
-    health_check: /
+    health_check: /api/health

@@ -175,7 +175,7 @@ class TestLoadSinatra:
         assert "styles/backend-ruby.md" in config.styles
 
     def test_sinatra_overrides_developer_agent(self):
-        """Sinatra should override backend-developer but inherit tester and reviewer."""
+        """Sinatra should override all three agents with its own."""
         config = load_stack("sinatra")
 
         agent_names = [a.name for a in config.agents]
@@ -187,7 +187,7 @@ class TestLoadSinatra:
         assert dev.source_stack == "sinatra"
 
         tester = next(a for a in config.agents if a.name == "backend-tester")
-        assert tester.source_stack == "ruby"
+        assert tester.source_stack == "sinatra"
 
     def test_sinatra_has_own_skills(self):
         """Sinatra should have new-route and new-helper skills."""

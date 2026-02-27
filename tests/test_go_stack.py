@@ -98,7 +98,7 @@ class TestLoadGin:
         assert "styles/backend-go.md" in config.styles
 
     def test_gin_overrides_developer_agent(self):
-        """Gin should override backend-developer but inherit tester and reviewer."""
+        """Gin should override all three agents with its own."""
         config = load_stack("gin")
 
         agent_names = [a.name for a in config.agents]
@@ -110,10 +110,10 @@ class TestLoadGin:
         assert dev.source_stack == "gin"
 
         tester = next(a for a in config.agents if a.name == "backend-tester")
-        assert tester.source_stack == "go"
+        assert tester.source_stack == "gin"
 
         reviewer = next(a for a in config.agents if a.name == "backend-reviewer")
-        assert reviewer.source_stack == "go"
+        assert reviewer.source_stack == "gin"
 
     def test_gin_has_own_skills(self):
         """Gin should have its own skills plus inherited ones."""
@@ -175,14 +175,14 @@ class TestLoadFiber:
         assert "styles/backend-go.md" in config.styles
 
     def test_fiber_overrides_developer_agent(self):
-        """Fiber should override backend-developer but inherit tester and reviewer."""
+        """Fiber should override all three agents with its own."""
         config = load_stack("fiber")
 
         dev = next(a for a in config.agents if a.name == "backend-developer")
         assert dev.source_stack == "fiber"
 
         tester = next(a for a in config.agents if a.name == "backend-tester")
-        assert tester.source_stack == "go"
+        assert tester.source_stack == "fiber"
 
     def test_fiber_has_own_skills(self):
         """Fiber should have new-router, new-middleware, new-handler skills."""
@@ -239,14 +239,14 @@ class TestLoadChi:
         assert "styles/backend-go.md" in config.styles
 
     def test_chi_overrides_developer_agent(self):
-        """Chi should override backend-developer but inherit tester and reviewer."""
+        """Chi should override all three agents with its own."""
         config = load_stack("chi")
 
         dev = next(a for a in config.agents if a.name == "backend-developer")
         assert dev.source_stack == "chi"
 
         tester = next(a for a in config.agents if a.name == "backend-tester")
-        assert tester.source_stack == "go"
+        assert tester.source_stack == "chi"
 
     def test_chi_has_own_skills(self):
         """Chi should have new-router, new-middleware, new-handler skills."""

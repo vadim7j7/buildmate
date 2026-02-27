@@ -25,8 +25,10 @@ auto-detecting the available test runner.
    files and scripts:
    - `package.json` scripts (`test`, `vitest`, `jest`) for JS/TS stacks
    - `pytest.ini`, `pyproject.toml [tool.pytest]`, `setup.cfg` for Python
-   - `Cargo.toml` for Rust (`cargo test`)
+   - `Gemfile` with `rspec` for Ruby (`bundle exec rspec`)
    - `go.mod` for Go (`go test ./...`)
+   - `mix.exs` for Elixir (`mix test`)
+   - `Cargo.toml` for Rust (`cargo test`)
    - Falls back to the stack's default test command if detection fails.
 
 2. **Delegate to the stack's tester agent.** Use the Task tool to invoke the
@@ -65,9 +67,10 @@ auto-detecting the available test runner.
 |------------|-----------------------------------|
 | TypeScript | Vitest, Jest, Mocha, Playwright   |
 | Python     | pytest, unittest                  |
-| Rust       | cargo test                        |
-| Go         | go test                           |
 | Ruby       | RSpec, Minitest                   |
+| Go         | go test                           |
+| Elixir     | ExUnit, mix test                  |
+| Rust       | cargo test                        |
 
 ## Error Handling
 

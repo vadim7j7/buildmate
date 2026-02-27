@@ -78,6 +78,7 @@ class OptionChoice:
     styles: list[str] = field(default_factory=list)
     skills: list[str] = field(default_factory=list)
     variables: dict[str, Any] = field(default_factory=dict)
+    quality_gates: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, name: str, data: dict[str, Any]) -> "OptionChoice":
@@ -89,6 +90,7 @@ class OptionChoice:
             styles=data.get("styles", []),
             skills=data.get("skills", []),
             variables=data.get("variables", {}),
+            quality_gates=data.get("quality_gates", {}),
         )
 
 
@@ -486,21 +488,23 @@ def get_stack_options(stack_name: str) -> dict[str, StackOption]:
 def apply_options(
     stack: StackConfig,
     selected_options: dict[str, str],
-) -> tuple[list[str], list[str], list[str], dict[str, Any]]:
+) -> tuple[list[str], list[str], list[str], dict[str, Any], dict[str, Any]]:
     """
-    Apply selected options to get additional patterns, styles, skills, and variables.
+    Apply selected options to get additional patterns, styles, skills, variables,
+    and quality gate overrides.
 
     Args:
         stack: Stack configuration
         selected_options: Map of option_name -> selected choice
 
     Returns:
-        Tuple of (patterns, styles, skills, variables) from selected options
+        Tuple of (patterns, styles, skills, variables, quality_gates) from selected options
     """
     extra_patterns: list[str] = []
     extra_styles: list[str] = []
     extra_skills: list[str] = []
     extra_variables: dict[str, Any] = {}
+    extra_quality_gates: dict[str, Any] = {}
 
     for opt_name, option in stack.options.items():
         # Use provided selection or default
@@ -518,8 +522,9 @@ def apply_options(
         extra_styles.extend(choice.styles)
         extra_skills.extend(choice.skills)
         extra_variables.update(choice.variables)
+        extra_quality_gates.update(choice.quality_gates)
 
-    return extra_patterns, extra_styles, extra_skills, extra_variables
+    return extra_patterns, extra_styles, extra_skills, extra_variables, extra_quality_gates
 
 
 def compose_stacks(
@@ -628,7 +633,7 @@ def compose_stacks(
         # Apply options if stack has any
         if stack.options:
             stack_opts = merged_options.get(stack.name, {})
-            extra_patterns, extra_styles, extra_skills, extra_vars = apply_options(
+            extra_patterns, extra_styles, extra_skills, extra_vars, extra_gates = apply_options(
                 stack, stack_opts
             )
 
@@ -653,6 +658,16 @@ def compose_stacks(
 
             # Add option-based variables
             merged_variables.update(extra_vars)
+
+            # Apply option-based quality gate overrides
+            for gate_name, gate_data in extra_gates.items():
+                if isinstance(gate_data, dict):
+                    stack.quality_gates[gate_name] = QualityGate(
+                        name=gate_name,
+                        command=gate_data.get("command", ""),
+                        fix_command=gate_data.get("fix_command"),
+                        description=gate_data.get("description"),
+                    )
 
             # Track what was selected
             selected_options[stack.name] = {

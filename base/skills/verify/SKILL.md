@@ -27,8 +27,10 @@ Automatically tests your implementation by actually running it:
 ### 1. Detect Stack
 
 Reads project configuration to determine verification strategy:
-- Rails/FastAPI → HTTP testing
-- Next.js → Browser testing via MCP
+- Rails/FastAPI/Django/Flask/Express/Sinatra → HTTP testing
+- Gin/Fiber/Chi → HTTP testing (Go)
+- Phoenix → HTTP testing (Elixir)
+- Next.js/Nuxt → Browser testing via MCP
 - React Native → Expo/Simulator testing
 
 ### 2. Ensure Dev Server Running
@@ -123,7 +125,7 @@ verify → fail → analyze → fix → verify → pass
 
 ## Stack-Specific Options
 
-### Backend (Rails/FastAPI)
+### Backend (Rails/FastAPI/Django/Flask/Express/Sinatra/Gin/Fiber/Chi/Phoenix)
 
 ```bash
 /verify --endpoint GET /api/users           # Test specific endpoint
@@ -132,7 +134,7 @@ verify → fail → analyze → fix → verify → pass
 /verify --auth                              # Test with authentication
 ```
 
-### Frontend (Next.js)
+### Frontend (Next.js/Nuxt)
 
 ```bash
 /verify --component Button                  # Test component renders

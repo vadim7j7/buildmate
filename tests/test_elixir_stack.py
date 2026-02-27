@@ -101,7 +101,7 @@ class TestLoadPhoenix:
         assert "styles/backend-elixir.md" in config.styles
 
     def test_phoenix_overrides_developer_agent(self):
-        """Phoenix should override backend-developer but inherit tester and reviewer."""
+        """Phoenix should override all three agents with its own."""
         config = load_stack("phoenix")
 
         agent_names = [a.name for a in config.agents]
@@ -113,10 +113,10 @@ class TestLoadPhoenix:
         assert dev.source_stack == "phoenix"
 
         tester = next(a for a in config.agents if a.name == "backend-tester")
-        assert tester.source_stack == "elixir"
+        assert tester.source_stack == "phoenix"
 
         reviewer = next(a for a in config.agents if a.name == "backend-reviewer")
-        assert reviewer.source_stack == "elixir"
+        assert reviewer.source_stack == "phoenix"
 
     def test_phoenix_has_own_skills(self):
         """Phoenix should have its own skills plus inherited ones."""

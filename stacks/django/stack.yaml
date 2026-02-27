@@ -26,11 +26,45 @@ agents:
       - new-url-config
       - new-model
       - new-service
+      - new-migration
+      - db-migrate
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Django/pytest testing specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-test
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Django code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
 
 skills:
   - new-view
   - new-serializer
   - new-url-config
+  - new-model
+  - new-schema
+  - new-service
+  - new-test
+  - new-migration
+  - db-migrate
+  - test
 
 patterns:
   - patterns/django-patterns.md

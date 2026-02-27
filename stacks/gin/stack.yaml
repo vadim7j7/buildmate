@@ -28,10 +28,37 @@ agents:
       - new-service
       - new-model
 
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Gin/Go testing specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Gin/Go code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
 skills:
   - new-router
   - new-middleware
   - new-handler
+  - new-service
+  - new-model
+  - test
 
 patterns:
   - patterns/gin-patterns.md

@@ -98,16 +98,16 @@ class TestLoadFlaskStack:
         assert config.quality_gates["format"].command == "uv run ruff format --check src/ tests/"
 
     def test_flask_inherits_python_tester_agent(self):
-        """Flask should have backend-tester from python parent."""
+        """Flask should have its own backend-tester and backend-reviewer."""
         config = load_stack("flask")
 
         agent_names = [a.name for a in config.agents]
         assert "backend-tester" in agent_names
         assert "backend-reviewer" in agent_names
 
-        # Verify tester came from python (source_stack)
+        # Verify tester comes from flask (overrides python parent)
         tester = next(a for a in config.agents if a.name == "backend-tester")
-        assert tester.source_stack == "python"
+        assert tester.source_stack == "flask"
 
     def test_flask_overrides_developer_agent(self):
         """Flask's backend-developer should replace python's."""
@@ -414,7 +414,7 @@ class TestLoadDjango:
         assert "styles/backend-python.md" in config.styles
 
     def test_django_overrides_developer_agent(self):
-        """Django should override backend-developer but inherit tester and reviewer."""
+        """Django should override all three agents with its own."""
         config = load_stack("django")
 
         agent_names = [a.name for a in config.agents]
@@ -426,7 +426,7 @@ class TestLoadDjango:
         assert dev.source_stack == "django"
 
         tester = next(a for a in config.agents if a.name == "backend-tester")
-        assert tester.source_stack == "python"
+        assert tester.source_stack == "django"
 
     def test_django_has_own_skills(self):
         """Django should have new-view, new-serializer, new-url-config skills."""

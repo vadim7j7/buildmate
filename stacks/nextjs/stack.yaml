@@ -155,6 +155,7 @@ agents:
 
 skills:
   - new-component
+  - component-gen
   - new-page
   - new-container
   - new-context

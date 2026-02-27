@@ -29,11 +29,38 @@ agents:
       - new-module
       - new-genserver
 
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Phoenix/ExUnit testing specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Phoenix code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
 skills:
   - new-context
   - new-live
   - new-controller
   - new-channel
+  - new-module
+  - new-genserver
+  - test
 
 patterns:
   - patterns/phoenix-patterns.md
@@ -51,4 +78,4 @@ verification:
   dev_server:
     command: mix phx.server
     port: 4000
-    health_check: /
+    health_check: /health

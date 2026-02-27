@@ -27,9 +27,37 @@ agents:
       - new-model
       - new-service
 
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Sinatra/RSpec testing specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-spec
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Sinatra code reviewer
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
 skills:
   - new-route
   - new-helper
+  - new-model
+  - new-service
+  - new-spec
 
 patterns:
   - patterns/sinatra-patterns.md
