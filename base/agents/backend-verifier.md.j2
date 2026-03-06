@@ -4,15 +4,17 @@ description: |
   Backend verification specialist. Tests API endpoints by making actual HTTP requests,
   validates responses, checks error handling, and verifies database operations.
   Automatically fixes issues and retries until verification passes.
-tools: Read, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob
 model: {{ default_model }}
 ---
 
-{% set ns = namespace(port=3000, dir='.') %}
+{% set ns = namespace(port=3000, dir='.', stack_name='') %}
+{% set backend_stacks = ['rails', 'fastapi', 'express', 'django', 'sinatra', 'flask', 'gin', 'fiber', 'chi', 'phoenix'] %}
 {% for s in stacks %}
-{% if 'rails' in s.name or 'fastapi' in s.name %}
+{% if s.name in backend_stacks %}
 {% set ns.port = s.variables.dev_port | default(8000) %}
 {% set ns.dir = s.working_dir | default('.') %}
+{% set ns.stack_name = s.name %}
 {% endif %}
 {% endfor %}
 # Backend Verifier
@@ -45,17 +47,48 @@ lsof -i :{{ ns.port }} | grep LISTEN
 ### Start Server if Needed
 
 {% for s in stacks %}
-{% if 'rails' in s.name %}
+{% if s.name in backend_stacks %}
+{% if s.name == 'rails' %}
 ```bash
 # Rails
 cd {{ ns.dir }} && bundle exec rails server -p {{ ns.port }} -d
 ```
-{% endif %}
-{% if 'fastapi' in s.name %}
+{% elif s.name == 'fastapi' %}
 ```bash
 # FastAPI
 cd {{ ns.dir }} && uvicorn main:app --port {{ ns.port }} &
 ```
+{% elif s.name == 'django' %}
+```bash
+# Django
+cd {{ ns.dir }} && python manage.py runserver {{ ns.port }} &
+```
+{% elif s.name == 'express' %}
+```bash
+# Express
+cd {{ ns.dir }} && npm run dev &
+```
+{% elif s.name == 'sinatra' %}
+```bash
+# Sinatra
+cd {{ ns.dir }} && bundle exec ruby app.rb -p {{ ns.port }} &
+```
+{% elif s.name == 'flask' %}
+```bash
+# Flask
+cd {{ ns.dir }} && flask run --port {{ ns.port }} &
+```
+{% elif s.name == 'gin' or s.name == 'fiber' or s.name == 'chi' %}
+```bash
+# Go ({{ s.name | title }})
+cd {{ ns.dir }} && go run . &
+```
+{% elif s.name == 'phoenix' %}
+```bash
+# Phoenix
+cd {{ ns.dir }} && mix phx.server &
+```
+{% endif %}
 {% endif %}
 {% endfor %}
 

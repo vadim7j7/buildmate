@@ -127,6 +127,7 @@ async def _ws_poll_loop() -> None:
     prev_snapshot: str = ""
     last_activity_id: int = 0
     last_question_snapshot: str = ""
+    prev_artifact_snapshot: str = ""
     prev_service_snapshot: str = ""
 
     while True:
@@ -163,6 +164,25 @@ async def _ws_poll_loop() -> None:
                 await _ws_broadcast(
                     {"type": "questions", "data": all_pending}
                 )
+
+            # Broadcast artifact changes for all in_progress tasks
+            # This ensures artifacts show up in real-time when created via MCP tools
+            in_progress_tasks = [
+                t for t in tasks
+                if t.get("status") in ("in_progress", "completed")
+            ]
+            if in_progress_tasks:
+                all_artifacts = []
+                for t in in_progress_tasks:
+                    arts = db.get_artifacts(t["id"], include_children=True)
+                    for a in arts:
+                        all_artifacts.append(a)
+                a_snapshot = json.dumps(all_artifacts, sort_keys=True)
+                if a_snapshot != prev_artifact_snapshot:
+                    prev_artifact_snapshot = a_snapshot
+                    await _ws_broadcast(
+                        {"type": "artifacts", "data": all_artifacts}
+                    )
 
             # Broadcast process info — always send so UI clears stale entries
             if queue:

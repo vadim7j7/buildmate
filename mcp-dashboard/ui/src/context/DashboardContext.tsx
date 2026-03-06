@@ -304,6 +304,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             refreshTasks()
             break
           }
+          case 'artifacts': {
+            const artifacts = msg.data as Artifact[]
+            const taskId = selectedTaskIdRef.current
+            if (taskId) {
+              const relevantIds = getRelevantTaskIds(tasksRef.current, taskId)
+              const relevant = artifacts.filter(a => relevantIds.has(a.task_id))
+              if (relevant.length > 0) {
+                dispatch({ type: 'SET_ARTIFACTS', artifacts: relevant })
+              }
+            }
+            break
+          }
           case 'processes': {
             const processes = msg.data as Record<string, ProcessStatus>
             dispatch({ type: 'SET_PROCESSES', processes })

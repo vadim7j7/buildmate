@@ -124,7 +124,7 @@ export interface ChatMessage {
 }
 
 export interface WSMessage {
-  type: 'init' | 'tasks_updated' | 'stats' | 'activity' | 'questions' | 'processes' | 'services' | 'pong'
+  type: 'init' | 'tasks_updated' | 'stats' | 'activity' | 'questions' | 'artifacts' | 'processes' | 'services' | 'pong'
     | 'chat_delta' | 'chat_complete' | 'chat_error' | 'chat_cancelled'
     | 'chat_task_created' | 'chat_task_list' | 'chat_task_info'
     | 'chat_task_cancelled' | 'chat_task_deleted'

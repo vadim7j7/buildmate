@@ -237,6 +237,14 @@ def install_dashboard(
         "mcp__dashboard__dashboard_ask_question",
         "mcp__dashboard__dashboard_get_task",
         "mcp__dashboard__dashboard_add_artifact",
+        # MCP puppeteer tools (for frontend verification)
+        "mcp__puppeteer__puppeteer_navigate",
+        "mcp__puppeteer__puppeteer_screenshot",
+        "mcp__puppeteer__puppeteer_click",
+        "mcp__puppeteer__puppeteer_fill",
+        "mcp__puppeteer__puppeteer_select",
+        "mcp__puppeteer__puppeteer_hover",
+        "mcp__puppeteer__puppeteer_evaluate",
     ]
     for perm in dashboard_permissions:
         if perm not in allow_list:

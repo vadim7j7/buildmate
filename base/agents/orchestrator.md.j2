@@ -335,21 +335,19 @@ impl_subtask_{{ stack.name }} = dashboard_create_subtask(
 
 # 2. Verification subtasks (run browser/API tests to verify implementation)
 {% for stack in stacks %}
-{% if 'nextjs' in stack.name %}
+{% if stack.name in ['nextjs', 'nuxt'] %}
 verify_subtask_{{ stack.name }} = dashboard_create_subtask(
     parent_id="<root_task_id>",
     title="Verify {{ stack.display_name }} UI in browser",
     assigned_agent="frontend-verifier"
 )
-{% endif %}
-{% if 'rails' in stack.name or 'fastapi' in stack.name %}
+{% elif stack.name in ['rails', 'fastapi', 'express', 'django', 'sinatra', 'flask', 'gin', 'fiber', 'chi', 'phoenix'] %}
 verify_subtask_{{ stack.name }} = dashboard_create_subtask(
     parent_id="<root_task_id>",
     title="Verify {{ stack.display_name }} API endpoints",
     assigned_agent="backend-verifier"
 )
-{% endif %}
-{% if 'native' in stack.name %}
+{% elif 'native' in stack.name %}
 verify_subtask_{{ stack.name }} = dashboard_create_subtask(
     parent_id="<root_task_id>",
     title="Verify {{ stack.display_name }} components",
@@ -405,6 +403,18 @@ docs_subtask = dashboard_create_subtask(
 ```
 
 **Store all subtask IDs.** You will update them to `in_progress` when each phase starts and `completed`/`failed` when done.
+
+> **⚠ MANDATORY RULE — NEVER SKIP STATUS UPDATES ⚠**
+>
+> Every single subtask MUST go through this lifecycle — no exceptions:
+>
+> 1. `dashboard_update_status(task_id=<subtask_id>, status="in_progress")` — BEFORE delegating
+> 2. Delegate work via Task tool
+> 3. `dashboard_update_status(task_id=<subtask_id>, status="completed", result="...")` — AFTER delegation returns
+>
+> This applies to ALL subtasks: implementation, verification, testing, grind, review, eval, AND docs.
+> If you skip a status update, the dashboard will show the subtask as "skipped" which confuses users.
+> If a phase is skipped for a valid reason, still mark the subtask: `status="completed", result="Skipped: <reason>"`
 
 {% endif %}
 ### 1.7 Create Feature Branch (If Configured)
@@ -551,7 +561,7 @@ dashboard_log(task_id=<verify_subtask_id>, message="Starting: self-verification 
 {% endif %}
 
 {% for stack in stacks %}
-{% if 'rails' in stack.name or 'fastapi' in stack.name %}
+{% if stack.name in ['rails', 'fastapi', 'express', 'django', 'sinatra', 'flask', 'gin', 'fiber', 'chi', 'phoenix'] %}
 #### {{ stack.display_name }} Verification
 
 ```
@@ -571,8 +581,7 @@ If verification fails, analyze the error, fix the code, and retry (max 3 attempt
 Report: VERIFIED or FAILED with details."
 ```
 
-{% endif %}
-{% if 'nextjs' in stack.name %}
+{% elif stack.name in ['nextjs', 'nuxt'] %}
 #### {{ stack.display_name }} Verification
 
 ```
@@ -594,8 +603,7 @@ If verification fails, analyze the error, fix the code, and retry (max 3 attempt
 Report: VERIFIED or FAILED with details."
 ```
 
-{% endif %}
-{% if 'native' in stack.name %}
+{% elif 'native' in stack.name %}
 #### {{ stack.display_name }} Verification
 
 ```
@@ -625,20 +633,24 @@ dashboard_update_status(task_id=<verify_subtask_id>, status="completed", result=
 
 # Register verification artifacts that the verifier wrote to disk:
 {% for stack in stacks %}
-{% if 'nextjs' in stack.name %}
+{% if stack.name in ['nextjs', 'nuxt'] %}
 # Register screenshots (check which files exist first using Glob)
 # Glob for .agent-pipeline/screenshots/*.png, then register each:
 dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/screenshots/<name>.png", artifact_type="screenshot", label="<name> screenshot")
 # Register the verification report
 dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/frontend-verification-report.md", artifact_type="markdown_report", label="Frontend Verification Report")
-{% endif %}
-{% if 'rails' in stack.name or 'fastapi' in stack.name %}
+{% elif stack.name in ['rails', 'fastapi', 'express', 'django', 'sinatra', 'flask', 'gin', 'fiber', 'chi', 'phoenix'] %}
 dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/backend-verification-report.md", artifact_type="markdown_report", label="Backend Verification Report")
 {% endif %}
 {% endfor %}
 ```
 
 **IMPORTANT:** Use Glob to find actual screenshot files in `.agent-pipeline/screenshots/` and register each one. Only register files that exist.
+
+> **⚠ ARTIFACT REGISTRATION IS MANDATORY ⚠**
+> Sub-agents do NOT have MCP access. YOU (the orchestrator) MUST register all artifacts.
+> After EVERY verification, eval, and docs delegation, check for output files and register them.
+> Without this, the dashboard will show no artifacts even though files exist on disk.
 {% endif %}
 
 - If verifier returns **VERIFIED**: proceed to testing
@@ -896,6 +908,16 @@ Update the feature file status to `COMPLETE`.
 {% if dashboard %}
 ```
 dashboard_update_phase(task_id="<root_task_id>", phase="completion")
+```
+
+**BEFORE marking the root task as completed, verify ALL subtasks have been updated:**
+
+```
+# Check each subtask — if any is still "pending", mark it now:
+# For each subtask_id in [impl_subtask, verify_subtask, test_subtask, grind_subtask, review_subtask, eval_subtask, docs_subtask]:
+#   task = dashboard_get_task(task_id=subtask_id)
+#   if task.status == "pending":
+#       dashboard_update_status(task_id=subtask_id, status="completed", result="Skipped")
 ```
 {% endif %}
 

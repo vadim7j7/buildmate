@@ -9,8 +9,9 @@ model: {{ default_model }}
 ---
 
 {% set ns = namespace(port=3000, dir='.') %}
+{% set frontend_stacks = ['nextjs', 'nuxt', 'react-native'] %}
 {% for s in stacks %}
-{% if 'nextjs' in s.name or 'react' in s.name %}
+{% if s.name in frontend_stacks or 'react' in s.name %}
 {% set ns.port = s.variables.dev_port | default(3000) %}
 {% set ns.dir = s.working_dir | default('.') %}
 {% endif %}
