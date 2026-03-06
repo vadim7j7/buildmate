@@ -30,6 +30,11 @@ export interface Task {
   revision_count: number
   auto_accept: boolean
   source: 'cli' | 'dashboard'
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number
+  duration_ms: number
+  num_turns: number
   created_at: string
   updated_at: string
   children: Task[]

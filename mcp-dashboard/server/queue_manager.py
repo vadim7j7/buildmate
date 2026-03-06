@@ -26,6 +26,11 @@ class ProcessInfo:
     process: asyncio.subprocess.Process
     prompt: str
     claude_session_id: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
+    duration_ms: int = 0
+    num_turns: int = 0
 
 
 class QueueManager:
@@ -535,6 +540,19 @@ class QueueManager:
             await info.process.wait()
             return_code = info.process.returncode
 
+            # Persist usage data regardless of exit status
+            usage_kwargs = {}
+            if info.input_tokens:
+                usage_kwargs["input_tokens"] = info.input_tokens
+            if info.output_tokens:
+                usage_kwargs["output_tokens"] = info.output_tokens
+            if info.cost_usd:
+                usage_kwargs["cost_usd"] = info.cost_usd
+            if info.duration_ms:
+                usage_kwargs["duration_ms"] = info.duration_ms
+            if info.num_turns:
+                usage_kwargs["num_turns"] = info.num_turns
+
             if return_code == 0:
                 task = self._db.get_task(task_id)
                 if task and task.get("status") != "completed":
@@ -543,10 +561,14 @@ class QueueManager:
                         status="completed",
                         phase="completion",
                         result="Process completed successfully",
+                        **usage_kwargs,
                     )
-                elif task and task.get("phase") != "completion":
-                    # Status was already set by Claude, but phase may be stale
-                    self._db.update_task(task_id, phase="completion")
+                else:
+                    update_kw = {}
+                    if task and task.get("phase") != "completion":
+                        update_kw["phase"] = "completion"
+                    if usage_kwargs or update_kw:
+                        self._db.update_task(task_id, **update_kw, **usage_kwargs)
                 self._db.log_activity(
                     task_id, "message", None, "Claude process completed"
                 )
@@ -556,6 +578,7 @@ class QueueManager:
                     task_id,
                     status="failed",
                     result=f"Process exited with code {return_code}. {error_msg}".strip(),
+                    **usage_kwargs,
                 )
                 self._db.log_activity(
                     task_id,
@@ -614,6 +637,26 @@ class QueueManager:
                 self._db.log_activity(
                     task_id, "message", "claude", f"Agent result: {sub_result[:300]}"
                 )
+            # Extract usage/cost data from result event
+            info = self._processes.get(task_id)
+            if info:
+                if "cost_usd" in data:
+                    info.cost_usd = data["cost_usd"] or 0
+                if "duration_ms" in data:
+                    info.duration_ms = data["duration_ms"] or 0
+                if "num_turns" in data:
+                    info.num_turns = data["num_turns"] or 0
+                if "input_tokens" in data:
+                    info.input_tokens = data["input_tokens"] or 0
+                if "output_tokens" in data:
+                    info.output_tokens = data["output_tokens"] or 0
+                # Some formats nest usage under "usage" key
+                usage = data.get("usage", {})
+                if isinstance(usage, dict):
+                    if "input_tokens" in usage:
+                        info.input_tokens = usage["input_tokens"] or 0
+                    if "output_tokens" in usage:
+                        info.output_tokens = usage["output_tokens"] or 0
 
         # --- Tool use ---
         elif msg_type == "tool_use":

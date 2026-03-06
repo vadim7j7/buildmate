@@ -4,6 +4,8 @@ import {
   ChevronDown,
   ChevronRight,
   Circle,
+  Clock,
+  Coins,
   Expand,
   Loader,
   MessageSquare,
@@ -14,6 +16,7 @@ import {
   Trash2,
   X,
   XCircle,
+  Zap,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
@@ -164,6 +167,23 @@ function ExpandableText({ content, label, maxLines = 3 }: ExpandableTextProps) {
   )
 }
 
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return n.toString()
+}
+
+function formatDuration(ms: number): string {
+  const secs = Math.floor(ms / 1000)
+  if (secs < 60) return `${secs}s`
+  const mins = Math.floor(secs / 60)
+  const remainSecs = secs % 60
+  if (mins < 60) return `${mins}m ${remainSecs}s`
+  const hrs = Math.floor(mins / 60)
+  const remainMins = mins % 60
+  return `${hrs}h ${remainMins}m`
+}
+
 export function TaskDetailPanel() {
   const { state, selectTask, refreshTasks, refreshStats } = useDashboard()
   const [answeringQuestion, setAnsweringQuestion] = useState<Question | null>(null)
@@ -274,6 +294,48 @@ export function TaskDetailPanel() {
               </span>
             )}
           </div>
+
+          {/* Usage Stats */}
+          {(task.input_tokens > 0 || task.output_tokens > 0 || task.cost_usd > 0) && (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                <Zap className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Tokens</div>
+                  <div className="text-xs text-gray-300 font-medium">
+                    {formatNumber(task.input_tokens + task.output_tokens)}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                <Coins className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Cost</div>
+                  <div className="text-xs text-gray-300 font-medium">
+                    ${task.cost_usd < 0.01 && task.cost_usd > 0 ? task.cost_usd.toFixed(4) : task.cost_usd.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+              {task.duration_ms > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                  <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Duration</div>
+                    <div className="text-xs text-gray-300 font-medium">{formatDuration(task.duration_ms)}</div>
+                  </div>
+                </div>
+              )}
+              {task.num_turns > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                  <MessageSquare className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Turns</div>
+                    <div className="text-xs text-gray-300 font-medium">{task.num_turns}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Process Status */}
           {processStatus?.status === 'running' && (

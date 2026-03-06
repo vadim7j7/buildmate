@@ -28,6 +28,11 @@ CREATE TABLE IF NOT EXISTS tasks (
     revision_count INTEGER DEFAULT 0,
     auto_accept BOOLEAN DEFAULT FALSE,
     source TEXT DEFAULT 'cli',
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    num_turns INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -141,6 +146,18 @@ def init_db(db_path: str | None = None) -> None:
             conn.execute("ALTER TABLE tasks ADD COLUMN revision_count INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
+        # Migration: add token tracking columns
+        for col, typedef in [
+            ("input_tokens", "INTEGER DEFAULT 0"),
+            ("output_tokens", "INTEGER DEFAULT 0"),
+            ("cost_usd", "REAL DEFAULT 0"),
+            ("duration_ms", "INTEGER DEFAULT 0"),
+            ("num_turns", "INTEGER DEFAULT 0"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {typedef}")
+            except sqlite3.OperationalError:
+                pass
         conn.commit()
     finally:
         conn.close()
@@ -215,6 +232,11 @@ class SyncDB:
         pid=_UNSET,
         claude_session_id=_UNSET,
         revision_count=_UNSET,
+        input_tokens=_UNSET,
+        output_tokens=_UNSET,
+        cost_usd=_UNSET,
+        duration_ms=_UNSET,
+        num_turns=_UNSET,
     ) -> dict | None:
         conn = self._conn()
         try:
@@ -241,6 +263,21 @@ class SyncDB:
             if revision_count is not _UNSET:
                 updates.append("revision_count = ?")
                 params.append(revision_count)
+            if input_tokens is not _UNSET:
+                updates.append("input_tokens = ?")
+                params.append(input_tokens)
+            if output_tokens is not _UNSET:
+                updates.append("output_tokens = ?")
+                params.append(output_tokens)
+            if cost_usd is not _UNSET:
+                updates.append("cost_usd = ?")
+                params.append(cost_usd)
+            if duration_ms is not _UNSET:
+                updates.append("duration_ms = ?")
+                params.append(duration_ms)
+            if num_turns is not _UNSET:
+                updates.append("num_turns = ?")
+                params.append(num_turns)
 
             if not updates:
                 return self.get_task(task_id)

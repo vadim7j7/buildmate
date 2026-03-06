@@ -1,4 +1,4 @@
-import { AlertCircle, Award, CheckCircle, Circle, Loader, MessageSquare, XCircle } from 'lucide-react'
+import { AlertCircle, Award, CheckCircle, Circle, Coins, Loader, MessageSquare, XCircle } from 'lucide-react'
 import type { Task, TaskStatus } from '../types'
 import { AgentBadge } from './AgentBadge'
 
@@ -100,6 +100,13 @@ export function TaskCard({ task, selected, onClick }: TaskCardProps) {
         {task.source === 'dashboard' && (
           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-accent-500/15 text-accent-300 text-[10px] font-medium border border-accent-500/20">
             UI
+          </span>
+        )}
+
+        {task.cost_usd > 0 && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-medium border border-emerald-500/20">
+            <Coins className="w-3 h-3" />
+            ${task.cost_usd < 0.01 ? task.cost_usd.toFixed(4) : task.cost_usd.toFixed(2)}
           </span>
         )}
       </div>
