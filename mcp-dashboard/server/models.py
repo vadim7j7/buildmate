@@ -11,6 +11,7 @@ class TaskCreate(BaseModel):
     title: str
     description: str = ""
     auto_accept: bool = False
+    resume_session_id: str | None = None
 
 
 class TaskUpdate(BaseModel):

@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   Circle,
+  Expand,
   Loader,
   MessageSquare,
   Play,
@@ -14,7 +15,9 @@ import {
   X,
   XCircle,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
 import type { Artifact, Question, Task, TaskStatus } from '../types'
@@ -60,6 +63,104 @@ function SectionHeader({ label, count, expanded, onToggle }: SectionHeaderProps)
         </span>
       )}
     </button>
+  )
+}
+
+type FullViewModalProps = {
+  title: string
+  content: string
+  onClose: () => void
+}
+
+function FullViewModal({ title, content, onClose }: FullViewModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface-900 border border-surface-700/50 rounded-2xl shadow-modal w-full max-w-3xl max-h-[85vh] flex flex-col animate-scale-in"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-800/50">
+          <h3 className="text-base font-semibold text-white">{title}</h3>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="artifact-markdown">
+            <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type ExpandableTextProps = {
+  content: string
+  label: string
+  maxLines?: number
+}
+
+function ExpandableText({ content, label, maxLines = 3 }: ExpandableTextProps) {
+  const [clamped, setClamped] = useState(true)
+  const [isOverflowing, setIsOverflowing] = useState(false)
+  const [fullView, setFullView] = useState(false)
+  const textRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = textRef.current
+    if (el) {
+      setIsOverflowing(el.scrollHeight > el.clientHeight + 1)
+    }
+  }, [content])
+
+  return (
+    <>
+      <div className="relative mb-3 group/expandable">
+        <div
+          ref={textRef}
+          className="text-sm text-gray-400 leading-relaxed artifact-markdown"
+          style={clamped ? {
+            display: '-webkit-box',
+            WebkitLineClamp: maxLines,
+            WebkitBoxOrient: 'vertical' as const,
+            overflow: 'hidden',
+          } : undefined}
+        >
+          <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+        </div>
+        {(isOverflowing || !clamped) && (
+          <div className="flex items-center gap-2 mt-1.5">
+            <button
+              onClick={() => setClamped(!clamped)}
+              className="text-xs text-accent-400 hover:text-accent-300 font-medium transition-colors"
+            >
+              {clamped ? 'Show more' : 'Show less'}
+            </button>
+            <button
+              onClick={() => setFullView(true)}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              <Expand className="w-3 h-3" />
+              Full view
+            </button>
+          </div>
+        )}
+      </div>
+      {fullView && (
+        <FullViewModal
+          title={label}
+          content={content}
+          onClose={() => setFullView(false)}
+        />
+      )}
+    </>
   )
 }
 
@@ -156,7 +257,7 @@ export function TaskDetailPanel() {
           </div>
 
           {task.description && (
-            <p className="text-sm text-gray-400 mb-3 leading-relaxed">{task.description}</p>
+            <ExpandableText content={task.description} label="Description" />
           )}
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -191,8 +292,8 @@ export function TaskDetailPanel() {
           )}
 
           {task.result && (
-            <div className="mt-4 p-4 bg-surface-850 rounded-xl text-sm text-gray-300 max-h-24 overflow-y-auto border border-surface-700/50">
-              {task.result}
+            <div className="mt-4 p-4 bg-surface-850 rounded-xl border border-surface-700/50">
+              <ExpandableText content={task.result} label="Result" maxLines={4} />
             </div>
           )}
 

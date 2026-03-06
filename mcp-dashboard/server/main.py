@@ -233,6 +233,10 @@ async def create_task(body: TaskCreate):
         auto_accept=body.auto_accept,
         source="dashboard",
     )
+    # If resuming from an existing session, store the session ID on the new task
+    if body.resume_session_id:
+        db.update_task(task_id, claude_session_id=body.resume_session_id)
+        task = db.get_task(task_id)
     return task
 
 
@@ -364,7 +368,9 @@ async def run_task(task_id: str, body: RunTaskRequest | None = None):
         if task.get("description"):
             prompt += f"\n\n{task['description']}"
 
-    success = await queue.spawn(task_id, prompt)
+    # If the task has a stored session ID (from resume picker), use it
+    claude_session_id = task.get("claude_session_id")
+    success = await queue.spawn(task_id, prompt, claude_session_id=claude_session_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to spawn Claude process")
 

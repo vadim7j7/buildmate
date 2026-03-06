@@ -18,10 +18,15 @@ export const api = {
   // Tasks
   listTasks: () => request<Task[]>('/tasks'),
   getTask: (id: string) => request<Task>(`/tasks/${id}`),
-  createTask: (title: string, description: string, autoAccept: boolean) =>
+  createTask: (title: string, description: string, autoAccept: boolean, resumeSessionId?: string) =>
     request<Task>('/tasks', {
       method: 'POST',
-      body: JSON.stringify({ title, description, auto_accept: autoAccept }),
+      body: JSON.stringify({
+        title,
+        description,
+        auto_accept: autoAccept,
+        ...(resumeSessionId ? { resume_session_id: resumeSessionId } : {}),
+      }),
     }),
   updateTask: (id: string, data: Partial<{ status: string; phase: string; result: string }>) =>
     request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

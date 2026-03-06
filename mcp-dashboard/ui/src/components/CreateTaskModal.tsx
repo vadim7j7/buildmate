@@ -1,5 +1,7 @@
-import { Plus, X } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, Expand, GitBranch, Minimize2, Plus, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
 
@@ -8,11 +10,33 @@ type CreateTaskModalProps = {
 }
 
 export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
-  const { refreshTasks, refreshStats } = useDashboard()
+  const { state, refreshTasks, refreshStats } = useDashboard()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [autoAccept, setAutoAccept] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [resumeSessionId, setResumeSessionId] = useState<string | null>(null)
+  const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Tasks that have a claude_session_id (completed, failed, or ran at least once)
+  const tasksWithSessions = useMemo(() => {
+    const collect = (tasks: typeof state.tasks): typeof state.tasks => {
+      const result: typeof state.tasks = []
+      for (const t of tasks) {
+        if (t.claude_session_id) result.push(t)
+        if (t.children?.length) result.push(...collect(t.children))
+      }
+      return result
+    }
+    return collect(state.tasks).sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    )
+  }, [state.tasks])
+
+  const selectedSession = tasksWithSessions.find(t => t.claude_session_id === resumeSessionId)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,7 +44,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
 
     setLoading(true)
     try {
-      await api.createTask(title.trim(), description.trim(), autoAccept)
+      await api.createTask(title.trim(), description.trim(), autoAccept, resumeSessionId || undefined)
       await refreshTasks()
       await refreshStats()
       onClose()
@@ -31,13 +55,34 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
     }
   }
 
+  const formatTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    const days = Math.floor(hrs / 24)
+    return `${days}d ago`
+  }
+
+  const statusColor: Record<string, string> = {
+    completed: 'text-emerald-400',
+    failed: 'text-red-400',
+    in_progress: 'text-amber-400',
+    pending: 'text-gray-400',
+    blocked: 'text-orange-400',
+  }
+
   return (
     <div
       className="modal-backdrop animate-fade-in p-6"
       onClick={onClose}
     >
       <div
-        className="modal-content w-full max-w-md"
+        className={`modal-content w-full transition-all duration-300 ${
+          expanded ? 'max-w-5xl max-h-[90vh]' : 'max-w-2xl'
+        } flex flex-col`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -48,17 +93,26 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
             </div>
             <h2 className="text-lg font-semibold text-white">New Task</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+              title={expanded ? 'Collapse' : 'Expand'}
+            >
+              {expanded ? <Minimize2 className="w-4 h-4" /> : <Expand className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 pb-6">
-          <div className="space-y-5">
+        <form onSubmit={handleSubmit} className="px-6 pb-6 flex flex-col flex-1 min-h-0">
+          <div className="space-y-5 flex-1 flex flex-col min-h-0">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Title
@@ -78,23 +132,157 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Detailed requirements..."
-                rows={4}
-                className="
-                  w-full bg-surface-850 border border-surface-700 rounded-xl
-                  px-4 py-3 text-sm text-white placeholder-gray-500
-                  resize-none transition-all duration-200
-                  focus:outline-none focus:border-accent-500/50 focus:ring-2 focus:ring-accent-500/20
-                "
-              />
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Description
+                </label>
+                {description.trim() && (
+                  <div className="flex items-center gap-1 bg-surface-800 rounded-lg p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(false)}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                        !showPreview
+                          ? 'bg-surface-700 text-white'
+                          : 'text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      Write
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(true)}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                        showPreview
+                          ? 'bg-surface-700 text-white'
+                          : 'text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                )}
+              </div>
+              {showPreview && description.trim() ? (
+                <div
+                  className={`flex-1 bg-surface-850 border border-surface-700 rounded-xl px-4 py-3 overflow-y-auto artifact-markdown ${
+                    expanded ? 'min-h-[300px]' : 'min-h-[160px]'
+                  }`}
+                >
+                  <Markdown remarkPlugins={[remarkGfm]}>{description}</Markdown>
+                </div>
+              ) : (
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Detailed requirements... (supports Markdown)"
+                  rows={expanded ? 14 : 8}
+                  className={`
+                    w-full bg-surface-850 border border-surface-700 rounded-xl
+                    px-4 py-3 text-sm text-white placeholder-gray-500
+                    resize-y transition-all duration-200
+                    focus:outline-none focus:border-accent-500/50 focus:ring-2 focus:ring-accent-500/20
+                    ${expanded ? 'flex-1 min-h-[300px]' : 'min-h-[160px]'}
+                  `}
+                />
+              )}
             </div>
+
+            {/* Resume Session Picker */}
+            {tasksWithSessions.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Resume Session
+                  <span className="text-xs text-gray-500 ml-2 font-normal">(optional)</span>
+                </label>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setSessionDropdownOpen(!sessionDropdownOpen)}
+                    className={`
+                      w-full flex items-center justify-between gap-2
+                      bg-surface-850 border rounded-xl px-4 py-3 text-sm
+                      transition-all duration-200
+                      ${resumeSessionId
+                        ? 'border-accent-500/40 text-white'
+                        : 'border-surface-700 text-gray-500'
+                      }
+                      hover:border-surface-600
+                    `}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GitBranch className={`w-4 h-4 flex-shrink-0 ${resumeSessionId ? 'text-accent-400' : 'text-gray-500'}`} />
+                      {selectedSession ? (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="truncate">{selectedSession.title}</span>
+                          <span className={`text-[11px] flex-shrink-0 ${statusColor[selectedSession.status] || 'text-gray-400'}`}>
+                            {selectedSession.status}
+                          </span>
+                          <span className="text-[11px] text-gray-600 flex-shrink-0">
+                            {formatTimeAgo(selectedSession.updated_at)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span>New session (default)</span>
+                      )}
+                    </div>
+                    <ChevronDown className={`w-4 h-4 flex-shrink-0 text-gray-500 transition-transform ${sessionDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {sessionDropdownOpen && (
+                    <div className="absolute z-20 mt-1 w-full bg-surface-850 border border-surface-700 rounded-xl shadow-modal overflow-hidden animate-fade-in-down">
+                      <div className="max-h-48 overflow-y-auto">
+                        <button
+                          type="button"
+                          onClick={() => { setResumeSessionId(null); setSessionDropdownOpen(false) }}
+                          className={`
+                            w-full text-left px-4 py-2.5 text-sm flex items-center gap-2
+                            transition-colors hover:bg-surface-800
+                            ${!resumeSessionId ? 'text-accent-400 bg-accent-500/5' : 'text-gray-300'}
+                          `}
+                        >
+                          <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                          New session
+                        </button>
+                        {tasksWithSessions.map(t => (
+                          <button
+                            type="button"
+                            key={t.id}
+                            onClick={() => { setResumeSessionId(t.claude_session_id); setSessionDropdownOpen(false) }}
+                            className={`
+                              w-full text-left px-4 py-2.5 text-sm
+                              transition-colors hover:bg-surface-800
+                              ${resumeSessionId === t.claude_session_id ? 'text-accent-400 bg-accent-500/5' : 'text-gray-300'}
+                            `}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate">{t.title}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className={`text-[11px] ${statusColor[t.status] || 'text-gray-400'}`}>
+                                  {t.status}
+                                </span>
+                                <span className="text-[11px] text-gray-600">
+                                  {formatTimeAgo(t.updated_at)}
+                                </span>
+                              </div>
+                            </div>
+                            {t.assigned_agent && (
+                              <span className="text-[11px] text-gray-500 mt-0.5 block">{t.assigned_agent}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {resumeSessionId && (
+                  <p className="mt-1.5 text-[11px] text-amber-400/70 flex items-center gap-1">
+                    This task will continue in the session from "{selectedSession?.title}"
+                  </p>
+                )}
+              </div>
+            )}
 
             <label className="flex items-center gap-3 cursor-pointer group">
               <div className="relative">
