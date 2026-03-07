@@ -5,6 +5,8 @@ import {
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
+import { useResizablePanel } from '../hooks/useResizablePanel'
+import { ResizeHandle } from './ResizeHandle'
 import type { Service } from '../types'
 
 const STATUS_CLASS: Record<Service['status'], string> = {
@@ -446,9 +448,10 @@ function ServiceRow({ service }: { service: Service }) {
 }
 
 export function ServicesPanel() {
-  const { state } = useDashboard()
+  const { state, toggleServices } = useDashboard()
   const { services } = state
   const [reloading, setReloading] = useState(false)
+  const { handleResizeStart } = useResizablePanel('stack')
 
   const runningCount = services.filter(s => s.status === 'running').length
 
@@ -463,7 +466,8 @@ export function ServicesPanel() {
   }
 
   return (
-    <div className="w-[420px] border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right">
+    <div className="w-full border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right relative">
+      <ResizeHandle onMouseDown={handleResizeStart} />
       {/* Header */}
       <div className="px-5 py-4 border-b border-surface-800/50">
         <div className="flex items-center gap-2.5">
@@ -479,6 +483,13 @@ export function ServicesPanel() {
             title="Reload configuration"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${reloading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={toggleServices}
+            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>

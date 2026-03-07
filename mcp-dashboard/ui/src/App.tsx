@@ -8,6 +8,7 @@ import { TeamPanel } from './components/TeamPanel'
 import { ToastContainer } from './components/ToastContainer'
 import { ChatProvider, useChat } from './context/ChatContext'
 import { DashboardProvider, useDashboard } from './context/DashboardContext'
+import { useStackPanelWidth } from './hooks/useResizablePanel'
 
 type PanelKey = 'chat' | 'team' | 'services'
 
@@ -45,13 +46,15 @@ function RightPanelStack() {
     prevOpen.current = current
   }, [chatState.chatOpen, state.showTeam, state.showServices])
 
+  const sharedWidth = useStackPanelWidth()
+
   // No sidebar panels open — fall back to task detail
   if (stack.length === 0) {
     return state.selectedTaskId ? <TaskDetailPanel /> : null
   }
 
   return (
-    <div className="relative w-[420px] flex-shrink-0">
+    <div className="relative flex-shrink-0" style={{ width: sharedWidth }}>
       {stack.map((key, i) => (
         <div key={key} className="absolute inset-0" style={{ zIndex: i + 1 }}>
           {key === 'chat' && <ChatPanel />}

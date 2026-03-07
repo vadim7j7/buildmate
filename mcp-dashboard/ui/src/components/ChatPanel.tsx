@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ArrowLeft, MessageCircle, Plus, Send, Square, Trash2 } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Plus, Send, Square, Trash2, X } from 'lucide-react'
 import { useChat } from '../context/ChatContext'
 import { useDashboard } from '../context/DashboardContext'
+import { useResizablePanel } from '../hooks/useResizablePanel'
 import { ChatBubble, StreamingBubble } from './ChatBubble'
+import { ResizeHandle } from './ResizeHandle'
 
 export function ChatPanel() {
-  const { state, selectSession, sendMessage, deleteSession, cancelStreaming } = useChat()
+  const { state, selectSession, sendMessage, deleteSession, cancelStreaming, toggleChat } = useChat()
   const { selectTask } = useDashboard()
+  const { handleResizeStart } = useResizablePanel('stack')
   const { sessions, activeSessionId, messages, streamingText, isStreaming, taskResults, createdTaskIds } = state
 
   const handleViewTask = useCallback((taskId: string) => {
@@ -60,7 +63,8 @@ export function ChatPanel() {
   // Session list mode
   if (activeSessionId === null) {
     return (
-      <div className="w-[420px] border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right">
+      <div className="w-full border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right relative">
+        <ResizeHandle onMouseDown={handleResizeStart} />
         {/* Header */}
         <div className="px-5 py-4 border-b border-surface-800/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -69,18 +73,27 @@ export function ChatPanel() {
             </div>
             <h2 className="text-base font-semibold text-gray-100">Chat</h2>
           </div>
-          <button
-            onClick={() => selectSession(null)}
-            className="
-              flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-              bg-gradient-to-r from-accent-600 to-accent-500 text-white
-              shadow-glow-sm hover:from-accent-500 hover:to-accent-400
-              transition-all duration-200 active:scale-[0.98]
-            "
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New Chat
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => selectSession(null)}
+              className="
+                flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                bg-gradient-to-r from-accent-600 to-accent-500 text-white
+                shadow-glow-sm hover:from-accent-500 hover:to-accent-400
+                transition-all duration-200 active:scale-[0.98]
+              "
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New Chat
+            </button>
+            <button
+              onClick={toggleChat}
+              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Session List */}
@@ -171,7 +184,8 @@ export function ChatPanel() {
 
   // Active Chat Mode
   return (
-    <div className="w-[420px] border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right">
+    <div className="w-full border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right relative">
+      <ResizeHandle onMouseDown={handleResizeStart} />
       {/* Header */}
       <div className="px-5 py-4 border-b border-surface-800/50 flex items-center gap-3">
         <button
@@ -191,6 +205,13 @@ export function ChatPanel() {
           title="New chat"
         >
           <Plus className="w-4 h-4" />
+        </button>
+        <button
+          onClick={toggleChat}
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+          title="Close"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
 

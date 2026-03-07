@@ -8,7 +8,6 @@ import {
   Coins,
   Expand,
   GitBranch,
-  GripVertical,
   Loader,
   MessageSquare,
   Play,
@@ -25,7 +24,9 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
+import { useResizablePanel } from '../hooks/useResizablePanel'
 import type { Artifact, Question, Task, TaskRevision, TaskStatus } from '../types'
+import { ResizeHandle } from './ResizeHandle'
 import { ActivityFeed } from './ActivityFeed'
 import { AgentBadge } from './AgentBadge'
 import { ArtifactItem } from './ArtifactItem'
@@ -273,41 +274,8 @@ export function TaskDetailPanel() {
 
   const canRequestChanges = (task.status === 'completed' || task.status === 'failed') && !!task.claude_session_id
 
-  // --- Resize logic ---
-  const MIN_WIDTH = 320
-  const MAX_WIDTH = 800
-  const [panelWidth, setPanelWidth] = useState(420)
-  const isResizing = useRef(false)
-  const startX = useRef(0)
-  const startWidth = useRef(420)
-
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    isResizing.current = true
-    startX.current = e.clientX
-    startWidth.current = panelWidth
-
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!isResizing.current) return
-      // Dragging left increases width (panel is on the right side)
-      const delta = startX.current - ev.clientX
-      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta))
-      setPanelWidth(newWidth)
-    }
-
-    const onMouseUp = () => {
-      isResizing.current = false
-      document.removeEventListener('mousemove', onMouseMove)
-      document.removeEventListener('mouseup', onMouseUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-  }, [panelWidth])
+  const { panelWidth, handleResizeStart, MIN_WIDTH, MAX_WIDTH } = useResizablePanel('task')
+  // TaskDetailPanel renders outside the stack, so it sets its own width via style
 
   return (
     <>
@@ -315,15 +283,7 @@ export function TaskDetailPanel() {
         className="bg-surface-900/95 backdrop-blur-md border-l border-surface-800/50 flex flex-col overflow-hidden animate-slide-in-right relative"
         style={{ width: panelWidth, minWidth: MIN_WIDTH, maxWidth: MAX_WIDTH }}
       >
-        {/* Resize handle */}
-        <div
-          onMouseDown={handleResizeStart}
-          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group hover:bg-accent-500/30 transition-colors"
-        >
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <GripVertical className="w-3 h-3 text-gray-500" />
-          </div>
-        </div>
+        <ResizeHandle onMouseDown={handleResizeStart} />
 
         {/* Fixed title bar */}
         <div className="flex items-start justify-between p-5 pb-3 flex-shrink-0">
