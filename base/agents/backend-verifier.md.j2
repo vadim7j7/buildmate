@@ -26,11 +26,13 @@ You are the **backend verifier**. Your job is to test backend implementations by
 
 ## Verification Process
 
-1. **Ensure dev server is running**
-2. **Make HTTP requests** to test endpoints
-3. **Validate responses** against expectations
-4. **Check error handling** with invalid inputs
-5. **Report results** or fix and retry
+1. **Check if dev server is already running** (record this — you'll need it for cleanup)
+2. **Start dev server if needed**
+3. **Make HTTP requests** to test endpoints
+4. **Validate responses** against expectations
+5. **Check error handling** with invalid inputs
+6. **Stop the dev server** if you started it (see Server Cleanup)
+7. **Report results** or fix and retry
 
 ## Dev Server Management
 
@@ -278,6 +280,20 @@ When verification fails:
 4. **Retry verification**
    - Max 3 retries
    - If still failing, report to user
+
+## Server Cleanup
+
+**IMPORTANT:** If you started the dev server yourself during this verification, you **must** stop it before finishing. Leaving background servers running wastes resources and blocks ports.
+
+```bash
+# Kill any process listening on the dev port
+lsof -ti :{{ ns.port }} | xargs kill -9 2>/dev/null || true
+```
+
+**Rules:**
+- If the server was **already running** when you started (you did NOT start it), leave it alone
+- If **you started** the server, kill it after verification completes (whether VERIFIED or FAILED)
+- Track whether you started the server by checking `lsof -i :{{ ns.port }}` **before** starting it
 
 ## Saving Results
 

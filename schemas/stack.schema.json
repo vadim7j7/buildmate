@@ -28,9 +28,12 @@
     },
     "default_model": {
       "type": "string",
-      "enum": ["opus", "sonnet", "haiku"],
+      "anyOf": [
+        { "enum": ["opus", "sonnet", "haiku"] },
+        { "pattern": "^claude-" }
+      ],
       "default": "sonnet",
-      "description": "Default model for agents in this stack"
+      "description": "Default model for agents in this stack (alias like 'opus' or full model ID like 'claude-opus-4-6')"
     },
     "compatible_with": {
       "type": "array",
@@ -119,8 +122,11 @@
         },
         "model": {
           "type": "string",
-          "enum": ["opus", "sonnet", "haiku"],
-          "description": "Model to use for this agent (overrides stack default)"
+          "anyOf": [
+            { "enum": ["opus", "sonnet", "haiku"] },
+            { "pattern": "^claude-" }
+          ],
+          "description": "Model to use for this agent (alias like 'opus' or full model ID like 'claude-opus-4-6')"
         },
         "tools": {
           "type": "array",

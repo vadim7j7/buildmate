@@ -307,6 +307,15 @@ async def get_questions(task_id: str, pending_only: bool = False, include_childr
     return db.get_questions(task_id, pending_only=pending_only, include_children=include_children)
 
 
+@app.get("/api/tasks/{task_id}/revisions")
+async def get_task_revisions(task_id: str):
+    """Get per-revision stats snapshots for a task."""
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return db.get_task_revisions(task_id)
+
+
 @app.get("/api/tasks/{task_id}/artifacts")
 async def get_artifacts(task_id: str, include_children: bool = True):
     """Get artifacts for a task and optionally its children."""

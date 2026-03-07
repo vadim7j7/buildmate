@@ -7,6 +7,8 @@ import {
   Clock,
   Coins,
   Expand,
+  GitBranch,
+  GripVertical,
   Loader,
   MessageSquare,
   Play,
@@ -18,12 +20,12 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
-import type { Artifact, Question, Task, TaskStatus } from '../types'
+import type { Artifact, Question, Task, TaskRevision, TaskStatus } from '../types'
 import { ActivityFeed } from './ActivityFeed'
 import { AgentBadge } from './AgentBadge'
 import { ArtifactItem } from './ArtifactItem'
@@ -196,13 +198,28 @@ export function TaskDetailPanel() {
   const [showFeedbackForm, setShowFeedbackForm] = useState(false)
   const [feedbackText, setFeedbackText] = useState('')
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
+  const [revisions, setRevisions] = useState<TaskRevision[]>([])
+  const [revisionsOpen, setRevisionsOpen] = useState(false)
 
   // Reset feedback form when switching tasks
   useEffect(() => {
     setShowFeedbackForm(false)
     setFeedbackText('')
     setIsSubmittingFeedback(false)
+    setRevisions([])
+    setRevisionsOpen(false)
   }, [state.selectedTaskId])
+
+  // Fetch revisions when task has revision_count > 0
+  useEffect(() => {
+    if (!state.selectedTaskId) return
+    const task = state.tasks.find(t => t.id === state.selectedTaskId)
+    if (!task || (task.revision_count || 0) === 0) {
+      setRevisions([])
+      return
+    }
+    api.getTaskRevisions(task.id).then(setRevisions).catch(() => setRevisions([]))
+  }, [state.selectedTaskId, state.tasks])
 
   const task = state.tasks.find(t => t.id === state.selectedTaskId)
   if (!task) return null
@@ -256,205 +273,266 @@ export function TaskDetailPanel() {
 
   const canRequestChanges = (task.status === 'completed' || task.status === 'failed') && !!task.claude_session_id
 
+  // --- Resize logic ---
+  const MIN_WIDTH = 320
+  const MAX_WIDTH = 800
+  const [panelWidth, setPanelWidth] = useState(420)
+  const isResizing = useRef(false)
+  const startX = useRef(0)
+  const startWidth = useRef(420)
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizing.current = true
+    startX.current = e.clientX
+    startWidth.current = panelWidth
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isResizing.current) return
+      // Dragging left increases width (panel is on the right side)
+      const delta = startX.current - ev.clientX
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta))
+      setPanelWidth(newWidth)
+    }
+
+    const onMouseUp = () => {
+      isResizing.current = false
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [panelWidth])
+
   return (
     <>
-      <div className="w-[420px] bg-surface-900/95 backdrop-blur-md border-l border-surface-800/50 flex flex-col overflow-hidden animate-slide-in-right">
-        {/* Header */}
-        <div className="p-5 border-b border-surface-800/50">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="p-2 rounded-lg bg-surface-800">
-                {STATUS_ICON[task.status]}
-              </div>
-              <h2 className="text-base font-semibold text-white truncate">{task.title}</h2>
-            </div>
-            <button
-              onClick={() => selectTask(null)}
-              className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+      <div
+        className="bg-surface-900/95 backdrop-blur-md border-l border-surface-800/50 flex flex-col overflow-hidden animate-slide-in-right relative"
+        style={{ width: panelWidth, minWidth: MIN_WIDTH, maxWidth: MAX_WIDTH }}
+      >
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleResizeStart}
+          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 group hover:bg-accent-500/30 transition-colors"
+        >
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <GripVertical className="w-3 h-3 text-gray-500" />
           </div>
-
-          {task.description && (
-            <ExpandableText content={task.description} label="Description" />
-          )}
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <AgentBadge agent={task.assigned_agent} />
-            {task.phase && (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 text-[11px] font-medium uppercase tracking-wide border border-purple-500/20">
-                {task.phase}
-              </span>
-            )}
-            <span className="text-[11px] text-gray-600 font-mono">ID: {task.id}</span>
-            {task.revision_count > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-medium border border-amber-500/20">
-                Rev {task.revision_count}
-              </span>
-            )}
-          </div>
-
-          {/* Usage Stats */}
-          {(task.input_tokens > 0 || task.output_tokens > 0 || task.cost_usd > 0) && (
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
-                <Zap className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Tokens</div>
-                  <div className="text-xs text-gray-300 font-medium">
-                    {formatNumber(task.input_tokens + task.output_tokens)}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
-                <Coins className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Cost</div>
-                  <div className="text-xs text-gray-300 font-medium">
-                    ${task.cost_usd < 0.01 && task.cost_usd > 0 ? task.cost_usd.toFixed(4) : task.cost_usd.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-              {task.duration_ms > 0 && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
-                  <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Duration</div>
-                    <div className="text-xs text-gray-300 font-medium">{formatDuration(task.duration_ms)}</div>
-                  </div>
-                </div>
-              )}
-              {task.num_turns > 0 && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
-                  <MessageSquare className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Turns</div>
-                    <div className="text-xs text-gray-300 font-medium">{task.num_turns}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Process Status */}
-          {processStatus?.status === 'running' && (
-            <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-accent-500/10 border border-accent-500/20 rounded-xl">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-500" />
-              </span>
-              <span className="text-sm text-accent-300 font-medium">
-                Claude is running
-                {processStatus.pid && (
-                  <span className="text-accent-400/60 ml-1.5 font-normal">(PID {processStatus.pid})</span>
-                )}
-              </span>
-            </div>
-          )}
-
-          {task.result && (
-            <div className="mt-4 p-4 bg-surface-850 rounded-xl border border-surface-700/50">
-              <ExpandableText content={task.result} label="Result" maxLines={4} />
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2 mt-4">
-            {task.source === 'dashboard' && task.status === 'pending' && (
-              <button
-                onClick={handleRun}
-                className="
-                  flex items-center gap-2 px-4 py-2.5 text-sm font-medium
-                  bg-gradient-to-r from-emerald-600 to-emerald-500 text-white
-                  rounded-xl shadow-[0_0_15px_-5px_rgba(16,185,129,0.3)]
-                  hover:from-emerald-500 hover:to-emerald-400
-                  transition-all duration-200 active:scale-[0.98]
-                "
-              >
-                <Play className="w-4 h-4" /> Run Task
-              </button>
-            )}
-            {task.status === 'in_progress' && (
-              <button
-                onClick={handleCancel}
-                className="
-                  flex items-center gap-2 px-4 py-2.5 text-sm font-medium
-                  bg-red-600/80 hover:bg-red-500 text-white
-                  rounded-xl transition-colors
-                "
-              >
-                <Square className="w-4 h-4" /> Cancel
-              </button>
-            )}
-            {canRequestChanges && (
-              <button
-                onClick={() => setShowFeedbackForm(!showFeedbackForm)}
-                className="
-                  flex items-center gap-2 px-4 py-2.5 text-sm font-medium
-                  bg-amber-600/80 hover:bg-amber-500 text-white
-                  rounded-xl transition-colors
-                "
-              >
-                <RotateCcw className="w-4 h-4" /> Request Changes
-              </button>
-            )}
-            {(task.status === 'completed' || task.status === 'failed' || task.status === 'pending') && (
-              <button
-                onClick={handleDelete}
-                className="
-                  flex items-center gap-2 px-4 py-2.5 text-sm font-medium
-                  text-gray-400 hover:text-red-400
-                  rounded-xl hover:bg-red-500/10
-                  transition-all duration-200
-                "
-              >
-                <Trash2 className="w-4 h-4" /> Delete
-              </button>
-            )}
-          </div>
-
-          {/* Feedback Form */}
-          {showFeedbackForm && (
-            <div className="mt-3 border border-amber-500/30 rounded-xl p-3 bg-amber-500/5">
-              <textarea
-                value={feedbackText}
-                onChange={e => setFeedbackText(e.target.value)}
-                placeholder="Describe what changes you'd like..."
-                className="
-                  w-full bg-surface-800 text-sm text-gray-200 rounded-lg p-3
-                  border border-surface-700 focus:border-amber-500/50 focus:outline-none
-                  resize-none placeholder-gray-500
-                "
-                rows={3}
-              />
-              <div className="flex gap-2 mt-2 justify-end">
-                <button
-                  onClick={() => { setShowFeedbackForm(false); setFeedbackText('') }}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-300 rounded-lg hover:bg-surface-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRequestChanges}
-                  disabled={!feedbackText.trim() || isSubmittingFeedback}
-                  className="
-                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-                    bg-amber-600 hover:bg-amber-500 text-white
-                    rounded-lg transition-colors
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  "
-                >
-                  <Send className="w-3 h-3" />
-                  {isSubmittingFeedback ? 'Submitting...' : 'Submit'}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Scrollable Content */}
+        {/* Fixed title bar */}
+        <div className="flex items-start justify-between p-5 pb-3 flex-shrink-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="p-2 rounded-lg bg-surface-800">
+              {STATUS_ICON[task.status]}
+            </div>
+            <h2 className="text-base font-semibold text-white truncate">{task.title}</h2>
+          </div>
+          <button
+            onClick={() => selectTask(null)}
+            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Single scrollable area for everything */}
         <div className="flex-1 overflow-y-auto">
+          <div className="px-5 pb-5">
+            {task.description && (
+              <ExpandableText content={task.description} label="Description" />
+            )}
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <AgentBadge agent={task.assigned_agent} />
+              {task.phase && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-300 text-[11px] font-medium uppercase tracking-wide border border-purple-500/20">
+                  {task.phase}
+                </span>
+              )}
+              <span className="text-[11px] text-gray-600 font-mono">ID: {task.id}</span>
+              {task.revision_count > 0 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-medium border border-amber-500/20">
+                  Rev {task.revision_count}
+                </span>
+              )}
+            </div>
+
+            {/* Usage Stats */}
+            {(task.input_tokens > 0 || task.output_tokens > 0 || task.cost_usd > 0) && (
+              <div className="mt-4">
+                {revisions.length > 0 && (
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1.5">
+                    Cumulative Totals
+                  </div>
+                )}
+              </div>
+            )}
+            {(task.input_tokens > 0 || task.output_tokens > 0 || task.cost_usd > 0) && (
+              <div className={`${revisions.length > 0 ? '' : 'mt-4'} grid grid-cols-2 gap-2`}>
+                <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                  <Zap className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Tokens</div>
+                    <div className="text-xs text-gray-300 font-medium">
+                      {formatNumber(task.input_tokens + task.output_tokens)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                  <Coins className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Cost</div>
+                    <div className="text-xs text-gray-300 font-medium">
+                      ${task.cost_usd < 0.01 && task.cost_usd > 0 ? task.cost_usd.toFixed(4) : task.cost_usd.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                {task.duration_ms > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                    <Clock className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-[10px] text-gray-500 uppercase tracking-wider">Duration</div>
+                      <div className="text-xs text-gray-300 font-medium">{formatDuration(task.duration_ms)}</div>
+                    </div>
+                  </div>
+                )}
+                {task.num_turns > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50">
+                    <MessageSquare className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-[10px] text-gray-500 uppercase tracking-wider">Turns</div>
+                      <div className="text-xs text-gray-300 font-medium">{task.num_turns}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Process Status */}
+            {processStatus?.status === 'running' && (
+              <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-accent-500/10 border border-accent-500/20 rounded-xl">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-500" />
+                </span>
+                <span className="text-sm text-accent-300 font-medium">
+                  Claude is running
+                  {processStatus.pid && (
+                    <span className="text-accent-400/60 ml-1.5 font-normal">(PID {processStatus.pid})</span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {task.result && (
+              <div className="mt-4 p-4 bg-surface-850 rounded-xl border border-surface-700/50">
+                <ExpandableText content={task.result} label="Result" maxLines={4} />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 mt-4">
+              {task.source === 'dashboard' && task.status === 'pending' && (
+                <button
+                  onClick={handleRun}
+                  className="
+                    flex items-center gap-2 px-4 py-2.5 text-sm font-medium
+                    bg-gradient-to-r from-emerald-600 to-emerald-500 text-white
+                    rounded-xl shadow-[0_0_15px_-5px_rgba(16,185,129,0.3)]
+                    hover:from-emerald-500 hover:to-emerald-400
+                    transition-all duration-200 active:scale-[0.98]
+                  "
+                >
+                  <Play className="w-4 h-4" /> Run Task
+                </button>
+              )}
+              {task.status === 'in_progress' && (
+                <button
+                  onClick={handleCancel}
+                  className="
+                    flex items-center gap-2 px-4 py-2.5 text-sm font-medium
+                    bg-red-600/80 hover:bg-red-500 text-white
+                    rounded-xl transition-colors
+                  "
+                >
+                  <Square className="w-4 h-4" /> Cancel
+                </button>
+              )}
+              {canRequestChanges && (
+                <button
+                  onClick={() => setShowFeedbackForm(!showFeedbackForm)}
+                  className="
+                    flex items-center gap-2 px-4 py-2.5 text-sm font-medium
+                    bg-amber-600/80 hover:bg-amber-500 text-white
+                    rounded-xl transition-colors
+                  "
+                >
+                  <RotateCcw className="w-4 h-4" /> Request Changes
+                </button>
+              )}
+              {(task.status === 'completed' || task.status === 'failed' || task.status === 'pending') && (
+                <button
+                  onClick={handleDelete}
+                  className="
+                    flex items-center gap-2 px-4 py-2.5 text-sm font-medium
+                    text-gray-400 hover:text-red-400
+                    rounded-xl hover:bg-red-500/10
+                    transition-all duration-200
+                  "
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              )}
+            </div>
+
+            {/* Feedback Form */}
+            {showFeedbackForm && (
+              <div className="mt-3 border border-amber-500/30 rounded-xl p-3 bg-amber-500/5">
+                <textarea
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="Describe what changes you'd like..."
+                  className="
+                    w-full bg-surface-800 text-sm text-gray-200 rounded-lg p-3
+                    border border-surface-700 focus:border-amber-500/50 focus:outline-none
+                    resize-none placeholder-gray-500
+                  "
+                  rows={3}
+                />
+                <div className="flex gap-2 mt-2 justify-end">
+                  <button
+                    onClick={() => { setShowFeedbackForm(false); setFeedbackText('') }}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-300 rounded-lg hover:bg-surface-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRequestChanges}
+                    disabled={!feedbackText.trim() || isSubmittingFeedback}
+                    className="
+                      flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+                      bg-amber-600 hover:bg-amber-500 text-white
+                      rounded-lg transition-colors
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    "
+                  >
+                    <Send className="w-3 h-3" />
+                    {isSubmittingFeedback ? 'Submitting...' : 'Submit'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sections divider */}
+          <div className="border-t border-surface-800/50" />
+
           {/* Pending Questions */}
           {pendingQuestions.length > 0 && (
             <div className="p-5 border-b border-surface-800/50">
@@ -541,6 +619,77 @@ export function TaskDetailPanel() {
                 <div className="space-y-2 mt-3">
                   {state.selectedArtifacts.map(a => (
                     <ArtifactItem key={a.id} artifact={a} onClick={() => setViewingArtifact(a)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Revision History */}
+          {revisions.length > 0 && (
+            <div className="p-5 border-b border-surface-800/50">
+              <SectionHeader
+                label="Revision History"
+                count={revisions.length}
+                expanded={revisionsOpen}
+                onToggle={() => setRevisionsOpen(!revisionsOpen)}
+              />
+              {revisionsOpen && (
+                <div className="space-y-2 mt-3">
+                  {revisions.map(rev => (
+                    <div
+                      key={rev.id}
+                      className="px-3 py-2.5 rounded-lg bg-surface-850/50 border border-surface-700/50"
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <GitBranch className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="text-xs font-medium text-gray-300">
+                          Revision {rev.revision_number}
+                        </span>
+                        {rev.status && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+                            rev.status === 'completed'
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                              : rev.status === 'failed'
+                                ? 'bg-red-500/15 text-red-400 border border-red-500/20'
+                                : 'bg-gray-500/15 text-gray-400 border border-gray-500/20'
+                          }`}>
+                            {rev.status}
+                          </span>
+                        )}
+                      </div>
+                      {rev.feedback && (
+                        <p className="text-[11px] text-gray-500 mb-1.5 line-clamp-2" title={rev.feedback}>
+                          {rev.feedback}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                        {(rev.input_tokens > 0 || rev.output_tokens > 0) && (
+                          <span className="flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-blue-400/60" />
+                            {formatNumber(rev.input_tokens + rev.output_tokens)}
+                          </span>
+                        )}
+                        {rev.cost_usd > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Coins className="w-3 h-3 text-emerald-400/60" />
+                            ${rev.cost_usd < 0.01 ? rev.cost_usd.toFixed(4) : rev.cost_usd.toFixed(2)}
+                          </span>
+                        )}
+                        {rev.duration_ms > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-400/60" />
+                            {formatDuration(rev.duration_ms)}
+                          </span>
+                        )}
+                        {rev.num_turns > 0 && (
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3 text-purple-400/60" />
+                            {rev.num_turns}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}

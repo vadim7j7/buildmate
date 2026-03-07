@@ -100,6 +100,22 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated_at ON chat_sessions(updated_at);
+
+CREATE TABLE IF NOT EXISTS task_revisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    revision_number INTEGER NOT NULL,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    cost_usd REAL DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    num_turns INTEGER DEFAULT 0,
+    status TEXT,
+    result TEXT,
+    feedback TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_task_revisions_task_id ON task_revisions(task_id);
 """
 
 
@@ -158,6 +174,24 @@ def init_db(db_path: str | None = None) -> None:
                 conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {typedef}")
             except sqlite3.OperationalError:
                 pass
+        # Migration: create task_revisions table for existing databases
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS task_revisions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                revision_number INTEGER NOT NULL,
+                input_tokens INTEGER DEFAULT 0,
+                output_tokens INTEGER DEFAULT 0,
+                cost_usd REAL DEFAULT 0,
+                duration_ms INTEGER DEFAULT 0,
+                num_turns INTEGER DEFAULT 0,
+                status TEXT,
+                result TEXT,
+                feedback TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_task_revisions_task_id ON task_revisions(task_id);
+        """)
         conn.commit()
     finally:
         conn.close()
@@ -848,3 +882,85 @@ class SyncDB:
                 task["eval_grade"] = meta.get("grade")
             except (json.JSONDecodeError, TypeError):
                 pass
+
+    # --- Task revision methods ---
+
+    def save_revision_snapshot(
+        self,
+        task_id: str,
+        revision_number: int,
+        feedback: str,
+    ) -> dict | None:
+        """Snapshot the current revision's stats before a new revision begins.
+
+        Computes the current revision's stats by subtracting the sum of all
+        previous revision snapshots from the cumulative task totals.
+        """
+        conn = self._conn()
+        try:
+            task = conn.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            if not task:
+                return None
+            task = dict(task)
+
+            # Sum stats from all previous revisions
+            prev = conn.execute(
+                """SELECT COALESCE(SUM(input_tokens), 0) AS input_tokens,
+                          COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                          COALESCE(SUM(cost_usd), 0) AS cost_usd,
+                          COALESCE(SUM(duration_ms), 0) AS duration_ms,
+                          COALESCE(SUM(num_turns), 0) AS num_turns
+                   FROM task_revisions WHERE task_id = ?""",
+                (task_id,),
+            ).fetchone()
+
+            # This revision's stats = cumulative - sum(previous)
+            rev_input = (task.get("input_tokens") or 0) - (prev["input_tokens"] or 0)
+            rev_output = (task.get("output_tokens") or 0) - (prev["output_tokens"] or 0)
+            rev_cost = (task.get("cost_usd") or 0) - (prev["cost_usd"] or 0)
+            rev_duration = (task.get("duration_ms") or 0) - (prev["duration_ms"] or 0)
+            rev_turns = (task.get("num_turns") or 0) - (prev["num_turns"] or 0)
+
+            now = now_iso()
+            conn.execute(
+                """INSERT INTO task_revisions
+                   (task_id, revision_number, input_tokens, output_tokens,
+                    cost_usd, duration_ms, num_turns, status, result, feedback, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    task_id,
+                    revision_number,
+                    rev_input,
+                    rev_output,
+                    rev_cost,
+                    rev_duration,
+                    rev_turns,
+                    task.get("status"),
+                    task.get("result"),
+                    feedback,
+                    now,
+                ),
+            )
+            conn.commit()
+
+            row = conn.execute(
+                "SELECT * FROM task_revisions WHERE task_id = ? AND revision_number = ?",
+                (task_id, revision_number),
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def get_task_revisions(self, task_id: str) -> list[dict]:
+        """Return all revision snapshots for a task, ordered by revision_number."""
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM task_revisions WHERE task_id = ? ORDER BY revision_number",
+                (task_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()

@@ -43,6 +43,21 @@ export interface Task {
   eval_grade?: string | null
 }
 
+export interface TaskRevision {
+  id: number
+  task_id: string
+  revision_number: number
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number
+  duration_ms: number
+  num_turns: number
+  status: string | null
+  result: string | null
+  feedback: string | null
+  created_at: string
+}
+
 export interface Activity {
   id: number
   task_id: string

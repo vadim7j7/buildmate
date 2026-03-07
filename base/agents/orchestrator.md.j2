@@ -571,11 +571,13 @@ Task (subagent_type: general-purpose):
 Verify the implemented endpoints:
 <list endpoints created>
 
-1. Ensure dev server is running
-2. Make HTTP requests to test each endpoint
-3. Validate responses (status codes, body structure)
-4. Test error cases (invalid input, not found, unauthorized)
-5. Write your verification report to .agent-pipeline/backend-verification-report.md
+1. Check if dev server is already running (record this for cleanup)
+2. Start dev server if needed
+3. Make HTTP requests to test each endpoint
+4. Validate responses (status codes, body structure)
+5. Test error cases (invalid input, not found, unauthorized)
+6. IMPORTANT: If you started the dev server, stop it before finishing (lsof -ti :PORT | xargs kill -9)
+7. Write your verification report to .agent-pipeline/backend-verification-report.md
 
 If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
 Report: VERIFIED or FAILED with details."
@@ -591,13 +593,15 @@ Task (subagent_type: general-purpose):
 Verify the implemented components/pages:
 <list components/pages created>
 
-1. Ensure dev server is running
-2. Use MCP browser to navigate and take screenshots
-3. Save screenshots to .agent-pipeline/screenshots/ directory
-4. Check DOM for component existence
-5. Validate no console errors
-6. Run accessibility checks
-7. Write your verification report to .agent-pipeline/frontend-verification-report.md
+1. Check if dev server is already running (record this for cleanup)
+2. Start dev server if needed
+3. Use MCP browser to navigate and take screenshots
+4. Save screenshots to .agent-pipeline/screenshots/ directory
+5. Check DOM for component existence
+6. Validate no console errors
+7. Run accessibility checks
+8. IMPORTANT: If you started the dev server, stop it before finishing (lsof -ti :PORT | xargs kill -9)
+9. Write your verification report to .agent-pipeline/frontend-verification-report.md
 
 If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
 Report: VERIFIED or FAILED with details."
@@ -613,9 +617,12 @@ Task (subagent_type: general-purpose):
 Verify the implemented components/screens:
 <list components/screens created>
 
-1. Run TypeScript check
-2. Run component tests with Jest
-3. Check for platform compatibility issues
+1. Check if Expo dev server is already running (record this for cleanup)
+2. Start Expo dev server if needed
+3. Run TypeScript check
+4. Run component tests with Jest
+5. Check for platform compatibility issues
+6. IMPORTANT: If you started the Expo dev server, stop it before finishing (lsof -ti :8081 | xargs kill -9)
 
 If verification fails, analyze the error, fix the code, and retry (max 3 attempts).
 Report: VERIFIED or FAILED with details."
@@ -652,6 +659,22 @@ dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/b
 > After EVERY verification, eval, and docs delegation, check for output files and register them.
 > Without this, the dashboard will show no artifacts even though files exist on disk.
 {% endif %}
+
+### Post-Verification Cleanup
+
+**IMPORTANT:** After verification completes (whether VERIFIED or FAILED), kill any dev servers that were started during verification. Verifier sub-agents are instructed to clean up, but as a safety net, always run this:
+
+```bash
+{% for stack in stacks %}
+{% if stack.name in ['rails', 'fastapi', 'express', 'django', 'sinatra', 'flask', 'gin', 'fiber', 'chi', 'phoenix', 'nextjs', 'nuxt'] %}
+# Kill dev server on port {{ stack.variables.dev_port | default(3000) }} if still running
+lsof -ti :{{ stack.variables.dev_port | default(3000) }} | xargs kill -9 2>/dev/null || true
+{% elif 'native' in stack.name %}
+# Kill Expo dev server on port 8081 if still running
+lsof -ti :8081 | xargs kill -9 2>/dev/null || true
+{% endif %}
+{% endfor %}
+```
 
 - If verifier returns **VERIFIED**: proceed to testing
 - If verifier returns **FAILED** after retries: stop and report to user

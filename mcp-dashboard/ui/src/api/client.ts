@@ -1,4 +1,4 @@
-import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, ProcessStatus, Question, Service, Stats, Task } from '../types'
+import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, ProcessStatus, Question, Service, Stats, Task, TaskRevision } from '../types'
 
 const BASE = '/api'
 
@@ -58,6 +58,9 @@ export const api = {
     ),
   getProcessStatus: (taskId: string) =>
     request<ProcessStatus>(`/tasks/${taskId}/process`),
+
+  // Revisions
+  getTaskRevisions: (taskId: string) => request<TaskRevision[]>(`/tasks/${taskId}/revisions`),
 
   // Artifacts
   getArtifacts: (taskId: string) => request<Artifact[]>(`/tasks/${taskId}/artifacts`),

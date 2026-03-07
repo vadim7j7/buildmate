@@ -242,6 +242,9 @@ class QueueManager:
 
         revision_count = (task.get("revision_count") or 0) + 1
 
+        # Snapshot the current revision's stats before resetting
+        self._db.save_revision_snapshot(task_id, revision_count, feedback)
+
         # Reset task state for the new revision
         self._db.update_task(
             task_id,
@@ -540,18 +543,25 @@ class QueueManager:
             await info.process.wait()
             return_code = info.process.returncode
 
-            # Persist usage data regardless of exit status
+            # Persist usage data as additive cumulative totals.
+            # Read current cumulative values and add the new run's stats.
+            current_task = self._db.get_task(task_id)
             usage_kwargs = {}
             if info.input_tokens:
-                usage_kwargs["input_tokens"] = info.input_tokens
+                prev = (current_task or {}).get("input_tokens") or 0
+                usage_kwargs["input_tokens"] = prev + info.input_tokens
             if info.output_tokens:
-                usage_kwargs["output_tokens"] = info.output_tokens
+                prev = (current_task or {}).get("output_tokens") or 0
+                usage_kwargs["output_tokens"] = prev + info.output_tokens
             if info.cost_usd:
-                usage_kwargs["cost_usd"] = info.cost_usd
+                prev = (current_task or {}).get("cost_usd") or 0
+                usage_kwargs["cost_usd"] = prev + info.cost_usd
             if info.duration_ms:
-                usage_kwargs["duration_ms"] = info.duration_ms
+                prev = (current_task or {}).get("duration_ms") or 0
+                usage_kwargs["duration_ms"] = prev + info.duration_ms
             if info.num_turns:
-                usage_kwargs["num_turns"] = info.num_turns
+                prev = (current_task or {}).get("num_turns") or 0
+                usage_kwargs["num_turns"] = prev + info.num_turns
 
             if return_code == 0:
                 task = self._db.get_task(task_id)

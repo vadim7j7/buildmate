@@ -262,6 +262,7 @@ def cmd_bootstrap(
     preserve_context: bool = False,
     dry_run: bool = False,
     default_model: str | None = None,
+    force_model: str | None = None,
     profile_name: str | None = None,
     extra_args: list[str] | None = None,
     dashboard: bool = False,
@@ -322,6 +323,7 @@ def cmd_bootstrap(
         config = compose_stacks(
             stack_names,
             default_model=default_model,
+            force_model=force_model,
             options=cli_options,
             profile=profile,
         )
@@ -811,8 +813,11 @@ Extend existing projects:
     )
     parser.add_argument(
         "--default-model",
-        choices=["opus", "sonnet", "haiku"],
-        help="Override default model for all agents",
+        help="Override default model for agents without an explicit model (alias like 'opus' or full ID like 'claude-opus-4-6')",
+    )
+    parser.add_argument(
+        "--force-model",
+        help="Force ALL agents to use this model, ignoring per-agent overrides (alias like 'sonnet' or full ID like 'claude-sonnet-4-6')",
     )
     parser.add_argument(
         "--version",
@@ -910,6 +915,7 @@ Extend existing projects:
         preserve_context=args.preserve_context,
         dry_run=args.dry_run,
         default_model=args.default_model,
+        force_model=args.force_model,
         profile_name=args.profile,
         extra_args=unknown_args,
         dashboard=args.dashboard,

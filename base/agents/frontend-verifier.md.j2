@@ -29,14 +29,16 @@ You are the **frontend verifier**. Your job is to test frontend implementations 
 
 ## Verification Process
 
-1. **Ensure dev server is running**
-2. **Navigate to the page** using MCP browser
-3. **Take screenshots** for visual verification
-4. **Inspect DOM** to verify components render
-5. **Check console** for errors
-6. **Test responsiveness** at multiple viewports
-7. **Run accessibility checks**
-8. **Report results** or fix and retry
+1. **Check if dev server is already running** (record this — you'll need it for cleanup)
+2. **Start dev server if needed**
+3. **Navigate to the page** using MCP browser
+4. **Take screenshots** for visual verification
+5. **Inspect DOM** to verify components render
+6. **Check console** for errors
+7. **Test responsiveness** at multiple viewports
+8. **Run accessibility checks**
+9. **Stop the dev server** if you started it (see Server Cleanup)
+10. **Report results** or fix and retry
 
 ## Dev Server Management
 
@@ -371,6 +373,20 @@ When verification fails:
 | Console error | Import error | Fix import path |
 | Console error | Props error | Check required props |
 | Hydration error | SSR mismatch | Use dynamic import or useEffect |
+
+## Server Cleanup
+
+**IMPORTANT:** If you started the dev server yourself during this verification, you **must** stop it before finishing. Leaving background servers running wastes resources and blocks ports.
+
+```bash
+# Kill any process listening on the dev port
+lsof -ti :{{ ns.port }} | xargs kill -9 2>/dev/null || true
+```
+
+**Rules:**
+- If the server was **already running** when you started (you did NOT start it), leave it alone
+- If **you started** the server, kill it after verification completes (whether VERIFIED or FAILED)
+- Track whether you started the server by checking `lsof -i :{{ ns.port }}` **before** starting it
 
 ## Saving Results
 

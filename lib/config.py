@@ -536,6 +536,7 @@ def apply_options(
 def compose_stacks(
     stack_names: list[str],
     default_model: str | None = None,
+    force_model: str | None = None,
     validate: bool = True,
     options: dict[str, dict[str, str]] | None = None,
     profile: Profile | None = None,
@@ -545,7 +546,8 @@ def compose_stacks(
 
     Args:
         stack_names: List of stack names to compose
-        default_model: Override default model for all stacks
+        default_model: Override default model for agents without an explicit model
+        force_model: Force ALL agents to use this model, ignoring per-agent overrides
         validate: Whether to validate configurations
         options: Option selections per stack {stack_name: {option_name: choice}}
         profile: Profile to apply (provides default options)
@@ -591,8 +593,11 @@ def compose_stacks(
     agent_map: dict[str, Agent] = {}
     for stack in stacks:
         for agent in stack.agents:
-            # Apply stack default model if agent doesn't specify one
-            if agent.model is None:
+            if force_model:
+                # --force-model overrides every agent's model unconditionally
+                agent.model = force_model
+            elif agent.model is None:
+                # Apply stack default model if agent doesn't specify one
                 agent.model = default_model or stack.default_model
             agent_map[agent.name] = agent
 
@@ -701,7 +706,7 @@ def compose_stacks(
                         gate.fix_command = f"cd {wd} && {gate.fix_command}"
 
     # Determine default model
-    final_default_model = default_model or stacks[0].default_model
+    final_default_model = force_model or default_model or stacks[0].default_model
 
     return ComposedConfig(
         stacks=stacks,
