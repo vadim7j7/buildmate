@@ -765,8 +765,21 @@ Frontend stacks (nextjs, react-native) include browser automation tools for anal
 
 | Agent | Purpose |
 |-------|---------|
-| `site-analyzer` | Extracts structure, components, colors, typography, spacing |
+| `site-analyzer` | Extracts structure, components, design tokens; captures source reference screenshots |
 | `ui-cloner` | Generates production-ready code in any format |
+| `frontend-verifier` | Visual comparison of clone vs source with scoring and fix loop |
+
+### Visual Comparison & Scoring
+
+When cloning a page, the pipeline includes automated visual verification:
+
+1. **Source screenshots** - The site analyzer captures desktop (1440x900) and mobile (375x812) screenshots of the original page
+2. **Clone screenshots** - After building, the frontend verifier screenshots the clone at matching viewports
+3. **Visual comparison** - Screenshots are compared using multimodal vision across 6 criteria:
+   - Layout structure (25%), Colors & theme (20%), Typography (15%), Spacing (15%), Content fidelity (15%), Responsive (10%)
+4. **Scoring** - Produces a visual match score from 0-100
+5. **Fix loop** - If score < 70, identifies top 3 differences, fixes them, re-screenshots, and re-scores (max 3 iterations)
+6. **Report** - Final score and comparison details written to `.agent-pipeline/frontend-verification-report.md`
 
 ### MCP Browser Setup
 
@@ -1145,11 +1158,15 @@ Open `http://127.0.0.1:8420` in your browser.
 - **Kanban Board** - Visual task management with drag-and-drop columns (Pending, Active, Done, Failed, Blocked)
 - **Real-Time Updates** - WebSocket-driven live updates for tasks, activity logs, and process status
 - **Task Orchestration** - Create tasks and spawn Claude CLI processes directly from the UI
+- **Task Editing** - Edit title and description on pending tasks before running
+- **Image Attachments** - Upload images to tasks; attached images are passed to Claude as file paths for multimodal analysis
 - **Activity Feed** - Stream Claude's real-time output, tool usage, and progress per task
 - **Question & Answer** - Answer agent questions from the browser (plan approvals, clarifications)
-- **Artifacts** - View eval reports, screenshots, and generated files inline
+- **Artifacts** - View eval reports, screenshots, and generated files inline (grouped by task name)
+- **Documents** - Knowledge base with user-created markdown docs organized in folders, attachable to tasks as context; completed task results browsable as virtual "Tasks" folder
 - **Service Manager** - Start/stop/restart managed services (dev servers, databases) with log tailing
 - **Chat with Claude** - Ask questions about your codebase, get explanations, and create tasks from a chat interface
+- **Resizable Panels** - All right-side panels (task detail, chat, docs, team) are resizable with close buttons
 
 ### Chat Interface
 
@@ -1186,16 +1203,19 @@ mcp-dashboard/
 │   │   ├── components/
 │   │   │   ├── KanbanBoard.tsx              # Task columns
 │   │   │   ├── TaskCard.tsx                 # Individual task card
-│   │   │   ├── TaskDetailPanel.tsx          # Right sidebar: activity, questions, artifacts
+│   │   │   ├── TaskDetailPanel.tsx          # Right sidebar: activity, questions, artifacts, images
+│   │   │   ├── CreateTaskModal.tsx          # Task creation with docs/images attachment
 │   │   │   ├── ChatPanel.tsx                # Right sidebar: chat sessions and messages
 │   │   │   ├── ChatBubble.tsx               # User/assistant message bubbles with markdown
+│   │   │   ├── DocsPanel.tsx                # Right sidebar: documents/knowledge base
 │   │   │   ├── StatsBar.tsx                 # Top bar: stats, services toggle, chat toggle
 │   │   │   ├── ServicesPanel.tsx            # Service management UI
 │   │   │   ├── QuestionModal.tsx            # Answer agent questions
 │   │   │   ├── ArtifactModal.tsx            # View artifacts inline
 │   │   │   └── ToastContainer.tsx           # Notification toasts
 │   │   └── hooks/
-│   │       └── useNotifications.ts          # Browser + in-app notifications
+│   │       ├── useNotifications.ts          # Browser + in-app notifications
+│   │       └── useResizablePanel.ts         # Resizable panel width persistence
 │   └── package.json
 └── pyproject.toml
 ```
@@ -1206,12 +1226,28 @@ mcp-dashboard/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/tasks` | List root tasks |
-| POST | `/api/tasks` | Create task |
+| POST | `/api/tasks` | Create task (supports `document_ids` for attaching docs) |
 | GET | `/api/tasks/{id}` | Get task with children |
-| PATCH | `/api/tasks/{id}` | Update task status/phase |
+| PATCH | `/api/tasks/{id}` | Update task status/phase/title/description |
 | DELETE | `/api/tasks/{id}` | Delete task and children |
 | POST | `/api/tasks/{id}/run` | Spawn Claude process |
 | POST | `/api/tasks/{id}/cancel` | Cancel running process |
+| POST | `/api/tasks/{id}/images` | Upload image attachment |
+| GET | `/api/tasks/{id}/images` | List task images |
+| DELETE | `/api/tasks/{id}/images/{img_id}` | Delete image attachment |
+| GET | `/api/tasks/{id}/documents` | Get documents linked to task |
+
+**Documents:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/documents` | List all user documents |
+| POST | `/api/documents` | Create document |
+| GET | `/api/documents/{id}` | Get single document |
+| PATCH | `/api/documents/{id}` | Update document |
+| DELETE | `/api/documents/{id}` | Delete document |
+| GET | `/api/documents/folders` | List distinct folder names |
+| GET | `/api/documents/task-results` | List completed task results as docs |
+| POST | `/api/documents/save-from-task` | Copy task result into a user document |
 
 **Chat:**
 | Method | Endpoint | Description |
@@ -1256,10 +1292,13 @@ The dashboard uses a single WebSocket at `/ws` for all real-time updates:
 
 SQLite with WAL mode. Tables:
 
-- **tasks** - Task ID, title, description, status, phase, assigned agent, PID
+- **tasks** - Task ID, title, description, status, phase, assigned agent, PID, token usage, cost
 - **activity_log** - Timestamped events per task (status changes, tool usage, messages)
 - **questions** - Agent questions with options, answers, auto-accept status
 - **artifacts** - File attachments (eval reports, screenshots, generated files)
+- **task_images** - Image attachments per task (stored on disk in `.dashboard/uploads/`)
+- **documents** - User-created markdown documents with folder organization
+- **task_documents** - Join table linking documents to tasks for context injection
 - **chat_sessions** - Chat session metadata (title, Claude session ID for resume, model)
 - **chat_messages** - Chat messages with role, content, cost, and duration
 

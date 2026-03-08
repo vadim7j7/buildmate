@@ -458,8 +458,9 @@ Frontend stacks (nextjs, react-native) include browser automation tools for anal
 - `/clone-page <url> --format <fmt>` - Clone a webpage in any format
 
 **Agents:**
-- `site-analyzer` - Extracts structure, components, design tokens
+- `site-analyzer` - Extracts structure, components, design tokens; captures source reference screenshots
 - `ui-cloner` - Generates production-ready code in any format
+- `frontend-verifier` - Visual comparison of clone vs source with scoring (0-100) and fix loop (max 3 iterations, threshold 70)
 
 **Setup:** Requires MCP browser server configured in `.claude/settings.json`:
 ```json
@@ -558,20 +559,31 @@ Real-time web dashboard for monitoring tasks, managing services, and chatting wi
 
 **Running:** `cd mcp-dashboard && uv run python -m server.main` → `http://127.0.0.1:8420`
 
+**Key features:**
+- Task editing (title/description on pending tasks), image attachments (multimodal), documents/knowledge base
+- Resizable panels, artifacts grouped by task name, revision history with per-revision token tracking
+
 **Server components:**
-- `server/main.py` — FastAPI app with REST API, WebSocket, static file serving
-- `server/database.py` — SQLite (WAL mode): tasks, activity_log, questions, artifacts, chat_sessions, chat_messages
+- `server/main.py` — FastAPI app with REST API, WebSocket, static file serving, image upload
+- `server/database.py` — SQLite (WAL mode): tasks, activity_log, questions, artifacts, task_images, documents, task_documents, chat_sessions, chat_messages
 - `server/queue_manager.py` — Spawns `claude -p` for task orchestration, streams `stream-json` output
 - `server/chat_manager.py` — Spawns `claude --print -p` for chat, streams tokens via WebSocket, supports `--resume` for multi-turn
 - `server/service_manager.py` — Dev service lifecycle (start/stop/restart)
 - `server/mcp_tools.py` — MCP stdio tools for agent integration
-- `server/models.py` — Pydantic models (TaskCreate, ChatSendMessage, etc.)
+- `server/models.py` — Pydantic models (TaskCreate, TaskUpdate, DocumentCreate, ChatSendMessage, etc.)
 
 **UI components:**
-- `ui/src/context/DashboardContext.tsx` — Tasks, stats, WebSocket state; forwards `chat_*` events to ChatContext
+- `ui/src/context/DashboardContext.tsx` — Tasks, stats, documents, WebSocket state; forwards `chat_*` events to ChatContext
 - `ui/src/context/ChatContext.tsx` — Chat sessions, messages, streaming state
+- `ui/src/components/TaskDetailPanel.tsx` — Task detail with inline editing, image attachments, revision history
+- `ui/src/components/CreateTaskModal.tsx` — Task creation with document and image attachment
+- `ui/src/components/DocsPanel.tsx` — Documents/knowledge base with folder tree, markdown editing, task results
 - `ui/src/components/ChatPanel.tsx` — Session list + active chat view (right sidebar)
 - `ui/src/components/ChatBubble.tsx` — User/assistant message bubbles with markdown rendering
+
+**Task API routes:** `GET/POST /api/tasks`, `GET/PATCH/DELETE /api/tasks/{id}`, `POST /api/tasks/{id}/run`, `POST /api/tasks/{id}/cancel`, `POST/GET /api/tasks/{id}/images`, `DELETE /api/tasks/{id}/images/{img_id}`, `GET /api/tasks/{id}/documents`
+
+**Document API routes:** `GET/POST /api/documents`, `GET/PATCH/DELETE /api/documents/{id}`, `GET /api/documents/folders`, `GET /api/documents/task-results`, `POST /api/documents/save-from-task`
 
 **Chat API routes:** `GET/POST /api/chat/sessions`, `GET/PATCH/DELETE /api/chat/sessions/{id}`, `GET /api/chat/sessions/{id}/messages`, `POST /api/chat/send`, `POST /api/chat/sessions/{id}/cancel`
 
