@@ -133,6 +133,17 @@ CREATE TABLE IF NOT EXISTS task_documents (
     PRIMARY KEY (task_id, document_id)
 );
 CREATE INDEX IF NOT EXISTS idx_task_documents_task_id ON task_documents(task_id);
+
+CREATE TABLE IF NOT EXISTS task_images (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_task_images_task_id ON task_images(task_id);
 """
 
 
@@ -227,6 +238,19 @@ def init_db(db_path: str | None = None) -> None:
                 PRIMARY KEY (task_id, document_id)
             );
             CREATE INDEX IF NOT EXISTS idx_task_documents_task_id ON task_documents(task_id);
+        """)
+        # Migration: create task_images table
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS task_images (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                filename TEXT NOT NULL,
+                original_name TEXT NOT NULL,
+                mime_type TEXT NOT NULL,
+                size_bytes INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_task_images_task_id ON task_images(task_id);
         """)
         conn.commit()
     finally:
@@ -1161,5 +1185,69 @@ class SyncDB:
                 d["content"] = content
                 results.append(d)
             return results
+        finally:
+            conn.close()
+
+    # --- Task image methods ---
+
+    def add_task_image(
+        self,
+        image_id: str,
+        task_id: str,
+        filename: str,
+        original_name: str,
+        mime_type: str,
+        size_bytes: int = 0,
+    ) -> dict:
+        conn = self._conn()
+        try:
+            now = now_iso()
+            conn.execute(
+                """INSERT INTO task_images (id, task_id, filename, original_name,
+                   mime_type, size_bytes, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (image_id, task_id, filename, original_name, mime_type, size_bytes, now),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM task_images WHERE id = ?", (image_id,)
+            ).fetchone()
+            return dict(row)
+        finally:
+            conn.close()
+
+    def get_task_images(self, task_id: str) -> list[dict]:
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM task_images WHERE task_id = ? ORDER BY created_at",
+                (task_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def get_task_image(self, image_id: str) -> dict | None:
+        conn = self._conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM task_images WHERE id = ?", (image_id,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def delete_task_image(self, image_id: str) -> dict | None:
+        """Delete a task image record and return the record (for file cleanup)."""
+        conn = self._conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM task_images WHERE id = ?", (image_id,)
+            ).fetchone()
+            if not row:
+                return None
+            conn.execute("DELETE FROM task_images WHERE id = ?", (image_id,))
+            conn.commit()
+            return dict(row)
         finally:
             conn.close()

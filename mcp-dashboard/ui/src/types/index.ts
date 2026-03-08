@@ -159,6 +159,16 @@ export interface TaskDoc {
   created_at: string
 }
 
+export interface TaskImage {
+  id: string
+  task_id: string
+  filename: string
+  original_name: string
+  mime_type: string
+  size_bytes: number
+  created_at: string
+}
+
 export interface WSMessage {
   type: 'init' | 'tasks_updated' | 'stats' | 'activity' | 'questions' | 'artifacts' | 'processes' | 'services' | 'pong'
     | 'chat_delta' | 'chat_complete' | 'chat_error' | 'chat_cancelled'

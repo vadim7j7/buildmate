@@ -15,7 +15,7 @@ from pathlib import Path
 
 import uvicorn
 import yaml
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -49,6 +49,10 @@ ws_clients: list[WebSocket] = []
 _poll_task: asyncio.Task | None = None
 
 
+UPLOADS_DIR = Path(".dashboard/uploads")
+ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
+
+
 def get_db_path() -> str:
     return os.environ.get("DASHBOARD_DB_PATH", ".dashboard/tasks.db")
 
@@ -66,6 +70,9 @@ async def lifespan(app: FastAPI):
 
     # Recover orphaned processes from previous server run
     queue.recover_orphans()
+
+    # Ensure uploads directory exists
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Init service manager
     services = ServiceManager(Path.cwd())
@@ -416,6 +423,16 @@ async def run_task(task_id: str, body: RunTaskRequest | None = None):
         )
         prompt = f"## Reference Documents\n\n{doc_context}\n\n---\n\n{prompt}"
 
+    # Append image references — Claude can read images via the Read tool
+    images = db.get_task_images(task_id)
+    if images:
+        image_lines = []
+        for img in images:
+            abs_path = str((UPLOADS_DIR / img["filename"]).resolve())
+            image_lines.append(f"- {img['original_name']}: {abs_path}")
+        image_section = "## Attached Images\n\nThe following images are attached to this task. Use the Read tool to view them:\n" + "\n".join(image_lines)
+        prompt = f"{image_section}\n\n---\n\n{prompt}"
+
     # If the task has a stored session ID (from resume picker), use it
     claude_session_id = task.get("claude_session_id")
     success = await queue.spawn(task_id, prompt, claude_session_id=claude_session_id)
@@ -701,6 +718,83 @@ async def save_from_task(body: SaveFromTaskRequest):
 async def get_task_documents(task_id: str):
     """Get documents linked to a task."""
     return db.get_task_documents(task_id)
+
+
+# --- Task Images API ---
+
+
+@app.post("/api/tasks/{task_id}/images")
+async def upload_task_image(task_id: str, file: UploadFile):
+    """Upload an image and attach it to a task."""
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported image type: {content_type}. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}",
+        )
+
+    image_id = str(uuid.uuid4())[:8]
+    ext = Path(file.filename or "image").suffix or ".png"
+    filename = f"{image_id}{ext}"
+    file_path = UPLOADS_DIR / filename
+
+    content = await file.read()
+    file_path.write_bytes(content)
+
+    record = db.add_task_image(
+        image_id=image_id,
+        task_id=task_id,
+        filename=filename,
+        original_name=file.filename or "image",
+        mime_type=content_type,
+        size_bytes=len(content),
+    )
+    return record
+
+
+@app.get("/api/tasks/{task_id}/images")
+async def list_task_images(task_id: str):
+    """List images attached to a task."""
+    return db.get_task_images(task_id)
+
+
+@app.delete("/api/tasks/{task_id}/images/{image_id}")
+async def delete_task_image(task_id: str, image_id: str):
+    """Delete an image from a task."""
+    record = db.delete_task_image(image_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Image not found")
+    # Remove file from disk
+    file_path = UPLOADS_DIR / record["filename"]
+    if file_path.exists():
+        file_path.unlink()
+    return {"deleted": True}
+
+
+@app.get("/api/uploads/{filename}")
+async def serve_upload(filename: str):
+    """Serve an uploaded file."""
+    file_path = (UPLOADS_DIR / filename).resolve()
+    # Path containment check
+    if not file_path.is_relative_to(UPLOADS_DIR.resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    # Guess mime type from extension
+    ext = file_path.suffix.lower()
+    mime_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+    }
+    return FileResponse(path=str(file_path), media_type=mime_map.get(ext, "application/octet-stream"))
 
 
 # --- Services API ---

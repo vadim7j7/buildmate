@@ -1,4 +1,4 @@
-import { ChevronDown, Expand, FileText, GitBranch, Minimize2, Plus, X } from 'lucide-react'
+import { ChevronDown, Expand, FileText, GitBranch, ImagePlus, Minimize2, Plus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -22,6 +22,8 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false)
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
   const [availableDocs, setAvailableDocs] = useState<Document[]>([])
+  const [pendingImages, setPendingImages] = useState<File[]>([])
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Fetch available documents
@@ -65,13 +67,28 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
     })
   }
 
+  const handleAddImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    setPendingImages(prev => [...prev, ...Array.from(files)])
+    if (imageInputRef.current) imageInputRef.current.value = ''
+  }
+
+  const removePendingImage = (index: number) => {
+    setPendingImages(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
     setLoading(true)
     try {
-      await api.createTask(title.trim(), description.trim(), autoAccept, resumeSessionId || undefined, selectedDocIds.size > 0 ? [...selectedDocIds] : undefined)
+      const task = await api.createTask(title.trim(), description.trim(), autoAccept, resumeSessionId || undefined, selectedDocIds.size > 0 ? [...selectedDocIds] : undefined)
+      // Upload pending images to the created task
+      for (const file of pendingImages) {
+        await api.uploadTaskImage(task.id, file)
+      }
       await refreshTasks()
       await refreshStats()
       onClose()
@@ -252,6 +269,56 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                 </div>
               </div>
             )}
+
+            {/* Attach Images */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Attach Images
+                <span className="text-xs text-gray-500 ml-2 font-normal">(optional)</span>
+                {pendingImages.length > 0 && (
+                  <span className="text-xs text-violet-400 ml-2 font-normal">{pendingImages.length} selected</span>
+                )}
+              </label>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                multiple
+                onChange={handleAddImages}
+                className="hidden"
+              />
+              {pendingImages.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {pendingImages.map((file, i) => (
+                    <div key={i} className="group relative rounded-lg overflow-hidden border border-surface-700/50 bg-surface-850">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="w-full h-16 object-cover"
+                      />
+                      <div className="px-1.5 py-0.5">
+                        <p className="text-[10px] text-gray-400 truncate" title={file.name}>{file.name}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removePendingImage(i)}
+                        className="absolute top-1 right-1 p-0.5 rounded-md bg-black/60 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-violet-400 bg-surface-850 border border-surface-700 border-dashed rounded-xl hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors w-full justify-center"
+              >
+                <ImagePlus className="w-4 h-4" />
+                Add Images
+              </button>
+            </div>
 
             {/* Resume Session Picker */}
             {tasksWithSessions.length > 0 && (

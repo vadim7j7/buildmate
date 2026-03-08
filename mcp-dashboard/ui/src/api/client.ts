@@ -1,4 +1,4 @@
-import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, Document, ProcessStatus, Question, Service, Stats, Task, TaskDoc, TaskRevision } from '../types'
+import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, Document, ProcessStatus, Question, Service, Stats, Task, TaskDoc, TaskImage, TaskRevision } from '../types'
 
 const BASE = '/api'
 
@@ -127,6 +127,25 @@ export const api = {
       body: JSON.stringify({ artifact_id: artifactId, title, content, folder }),
     }),
   getTaskDocuments: (taskId: string) => request<Document[]>(`/tasks/${taskId}/documents`),
+
+  // Task Images
+  uploadTaskImage: async (taskId: string, file: File): Promise<TaskImage> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${BASE}/tasks/${taskId}/images`, {
+      method: 'POST',
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      throw new Error(`${res.status}: ${body}`)
+    }
+    return res.json()
+  },
+  listTaskImages: (taskId: string) => request<TaskImage[]>(`/tasks/${taskId}/images`),
+  deleteTaskImage: (taskId: string, imageId: string) =>
+    request<{ deleted: boolean }>(`/tasks/${taskId}/images/${imageId}`, { method: 'DELETE' }),
+  getImageUrl: (filename: string) => `${BASE}/uploads/${filename}`,
 }
 
 // --- WebSocket hook ---

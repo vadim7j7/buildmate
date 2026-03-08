@@ -10,6 +10,7 @@ import {
   Expand,
   FileText,
   GitBranch,
+  ImagePlus,
   Loader,
   MessageSquare,
   Pencil,
@@ -29,7 +30,7 @@ import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
 import { useResizablePanel } from '../hooks/useResizablePanel'
-import type { Artifact, Question, Task, TaskRevision, TaskStatus } from '../types'
+import type { Artifact, Question, Task, TaskImage, TaskRevision, TaskStatus } from '../types'
 import { ResizeHandle } from './ResizeHandle'
 import { ActivityFeed } from './ActivityFeed'
 import { AgentBadge } from './AgentBadge'
@@ -215,6 +216,12 @@ export function TaskDetailPanel() {
   const [editDescription, setEditDescription] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
 
+  // Task images state
+  const [taskImages, setTaskImages] = useState<TaskImage[]>([])
+  const [imagesOpen, setImagesOpen] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
   // Reset feedback form when switching tasks
   useEffect(() => {
     setShowFeedbackForm(false)
@@ -225,6 +232,8 @@ export function TaskDetailPanel() {
     setShowSaveToDocs(false)
     setSaveFolder('')
     setIsEditing(false)
+    setTaskImages([])
+    setImagesOpen(false)
   }, [state.selectedTaskId])
 
   // Fetch revisions when task has revision_count > 0
@@ -237,6 +246,12 @@ export function TaskDetailPanel() {
     }
     api.getTaskRevisions(task.id).then(setRevisions).catch(() => setRevisions([]))
   }, [state.selectedTaskId, state.tasks])
+
+  // Fetch task images
+  useEffect(() => {
+    if (!state.selectedTaskId) return
+    api.listTaskImages(state.selectedTaskId).then(setTaskImages).catch(() => setTaskImages([]))
+  }, [state.selectedTaskId])
 
   const task = state.tasks.find(t => t.id === state.selectedTaskId)
   if (!task) return null
@@ -330,6 +345,34 @@ export function TaskDetailPanel() {
       console.error('Failed to save task edits:', err)
     } finally {
       setIsSavingEdit(false)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setIsUploadingImage(true)
+    try {
+      for (const file of Array.from(files)) {
+        await api.uploadTaskImage(task.id, file)
+      }
+      const updated = await api.listTaskImages(task.id)
+      setTaskImages(updated)
+      setImagesOpen(true)
+    } catch (err) {
+      console.error('Failed to upload image:', err)
+    } finally {
+      setIsUploadingImage(false)
+      if (imageInputRef.current) imageInputRef.current.value = ''
+    }
+  }
+
+  const handleDeleteImage = async (imageId: string) => {
+    try {
+      await api.deleteTaskImage(task.id, imageId)
+      setTaskImages(prev => prev.filter(i => i.id !== imageId))
+    } catch (err) {
+      console.error('Failed to delete image:', err)
     }
   }
 
@@ -642,6 +685,71 @@ export function TaskDetailPanel() {
 
           {/* Sections divider */}
           <div className="border-t border-surface-800/50" />
+
+          {/* Task Images */}
+          {(taskImages.length > 0 || isPending) && (
+            <div className="p-5 border-b border-surface-800/50">
+              <div className="flex items-center justify-between">
+                <SectionHeader
+                  label="Images"
+                  count={taskImages.length || undefined}
+                  expanded={imagesOpen}
+                  onToggle={() => setImagesOpen(!imagesOpen)}
+                />
+                {isPending && (
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={isUploadingImage}
+                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isUploadingImage ? (
+                      <Loader className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-3.5 h-3.5" />
+                    )}
+                    {isUploadingImage ? 'Uploading...' : 'Add'}
+                  </button>
+                )}
+              </div>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              {imagesOpen && taskImages.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  {taskImages.map(img => (
+                    <div key={img.id} className="group relative rounded-lg overflow-hidden border border-surface-700/50 bg-surface-850">
+                      <img
+                        src={api.getImageUrl(img.filename)}
+                        alt={img.original_name}
+                        className="w-full h-20 object-cover"
+                      />
+                      <div className="px-1.5 py-1">
+                        <p className="text-[10px] text-gray-400 truncate" title={img.original_name}>
+                          {img.original_name}
+                        </p>
+                      </div>
+                      {isPending && (
+                        <button
+                          onClick={() => handleDeleteImage(img.id)}
+                          className="absolute top-1 right-1 p-1 rounded-md bg-black/60 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {imagesOpen && taskImages.length === 0 && isPending && (
+                <p className="text-xs text-gray-500 mt-2">No images attached. Click Add to upload.</p>
+              )}
+            </div>
+          )}
 
           {/* Pending Questions */}
           {pendingQuestions.length > 0 && (
