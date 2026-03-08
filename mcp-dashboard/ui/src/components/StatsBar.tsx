@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, MessageSquare, Search, Server, Users, Wifi, WifiOff, X } from 'lucide-react'
+import { FileText, MessageCircle, MessageSquare, Search, Server, Users, Wifi, WifiOff, X } from 'lucide-react'
 import { useDashboard } from '../context/DashboardContext'
 import { useChat } from '../context/ChatContext'
 
@@ -12,8 +12,8 @@ const SEARCH_STATUS_COLORS: Record<string, string> = {
 }
 
 export function StatsBar() {
-  const { state, selectTask, toggleServices, toggleTeam } = useDashboard()
-  const { stats, connected, services, showServices, tasks, agents, showTeam } = state
+  const { state, selectTask, toggleServices, toggleTeam, toggleDocs } = useDashboard()
+  const { stats, connected, services, showServices, tasks, agents, showTeam, documents, showDocs } = state
   const { state: chatState, toggleChat } = useChat()
 
   const [searchOpen, setSearchOpen] = useState(false)
@@ -177,6 +177,27 @@ export function StatsBar() {
             >
               <MessageCircle className="w-4 h-4" />
               <span>Chat</span>
+            </button>
+
+            {/* Docs Toggle */}
+            <button
+              onClick={toggleDocs}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
+                transition-all duration-200
+                ${showDocs
+                  ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/30'
+                  : 'bg-surface-800/60 text-gray-400 hover:text-gray-200 hover:bg-surface-800'
+                }
+              `}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Docs</span>
+              {documents.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-surface-700/50 text-xs">
+                  {documents.length}
+                </span>
+              )}
             </button>
 
             {/* Team Toggle */}

@@ -12,6 +12,7 @@ class TaskCreate(BaseModel):
     description: str = ""
     auto_accept: bool = False
     resume_session_id: str | None = None
+    document_ids: list[str] = Field(default_factory=list)
 
 
 class TaskUpdate(BaseModel):
@@ -120,3 +121,28 @@ class ChatSessionUpdate(BaseModel):
     """Request body for updating a chat session."""
 
     title: str
+
+
+class DocumentCreate(BaseModel):
+    """Request body for creating a document."""
+
+    title: str
+    content: str = ""
+    folder: str = ""
+
+
+class DocumentUpdate(BaseModel):
+    """Request body for updating a document."""
+
+    title: str | None = None
+    content: str | None = None
+    folder: str | None = None
+
+
+class SaveFromTaskRequest(BaseModel):
+    """Request body for saving a task artifact as a user document."""
+
+    artifact_id: str
+    title: str
+    content: str
+    folder: str = ""

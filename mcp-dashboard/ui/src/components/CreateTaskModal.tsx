@@ -1,9 +1,10 @@
-import { ChevronDown, Expand, GitBranch, Minimize2, Plus, X } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { ChevronDown, Expand, FileText, GitBranch, Minimize2, Plus, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
+import type { Document } from '../types'
 
 type CreateTaskModalProps = {
   onClose: () => void
@@ -19,7 +20,14 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [resumeSessionId, setResumeSessionId] = useState<string | null>(null)
   const [sessionDropdownOpen, setSessionDropdownOpen] = useState(false)
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
+  const [availableDocs, setAvailableDocs] = useState<Document[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Fetch available documents
+  useEffect(() => {
+    api.listDocuments().then(setAvailableDocs).catch(() => {})
+  }, [])
 
   // Tasks that have a claude_session_id (completed, failed, or ran at least once)
   const tasksWithSessions = useMemo(() => {
@@ -38,13 +46,32 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
 
   const selectedSession = tasksWithSessions.find(t => t.claude_session_id === resumeSessionId)
 
+  const docsByFolder = useMemo(() => {
+    const map = new Map<string, Document[]>()
+    for (const doc of availableDocs) {
+      const folder = doc.folder || '(ungrouped)'
+      if (!map.has(folder)) map.set(folder, [])
+      map.get(folder)!.push(doc)
+    }
+    return map
+  }, [availableDocs])
+
+  const toggleDocSelection = (docId: string) => {
+    setSelectedDocIds(prev => {
+      const next = new Set(prev)
+      if (next.has(docId)) next.delete(docId)
+      else next.add(docId)
+      return next
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
     setLoading(true)
     try {
-      await api.createTask(title.trim(), description.trim(), autoAccept, resumeSessionId || undefined)
+      await api.createTask(title.trim(), description.trim(), autoAccept, resumeSessionId || undefined, selectedDocIds.size > 0 ? [...selectedDocIds] : undefined)
       await refreshTasks()
       await refreshStats()
       onClose()
@@ -188,6 +215,43 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                 />
               )}
             </div>
+
+            {/* Attach Documents */}
+            {availableDocs.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Attach Documents
+                  <span className="text-xs text-gray-500 ml-2 font-normal">(optional)</span>
+                  {selectedDocIds.size > 0 && (
+                    <span className="text-xs text-blue-400 ml-2 font-normal">{selectedDocIds.size} selected</span>
+                  )}
+                </label>
+                <div className="bg-surface-850 border border-surface-700 rounded-xl max-h-40 overflow-y-auto">
+                  {[...docsByFolder.entries()].map(([folder, docs]) => (
+                    <div key={folder}>
+                      <div className="px-3 py-1.5 text-[10px] text-gray-500 uppercase tracking-wider font-semibold bg-surface-800/50 sticky top-0 flex items-center gap-1.5">
+                        <FileText className="w-3 h-3" />
+                        {folder}
+                      </div>
+                      {docs.map(doc => (
+                        <label
+                          key={doc.id}
+                          className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-surface-800/50 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedDocIds.has(doc.id)}
+                            onChange={() => toggleDocSelection(doc.id)}
+                            className="rounded border-surface-600 bg-surface-800 text-blue-500 focus:ring-blue-500/20 focus:ring-offset-0"
+                          />
+                          <span className="text-sm text-gray-300 truncate">{doc.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Resume Session Picker */}
             {tasksWithSessions.length > 0 && (

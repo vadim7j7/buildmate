@@ -7,11 +7,13 @@ import {
   Clock,
   Coins,
   Expand,
+  FileText,
   GitBranch,
   Loader,
   MessageSquare,
   Play,
   RotateCcw,
+  Save,
   Send,
   Square,
   Trash2,
@@ -201,6 +203,9 @@ export function TaskDetailPanel() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
   const [revisions, setRevisions] = useState<TaskRevision[]>([])
   const [revisionsOpen, setRevisionsOpen] = useState(false)
+  const [showSaveToDocs, setShowSaveToDocs] = useState(false)
+  const [saveFolder, setSaveFolder] = useState('')
+  const [isSavingDoc, setIsSavingDoc] = useState(false)
 
   // Reset feedback form when switching tasks
   useEffect(() => {
@@ -209,6 +214,8 @@ export function TaskDetailPanel() {
     setIsSubmittingFeedback(false)
     setRevisions([])
     setRevisionsOpen(false)
+    setShowSaveToDocs(false)
+    setSaveFolder('')
   }, [state.selectedTaskId])
 
   // Fetch revisions when task has revision_count > 0
@@ -269,6 +276,20 @@ export function TaskDetailPanel() {
       console.error('Failed to request changes:', err)
     } finally {
       setIsSubmittingFeedback(false)
+    }
+  }
+
+  const handleSaveToDocs = async () => {
+    if (!task.result) return
+    setIsSavingDoc(true)
+    try {
+      await api.saveFromTask(task.id, task.title, task.result, saveFolder.trim())
+      setShowSaveToDocs(false)
+      setSaveFolder('')
+    } catch (err) {
+      console.error('Failed to save to docs:', err)
+    } finally {
+      setIsSavingDoc(false)
     }
   }
 
@@ -392,6 +413,33 @@ export function TaskDetailPanel() {
 
             {task.result && (
               <div className="mt-4 p-4 bg-surface-850 rounded-xl border border-surface-700/50">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Result</span>
+                  <button
+                    onClick={() => setShowSaveToDocs(!showSaveToDocs)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-blue-400 hover:bg-blue-500/10 transition-colors"
+                  >
+                    <Save className="w-3 h-3" /> Save to Docs
+                  </button>
+                </div>
+                {showSaveToDocs && (
+                  <div className="mb-2 flex items-center gap-2 p-2 bg-surface-800 rounded-lg border border-surface-700/50">
+                    <FileText className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                    <input
+                      value={saveFolder}
+                      onChange={e => setSaveFolder(e.target.value)}
+                      placeholder="Folder (optional)"
+                      className="flex-1 bg-transparent text-xs text-gray-200 placeholder-gray-500 outline-none"
+                    />
+                    <button
+                      onClick={handleSaveToDocs}
+                      disabled={isSavingDoc}
+                      className="px-2 py-1 text-[11px] font-medium bg-blue-600 text-white rounded-md hover:bg-blue-500 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingDoc ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                )}
                 <ExpandableText content={task.result} label="Result" maxLines={4} />
               </div>
             )}

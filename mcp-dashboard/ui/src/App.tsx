@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChatPanel } from './components/ChatPanel'
+import { DocsPanel } from './components/DocsPanel'
 import { KanbanBoard } from './components/KanbanBoard'
 import { ServicesPanel } from './components/ServicesPanel'
 import { StatsBar } from './components/StatsBar'
@@ -10,7 +11,7 @@ import { ChatProvider, useChat } from './context/ChatContext'
 import { DashboardProvider, useDashboard } from './context/DashboardContext'
 import { useStackPanelWidth } from './hooks/useResizablePanel'
 
-type PanelKey = 'chat' | 'team' | 'services'
+type PanelKey = 'chat' | 'docs' | 'team' | 'services'
 
 function RightPanelStack() {
   const { state } = useDashboard()
@@ -18,11 +19,12 @@ function RightPanelStack() {
 
   // Stack tracks the z-order: last element = top
   const [stack, setStack] = useState<PanelKey[]>([])
-  const prevOpen = useRef<Record<PanelKey, boolean>>({ chat: false, team: false, services: false })
+  const prevOpen = useRef<Record<PanelKey, boolean>>({ chat: false, docs: false, team: false, services: false })
 
   useEffect(() => {
     const current: Record<PanelKey, boolean> = {
       chat: chatState.chatOpen,
+      docs: state.showDocs,
       team: state.showTeam,
       services: state.showServices,
     }
@@ -30,7 +32,7 @@ function RightPanelStack() {
     const prev = prevOpen.current
     setStack(s => {
       let next = [...s]
-      for (const key of ['chat', 'team', 'services'] as PanelKey[]) {
+      for (const key of ['chat', 'docs', 'team', 'services'] as PanelKey[]) {
         if (current[key] && !prev[key]) {
           // Toggled on — move to top
           next = next.filter(k => k !== key)
@@ -44,7 +46,7 @@ function RightPanelStack() {
     })
 
     prevOpen.current = current
-  }, [chatState.chatOpen, state.showTeam, state.showServices])
+  }, [chatState.chatOpen, state.showDocs, state.showTeam, state.showServices])
 
   const sharedWidth = useStackPanelWidth()
 
@@ -58,6 +60,7 @@ function RightPanelStack() {
       {stack.map((key, i) => (
         <div key={key} className="absolute inset-0" style={{ zIndex: i + 1 }}>
           {key === 'chat' && <ChatPanel />}
+          {key === 'docs' && <DocsPanel />}
           {key === 'team' && <TeamPanel />}
           {key === 'services' && <ServicesPanel />}
         </div>

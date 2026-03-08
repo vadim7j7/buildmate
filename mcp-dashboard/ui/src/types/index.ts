@@ -138,6 +138,27 @@ export interface ChatMessage {
   created_at: string
 }
 
+export interface Document {
+  id: string
+  title: string
+  content: string
+  folder: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskDoc {
+  id: string
+  task_id: string
+  label: string
+  file_path: string
+  artifact_type: string
+  mime_type: string | null
+  content: string
+  task_title: string
+  created_at: string
+}
+
 export interface WSMessage {
   type: 'init' | 'tasks_updated' | 'stats' | 'activity' | 'questions' | 'artifacts' | 'processes' | 'services' | 'pong'
     | 'chat_delta' | 'chat_complete' | 'chat_error' | 'chat_cancelled'

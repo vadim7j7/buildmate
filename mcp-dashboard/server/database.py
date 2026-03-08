@@ -116,6 +116,23 @@ CREATE TABLE IF NOT EXISTS task_revisions (
     created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_task_revisions_task_id ON task_revisions(task_id);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT DEFAULT '',
+    folder TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_documents_folder ON documents(folder);
+
+CREATE TABLE IF NOT EXISTS task_documents (
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    PRIMARY KEY (task_id, document_id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_documents_task_id ON task_documents(task_id);
 """
 
 
@@ -191,6 +208,25 @@ def init_db(db_path: str | None = None) -> None:
                 created_at TEXT DEFAULT (datetime('now'))
             );
             CREATE INDEX IF NOT EXISTS idx_task_revisions_task_id ON task_revisions(task_id);
+        """)
+        # Migration: create documents and task_documents tables
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS documents (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                content TEXT DEFAULT '',
+                folder TEXT DEFAULT '',
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_documents_folder ON documents(folder);
+
+            CREATE TABLE IF NOT EXISTS task_documents (
+                task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                PRIMARY KEY (task_id, document_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_task_documents_task_id ON task_documents(task_id);
         """)
         conn.commit()
     finally:
@@ -962,5 +998,160 @@ class SyncDB:
                 (task_id,),
             ).fetchall()
             return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    # --- Document methods ---
+
+    def create_document(
+        self,
+        doc_id: str,
+        title: str,
+        content: str = "",
+        folder: str = "",
+    ) -> dict:
+        conn = self._conn()
+        try:
+            now = now_iso()
+            conn.execute(
+                """INSERT INTO documents (id, title, content, folder, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (doc_id, title, content, folder, now, now),
+            )
+            conn.commit()
+            return self.get_document(doc_id)
+        finally:
+            conn.close()
+
+    def get_document(self, doc_id: str) -> dict | None:
+        conn = self._conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM documents WHERE id = ?", (doc_id,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def update_document(
+        self,
+        doc_id: str,
+        title: str | None = None,
+        content: str | None = None,
+        folder: str | None = None,
+    ) -> dict | None:
+        conn = self._conn()
+        try:
+            updates = []
+            params = []
+            if title is not None:
+                updates.append("title = ?")
+                params.append(title)
+            if content is not None:
+                updates.append("content = ?")
+                params.append(content)
+            if folder is not None:
+                updates.append("folder = ?")
+                params.append(folder)
+            if not updates:
+                return self.get_document(doc_id)
+            updates.append("updated_at = ?")
+            params.append(now_iso())
+            params.append(doc_id)
+            conn.execute(
+                f"UPDATE documents SET {', '.join(updates)} WHERE id = ?", params
+            )
+            conn.commit()
+            return self.get_document(doc_id)
+        finally:
+            conn.close()
+
+    def delete_document(self, doc_id: str) -> bool:
+        conn = self._conn()
+        try:
+            cursor = conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def list_documents(self) -> list[dict]:
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM documents ORDER BY folder, title"
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def list_folders(self) -> list[str]:
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT DISTINCT folder FROM documents WHERE folder != '' ORDER BY folder"
+            ).fetchall()
+            return [r["folder"] for r in rows]
+        finally:
+            conn.close()
+
+    def link_documents_to_task(self, task_id: str, document_ids: list[str]) -> None:
+        conn = self._conn()
+        try:
+            for doc_id in document_ids:
+                conn.execute(
+                    "INSERT OR IGNORE INTO task_documents (task_id, document_id) VALUES (?, ?)",
+                    (task_id, doc_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_task_documents(self, task_id: str) -> list[dict]:
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                """SELECT d.* FROM documents d
+                   JOIN task_documents td ON d.id = td.document_id
+                   WHERE td.task_id = ?
+                   ORDER BY d.folder, d.title""",
+                (task_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def get_task_artifacts_as_docs(self) -> list[dict]:
+        """Return artifacts from completed tasks as browsable docs.
+
+        Reads actual file content from disk for each artifact.
+        Only includes text-based artifacts (markdown, text).
+        """
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                """SELECT a.id, a.task_id, a.label, a.file_path, a.artifact_type,
+                          a.mime_type, a.created_at, t.title as task_title
+                   FROM artifacts a
+                   JOIN tasks t ON a.task_id = t.id
+                   WHERE t.status IN ('completed', 'failed')
+                   ORDER BY a.created_at DESC"""
+            ).fetchall()
+            results = []
+            for r in rows:
+                d = dict(r)
+                # Read file content from disk
+                file_path = Path(d["file_path"])
+                if not file_path.is_absolute():
+                    file_path = Path.cwd() / file_path
+                content = ""
+                if file_path.exists() and file_path.is_file():
+                    try:
+                        content = file_path.read_text(errors="replace")
+                    except Exception:
+                        content = "(Could not read file)"
+                d["content"] = content
+                results.append(d)
+            return results
         finally:
             conn.close()

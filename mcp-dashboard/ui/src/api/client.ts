@@ -1,4 +1,4 @@
-import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, ProcessStatus, Question, Service, Stats, Task, TaskRevision } from '../types'
+import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, Document, ProcessStatus, Question, Service, Stats, Task, TaskDoc, TaskRevision } from '../types'
 
 const BASE = '/api'
 
@@ -18,7 +18,7 @@ export const api = {
   // Tasks
   listTasks: () => request<Task[]>('/tasks'),
   getTask: (id: string) => request<Task>(`/tasks/${id}`),
-  createTask: (title: string, description: string, autoAccept: boolean, resumeSessionId?: string) =>
+  createTask: (title: string, description: string, autoAccept: boolean, resumeSessionId?: string, documentIds?: string[]) =>
     request<Task>('/tasks', {
       method: 'POST',
       body: JSON.stringify({
@@ -26,6 +26,7 @@ export const api = {
         description,
         auto_accept: autoAccept,
         ...(resumeSessionId ? { resume_session_id: resumeSessionId } : {}),
+        ...(documentIds?.length ? { document_ids: documentIds } : {}),
       }),
     }),
   updateTask: (id: string, data: Partial<{ status: string; phase: string; result: string }>) =>
@@ -102,6 +103,30 @@ export const api = {
     }),
   cancelChat: (sessionId: string) =>
     request<{ status: string }>(`/chat/sessions/${sessionId}/cancel`, { method: 'POST' }),
+
+  // Documents
+  listDocuments: () => request<Document[]>('/documents'),
+  createDocument: (title: string, content: string, folder: string) =>
+    request<Document>('/documents', {
+      method: 'POST',
+      body: JSON.stringify({ title, content, folder }),
+    }),
+  getDocument: (id: string) => request<Document>(`/documents/${id}`),
+  updateDocument: (id: string, data: Partial<{ title: string; content: string; folder: string }>) =>
+    request<Document>(`/documents/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteDocument: (id: string) =>
+    request<{ deleted: boolean }>(`/documents/${id}`, { method: 'DELETE' }),
+  listFolders: () => request<string[]>('/documents/folders'),
+  getTaskResultDocs: () => request<TaskDoc[]>('/documents/task-results'),
+  saveFromTask: (artifactId: string, title: string, content: string, folder: string) =>
+    request<Document>('/documents/save-from-task', {
+      method: 'POST',
+      body: JSON.stringify({ artifact_id: artifactId, title, content, folder }),
+    }),
+  getTaskDocuments: (taskId: string) => request<Document[]>(`/tasks/${taskId}/documents`),
 }
 
 // --- WebSocket hook ---

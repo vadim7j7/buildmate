@@ -26,8 +26,11 @@ from .models import (
     AnswerRequest,
     ChatSendMessage,
     ChatSessionUpdate,
+    DocumentCreate,
+    DocumentUpdate,
     RequestChangesRequest,
     RunTaskRequest,
+    SaveFromTaskRequest,
     StatsResponse,
     TaskCreate,
     TaskUpdate,
@@ -257,6 +260,9 @@ async def create_task(body: TaskCreate):
     if body.resume_session_id:
         db.update_task(task_id, claude_session_id=body.resume_session_id)
         task = db.get_task(task_id)
+    # Link documents to the task
+    if body.document_ids:
+        db.link_documents_to_task(task_id, body.document_ids)
     return task
 
 
@@ -396,6 +402,15 @@ async def run_task(task_id: str, body: RunTaskRequest | None = None):
         prompt = f"Use PM: {task['title']}"
         if task.get("description"):
             prompt += f"\n\n{task['description']}"
+
+    # Prepend linked document content to the prompt
+    docs = db.get_task_documents(task_id)
+    if docs:
+        doc_context = "\n\n".join(
+            f"--- Document: {d['title']} ---\n{d['content']}"
+            for d in docs
+        )
+        prompt = f"## Reference Documents\n\n{doc_context}\n\n---\n\n{prompt}"
 
     # If the task has a stored session ID (from resume picker), use it
     claude_session_id = task.get("claude_session_id")
@@ -605,6 +620,83 @@ async def cancel_chat(session_id: str):
     if not cancelled:
         raise HTTPException(status_code=404, detail="No active chat process for session")
     return {"status": "cancelled", "session_id": session_id}
+
+
+# --- Documents API ---
+
+
+@app.get("/api/documents/folders")
+async def list_folders():
+    """List distinct folder names."""
+    return db.list_folders()
+
+
+@app.get("/api/documents/task-results")
+async def get_task_result_docs():
+    """List task artifacts as browsable docs with file content."""
+    return db.get_task_artifacts_as_docs()
+
+
+@app.get("/api/documents")
+async def list_documents():
+    """List all user documents."""
+    return db.list_documents()
+
+
+@app.post("/api/documents")
+async def create_document(body: DocumentCreate):
+    """Create a new user document."""
+    doc_id = str(uuid.uuid4())[:8]
+    doc = db.create_document(doc_id, body.title, body.content, body.folder)
+    return doc
+
+
+@app.get("/api/documents/{doc_id}")
+async def get_document(doc_id: str):
+    """Get a single document."""
+    doc = db.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return doc
+
+
+@app.patch("/api/documents/{doc_id}")
+async def update_document(doc_id: str, body: DocumentUpdate):
+    """Update a document."""
+    doc = db.get_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    kwargs = {}
+    if body.title is not None:
+        kwargs["title"] = body.title
+    if body.content is not None:
+        kwargs["content"] = body.content
+    if body.folder is not None:
+        kwargs["folder"] = body.folder
+    updated = db.update_document(doc_id, **kwargs)
+    return updated
+
+
+@app.delete("/api/documents/{doc_id}")
+async def delete_document(doc_id: str):
+    """Delete a document."""
+    if not db.delete_document(doc_id):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"deleted": True}
+
+
+@app.post("/api/documents/save-from-task")
+async def save_from_task(body: SaveFromTaskRequest):
+    """Save a task artifact as a user document."""
+    doc_id = str(uuid.uuid4())[:8]
+    doc = db.create_document(doc_id, body.title, body.content, body.folder)
+    return doc
+
+
+@app.get("/api/tasks/{task_id}/documents")
+async def get_task_documents(task_id: str):
+    """Get documents linked to a task."""
+    return db.get_task_documents(task_id)
 
 
 # --- Services API ---
