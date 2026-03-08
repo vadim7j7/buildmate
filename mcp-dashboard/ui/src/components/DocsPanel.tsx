@@ -45,6 +45,7 @@ export function DocsPanel() {
 
   // Folder collapse state
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set())
+  const [collapsedTaskGroups, setCollapsedTaskGroups] = useState<Set<string>>(new Set())
   const [taskFolderCollapsed, setTaskFolderCollapsed] = useState(false)
 
   // Saving state
@@ -66,7 +67,27 @@ export function DocsPanel() {
     return map
   }, [documents])
 
+  // Group task artifacts by task title
+  const taskDocsByTask = useMemo(() => {
+    const map = new Map<string, TaskDoc[]>()
+    for (const td of taskDocs) {
+      const key = td.task_title || '(unknown task)'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(td)
+    }
+    return map
+  }, [taskDocs])
+
   const selectedDoc = documents.find(d => d.id === selectedDocId)
+
+  const toggleTaskGroup = (taskTitle: string) => {
+    setCollapsedTaskGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(taskTitle)) next.delete(taskTitle)
+      else next.add(taskTitle)
+      return next
+    })
+  }
 
   const toggleFolder = (folder: string) => {
     setCollapsedFolders(prev => {
@@ -235,7 +256,7 @@ export function DocsPanel() {
               </div>
             ))}
 
-            {/* Task artifacts virtual folder */}
+            {/* Task artifacts grouped by task */}
             {taskDocs.length > 0 && (
               <div>
                 <button
@@ -251,22 +272,42 @@ export function DocsPanel() {
                   <span className="text-[10px] text-gray-600 flex-shrink-0">{taskDocs.length}</span>
                 </button>
                 {!taskFolderCollapsed && (
-                  <div className="ml-3.5">
-                    {taskDocs.map(td => (
-                      <button
-                        key={td.id}
-                        onClick={() => handleSelectTaskDoc(td)}
-                        className={`
-                          w-full flex items-center gap-1.5 px-3 py-1 text-left transition-colors
-                          ${selectedTaskDoc?.id === td.id
-                            ? 'bg-emerald-500/10 text-emerald-300'
-                            : 'text-gray-400 hover:bg-surface-800/50 hover:text-gray-300'
+                  <div className="ml-1.5">
+                    {[...taskDocsByTask.entries()].map(([taskTitle, artifacts]) => (
+                      <div key={taskTitle}>
+                        <button
+                          onClick={() => toggleTaskGroup(taskTitle)}
+                          className="w-full flex items-center gap-1.5 px-3 py-1 text-left hover:bg-surface-800/50 transition-colors"
+                        >
+                          {collapsedTaskGroups.has(taskTitle)
+                            ? <ChevronRight className="w-3 h-3 text-gray-600 flex-shrink-0" />
+                            : <ChevronDown className="w-3 h-3 text-gray-600 flex-shrink-0" />
                           }
-                        `}
-                      >
-                        <FileText className="w-3 h-3 flex-shrink-0 opacity-50" />
-                        <span className="text-[11px] truncate">{td.label}</span>
-                      </button>
+                          <FolderOpen className="w-3 h-3 text-emerald-400/60 flex-shrink-0" />
+                          <span className="text-[11px] text-gray-400 truncate flex-1">{taskTitle}</span>
+                          <span className="text-[10px] text-gray-600 flex-shrink-0">{artifacts.length}</span>
+                        </button>
+                        {!collapsedTaskGroups.has(taskTitle) && (
+                          <div className="ml-3.5">
+                            {artifacts.map(td => (
+                              <button
+                                key={td.id}
+                                onClick={() => handleSelectTaskDoc(td)}
+                                className={`
+                                  w-full flex items-center gap-1.5 px-3 py-1 text-left transition-colors
+                                  ${selectedTaskDoc?.id === td.id
+                                    ? 'bg-emerald-500/10 text-emerald-300'
+                                    : 'text-gray-400 hover:bg-surface-800/50 hover:text-gray-300'
+                                  }
+                                `}
+                              >
+                                <FileText className="w-3 h-3 flex-shrink-0 opacity-50" />
+                                <span className="text-[11px] truncate">{td.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
