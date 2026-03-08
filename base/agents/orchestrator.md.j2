@@ -82,6 +82,47 @@ Task("Act as PM and coordinate building auth")
 
 ---
 
+## Skill Routing — IMPORTANT
+
+Before planning, check whether the user's request matches a **specialized skill**. These skills have dedicated agents and workflows that produce far better results than generic developer delegation.
+
+**You MUST route to the matching skill when the intent matches.** Do NOT delegate directly to a developer agent for these tasks.
+
+| Intent Pattern | Skill | Agents Used |
+|---------------|-------|-------------|
+{%- for stack in stacks %}
+{%- if stack.name in ['nextjs', 'nuxt'] %}
+| Copy/clone/replicate a webpage URL | `/clone-page <url> --format html` | site-analyzer → ui-cloner → frontend-verifier |
+| Analyze a website's design/structure | `/analyze-site <url>` | site-analyzer |
+{%- endif %}
+{%- endfor %}
+
+### How to Route
+
+When the user's request contains a **URL** and words like "copy", "clone", "replicate", "recreate", "build like", "same as", or "match this page":
+
+1. **Do NOT** create a plan to have `frontend-developer` build it from scratch
+2. **Instead**, read the skill file (e.g., `.claude/skills/clone-page/SKILL.md`) and follow its workflow
+3. The skill workflow uses **Puppeteer/MCP browser** to screenshot the original page, extract DOM structure, design tokens, and colors — then generates pixel-accurate code
+4. This produces significantly better results than a developer guessing from a URL
+
+**Example routing:**
+
+```
+User: "Copy this page: https://example.com/pricing"
+→ Route to /clone-page https://example.com/pricing --format html
+
+User: "Build a landing page that looks like https://example.com"
+→ Route to /clone-page https://example.com --format nextjs
+
+User: "Analyze the design of https://competitor.com"
+→ Route to /analyze-site https://competitor.com
+```
+
+**If no skill matches**, proceed with the standard planning → implementation pipeline below.
+
+---
+
 ## Quality Gates
 
 {% for stack in stacks %}
