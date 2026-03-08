@@ -23,6 +23,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
   const [availableDocs, setAvailableDocs] = useState<Document[]>([])
   const [pendingImages, setPendingImages] = useState<File[]>([])
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Fetch available documents
@@ -68,9 +69,13 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
 
   const handleAddImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files) return
-    setPendingImages(prev => [...prev, ...Array.from(files)])
+    if (!files || files.length === 0) return
+    // Copy into a plain array BEFORE clearing the input.
+    // FileList is a live DOM object — clearing the input empties it in-place,
+    // and React 18 batching may defer the state updater until after that happens.
+    const fileArray = Array.from(files)
     e.target.value = ''
+    setPendingImages(prev => [...prev, ...fileArray])
   }
 
   const removePendingImage = (index: number) => {
@@ -155,7 +160,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-6 pb-6 flex flex-col flex-1 min-h-0">
-          <div className="space-y-5 flex-1 flex flex-col min-h-0">
+          <div className="space-y-5 flex-1 overflow-y-auto min-h-0">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Title
@@ -175,7 +180,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
               />
             </div>
 
-            <div className="flex-1 flex flex-col min-h-0">
+            <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-300">
                   Description
@@ -209,8 +214,8 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
               </div>
               {showPreview && description.trim() ? (
                 <div
-                  className={`flex-1 bg-surface-850 border border-surface-700 rounded-xl px-4 py-3 overflow-y-auto artifact-markdown ${
-                    expanded ? 'min-h-[300px]' : 'min-h-[160px]'
+                  className={`bg-surface-850 border border-surface-700 rounded-xl px-4 py-3 overflow-y-auto artifact-markdown ${
+                    expanded ? 'min-h-[300px] max-h-[50vh]' : 'min-h-[160px] max-h-[40vh]'
                   }`}
                 >
                   <Markdown remarkPlugins={[remarkGfm]}>{description}</Markdown>
@@ -226,7 +231,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                     px-4 py-3 text-sm text-white placeholder-gray-500
                     resize-y transition-all duration-200
                     focus:outline-none focus:border-accent-500/50 focus:ring-2 focus:ring-accent-500/20
-                    ${expanded ? 'flex-1 min-h-[300px]' : 'min-h-[160px]'}
+                    ${expanded ? 'min-h-[300px] max-h-[50vh]' : 'min-h-[160px] max-h-[40vh]'}
                   `}
                 />
               )}
@@ -285,7 +290,8 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                       <img
                         src={URL.createObjectURL(file)}
                         alt={file.name}
-                        className="w-full h-16 object-cover"
+                        className="w-full h-16 object-cover cursor-pointer"
+                        onClick={() => setPreviewImage(URL.createObjectURL(file))}
                       />
                       <div className="px-1.5 py-0.5">
                         <p className="text-[10px] text-gray-400 truncate" title={file.name}>{file.name}</p>
@@ -301,21 +307,19 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                   ))}
                 </div>
               )}
-              <label
-                htmlFor="create-task-image-input"
-                className="flex items-center gap-2 px-3 py-2 text-sm text-violet-400 bg-surface-850 border border-surface-700 border-dashed rounded-xl hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors w-full justify-center cursor-pointer"
-              >
-                <ImagePlus className="w-4 h-4" />
-                Add Images
+              <div className="relative">
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-violet-400 bg-surface-850 border border-surface-700 border-dashed rounded-xl hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors w-full justify-center pointer-events-none">
+                  <ImagePlus className="w-4 h-4" />
+                  Add Images
+                </div>
                 <input
-                  id="create-task-image-input"
                   type="file"
                   accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
                   multiple
                   onChange={handleAddImages}
-                  className="sr-only"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-              </label>
+              </div>
             </div>
 
             {/* Resume Session Picker */}
@@ -468,6 +472,27 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
           </div>
         </form>
       </div>
+
+      {/* Image preview lightbox */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 animate-fade-in"
+          onClick={e => { e.stopPropagation(); setPreviewImage(null) }}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-lg bg-black/50 text-gray-300 hover:text-white transition-colors"
+            onClick={() => setPreviewImage(null)}
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img
+            src={previewImage}
+            alt="Preview"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -306,7 +306,13 @@ async def update_task(task_id: str, body: TaskUpdate):
 
 @app.delete("/api/tasks/{task_id}")
 async def delete_task(task_id: str):
-    """Delete a task and its children."""
+    """Delete a task, its children, and associated image files."""
+    # Remove image files from disk before the CASCADE deletes the DB records
+    images = db.get_task_images(task_id)
+    for img in images:
+        file_path = UPLOADS_DIR / img["filename"]
+        if file_path.exists():
+            file_path.unlink()
     if not db.delete_task(task_id):
         raise HTTPException(status_code=404, detail="Task not found")
     return {"deleted": True}

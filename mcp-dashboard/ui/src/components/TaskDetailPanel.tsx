@@ -219,6 +219,7 @@ export function TaskDetailPanel() {
   // Task images state
   const [taskImages, setTaskImages] = useState<TaskImage[]>([])
   const [imagesOpen, setImagesOpen] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
 
 
@@ -364,8 +365,7 @@ export function TaskDetailPanel() {
     } finally {
       setIsUploadingImage(false)
       // Reset file input so the same file can be selected again
-      const input = document.getElementById('task-detail-image-input') as HTMLInputElement
-      if (input) input.value = ''
+      e.target.value = ''
     }
   }
 
@@ -699,25 +699,23 @@ export function TaskDetailPanel() {
                   onToggle={() => setImagesOpen(!imagesOpen)}
                 />
                 {isPending && (
-                  <label
-                    htmlFor="task-detail-image-input"
-                    className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors cursor-pointer ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}
-                  >
-                    {isUploadingImage ? (
-                      <Loader className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <ImagePlus className="w-3.5 h-3.5" />
-                    )}
-                    {isUploadingImage ? 'Uploading...' : 'Add'}
+                  <div className={`relative ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors pointer-events-none">
+                      {isUploadingImage ? (
+                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <ImagePlus className="w-3.5 h-3.5" />
+                      )}
+                      {isUploadingImage ? 'Uploading...' : 'Add'}
+                    </div>
                     <input
-                      id="task-detail-image-input"
                       type="file"
                       accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
                       multiple
                       onChange={handleImageUpload}
-                      className="sr-only"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                  </label>
+                  </div>
                 )}
               </div>
               {imagesOpen && taskImages.length > 0 && (
@@ -727,7 +725,8 @@ export function TaskDetailPanel() {
                       <img
                         src={api.getImageUrl(img.filename)}
                         alt={img.original_name}
-                        className="w-full h-20 object-cover"
+                        className="w-full h-20 object-cover cursor-pointer"
+                        onClick={() => setPreviewImage(api.getImageUrl(img.filename))}
                       />
                       <div className="px-1.5 py-1">
                         <p className="text-[10px] text-gray-400 truncate" title={img.original_name}>
@@ -937,6 +936,27 @@ export function TaskDetailPanel() {
 
       {viewingArtifact && (
         <ArtifactModal artifact={viewingArtifact} onClose={() => setViewingArtifact(null)} />
+      )}
+
+      {/* Image preview lightbox */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8 animate-fade-in"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-lg bg-black/50 text-gray-300 hover:text-white transition-colors"
+            onClick={() => setPreviewImage(null)}
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img
+            src={previewImage}
+            alt="Preview"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
       )}
     </>
   )
