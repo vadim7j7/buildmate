@@ -30,7 +30,11 @@ You are the **site analyzer**. Your job is to deeply analyze websites and extrac
 ### Phase 1: Initial Scan
 
 1. **Fetch the page** using WebFetch or browser tools
-2. **Capture screenshot** for visual reference
+2. **Capture source screenshot** — this is the **reference image** for later visual comparison
+   - Use `browser_navigate` to load the URL
+   - Save **full-page screenshot** to `.agent-pipeline/screenshots/source-desktop.png` (viewport 1440×900)
+   - Save **mobile screenshot** to `.agent-pipeline/screenshots/source-mobile.png` (viewport 375×812)
+   - These screenshots are **critical** — the verifier will compare the clone against them
 3. **Extract HTML structure** for DOM analysis
 4. **Identify page type** (landing, dashboard, list, detail, form, etc.)
 
@@ -75,6 +79,28 @@ When browser MCP is available, use these tools:
 | `browser_evaluate` | Run JS to extract styles, data, network info |
 | `browser_click` | Interact with elements |
 | `browser_type` | Fill form inputs |
+
+### Capture Source Reference Screenshots
+
+**You MUST capture these screenshots before doing anything else.** They are the ground truth for visual comparison.
+
+```javascript
+// 1. Create screenshots directory
+// bash: mkdir -p .agent-pipeline/screenshots
+
+// 2. Navigate to the page
+browser_navigate({ url: "TARGET_URL" })
+
+// 3. Desktop screenshot (1440×900)
+browser_screenshot({ path: ".agent-pipeline/screenshots/source-desktop.png" })
+
+// 4. Mobile screenshot (375×812) — resize viewport first
+browser_evaluate({ script: "window.resizeTo(375, 812)" })
+browser_screenshot({ path: ".agent-pipeline/screenshots/source-mobile.png" })
+
+// 5. Reset to desktop viewport
+browser_evaluate({ script: "window.resizeTo(1440, 900)" })
+```
 
 ### Extract Components Script
 

@@ -48,7 +48,7 @@ or JavaScript-rendered content.
 
 1. **Analyze the page.** Delegate to the site-analyzer agent to:
    - Fetch the page content (via MCP browser or WebFetch)
-   - Take screenshots if browser MCP is available
+   - **Take source reference screenshots** (desktop + mobile) — saved to `.agent-pipeline/screenshots/source-desktop.png` and `source-mobile.png`
    - Extract structure, components, and design tokens
    - Write analysis to `.agent-pipeline/site-analysis.md`
 
@@ -68,7 +68,18 @@ or JavaScript-rendered content.
    - Applies the theme
    - Handles responsive behavior
 
-5. **Report results.** Write summary to `.agent-pipeline/clone-report.md`
+5. **Verify with visual comparison.** Delegate to the frontend-verifier agent to:
+   - Open the cloned page in the browser
+   - Take screenshots of the clone at matching viewports
+   - **Compare clone screenshots against source screenshots** (visual diff)
+   - Score the visual match (0–100) across layout, colors, typography, spacing, content, responsive
+   - If score < 70: **fix and re-verify** (up to 3 iterations)
+   - Write verification report with final score to `.agent-pipeline/frontend-verification-report.md`
+
+6. **Report results.** Write summary to `.agent-pipeline/clone-report.md` including:
+   - Files created
+   - Visual match score
+   - Any remaining differences
 
 ## Format-Specific Output
 

@@ -241,6 +241,119 @@ browser_evaluate({
 })
 ```
 
+## Visual Comparison (Clone Verification)
+
+When verifying a **cloned page** (i.e., `.agent-pipeline/screenshots/source-desktop.png` exists), you MUST perform visual comparison between the original and your clone.
+
+### Visual Comparison Process
+
+1. **Check for source screenshots**
+   ```bash
+   ls .agent-pipeline/screenshots/source-desktop.png .agent-pipeline/screenshots/source-mobile.png 2>/dev/null
+   ```
+
+2. **Take clone screenshots at matching viewports**
+   ```javascript
+   // Desktop (1440×900)
+   browser_evaluate({ script: "window.resizeTo(1440, 900)" })
+   browser_screenshot({ path: ".agent-pipeline/screenshots/clone-desktop.png" })
+
+   // Mobile (375×812)
+   browser_evaluate({ script: "window.resizeTo(375, 812)" })
+   browser_screenshot({ path: ".agent-pipeline/screenshots/clone-mobile.png" })
+   ```
+
+3. **Read both screenshots and compare visually**
+   - Use the Read tool to view `.agent-pipeline/screenshots/source-desktop.png`
+   - Use the Read tool to view `.agent-pipeline/screenshots/clone-desktop.png`
+   - Compare them side by side (you are a multimodal model — you can see images)
+
+4. **Score the visual match (0–100)**
+   Evaluate on these criteria and produce a **visual_match_score**:
+
+   | Criteria | Weight | What to Check |
+   |----------|--------|---------------|
+   | Layout structure | 25% | Same sections, same order, same grid/flex layout |
+   | Colors & theme | 20% | Background colors, text colors, accent colors match |
+   | Typography | 15% | Font sizes, weights, spacing look similar |
+   | Spacing & alignment | 15% | Margins, paddings, gaps between elements |
+   | Content fidelity | 15% | Text, images, icons present and positioned correctly |
+   | Responsive behavior | 10% | Mobile layout matches mobile source |
+
+   **Scoring guide:**
+   - **90–100**: Nearly pixel-perfect, minor differences only
+   - **70–89**: Good match, noticeable but minor layout/color differences
+   - **50–69**: Recognizable but significant differences in layout or styling
+   - **30–49**: Major structural differences, partially matches
+   - **0–29**: Barely resembles the original
+
+5. **Write comparison details** listing specific differences found
+
+### Visual Fix Loop
+
+If `visual_match_score < 70`, you MUST attempt fixes:
+
+```
+compare → score < 70 → identify differences → fix code → re-screenshot → compare again
+```
+
+**Max iterations:** 3
+
+**Each iteration:**
+1. List the **top 3 most impactful differences** between source and clone
+2. Fix the most impactful issue first (e.g., wrong background color, missing section, broken layout)
+3. Re-take clone screenshot
+4. Re-compare and re-score
+5. If score ≥ 70 or max iterations reached, stop
+
+**Common fixes by difference type:**
+
+| Difference | Where to Fix |
+|-----------|--------------|
+| Wrong colors | Theme/CSS variables, Tailwind config, inline styles |
+| Missing section | Page component — add the missing section |
+| Wrong layout direction | Flex direction, grid template |
+| Wrong spacing | Padding/margin/gap values |
+| Wrong font size/weight | Typography scale, heading styles |
+| Missing background | Section wrapper styles |
+| Wrong border radius | Component styles |
+
+### Visual Comparison Report
+
+After comparison (and any fix iterations), append to your verification report:
+
+```markdown
+## Visual Comparison
+
+**Source:** `.agent-pipeline/screenshots/source-desktop.png`
+**Clone:** `.agent-pipeline/screenshots/clone-desktop.png`
+**Visual Match Score:** XX/100
+
+### Score Breakdown
+
+| Criteria | Score | Notes |
+|----------|-------|-------|
+| Layout structure | X/25 | ... |
+| Colors & theme | X/20 | ... |
+| Typography | X/15 | ... |
+| Spacing & alignment | X/15 | ... |
+| Content fidelity | X/15 | ... |
+| Responsive behavior | X/10 | ... |
+
+### Differences Found
+1. ...
+2. ...
+
+### Fix Iterations
+| Iteration | Score | Fix Applied |
+|-----------|-------|-------------|
+| Initial | XX | — |
+| 1 | XX | Fixed background color on hero |
+| 2 | XX | Adjusted grid layout spacing |
+
+### Final Score: XX/100
+```
+
 ## Verification Checks
 
 ### Component Existence
