@@ -23,7 +23,6 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
   const [availableDocs, setAvailableDocs] = useState<Document[]>([])
   const [pendingImages, setPendingImages] = useState<File[]>([])
-  const imageInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Fetch available documents
@@ -71,7 +70,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
     const files = e.target.files
     if (!files) return
     setPendingImages(prev => [...prev, ...Array.from(files)])
-    if (imageInputRef.current) imageInputRef.current.value = ''
+    e.target.value = ''
   }
 
   const removePendingImage = (index: number) => {
@@ -279,14 +278,6 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                   <span className="text-xs text-violet-400 ml-2 font-normal">{pendingImages.length} selected</span>
                 )}
               </label>
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-                multiple
-                onChange={handleAddImages}
-                className="hidden"
-              />
               {pendingImages.length > 0 && (
                 <div className="grid grid-cols-4 gap-2 mb-2">
                   {pendingImages.map((file, i) => (
@@ -310,14 +301,21 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                   ))}
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => imageInputRef.current?.click()}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-violet-400 bg-surface-850 border border-surface-700 border-dashed rounded-xl hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors w-full justify-center"
+              <label
+                htmlFor="create-task-image-input"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-violet-400 bg-surface-850 border border-surface-700 border-dashed rounded-xl hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors w-full justify-center cursor-pointer"
               >
                 <ImagePlus className="w-4 h-4" />
                 Add Images
-              </button>
+                <input
+                  id="create-task-image-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                  multiple
+                  onChange={handleAddImages}
+                  className="sr-only"
+                />
+              </label>
             </div>
 
             {/* Resume Session Picker */}

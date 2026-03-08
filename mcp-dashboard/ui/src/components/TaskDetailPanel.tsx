@@ -220,7 +220,7 @@ export function TaskDetailPanel() {
   const [taskImages, setTaskImages] = useState<TaskImage[]>([])
   const [imagesOpen, setImagesOpen] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const imageInputRef = useRef<HTMLInputElement>(null)
+
 
   // Reset feedback form when switching tasks
   useEffect(() => {
@@ -363,7 +363,9 @@ export function TaskDetailPanel() {
       console.error('Failed to upload image:', err)
     } finally {
       setIsUploadingImage(false)
-      if (imageInputRef.current) imageInputRef.current.value = ''
+      // Reset file input so the same file can be selected again
+      const input = document.getElementById('task-detail-image-input') as HTMLInputElement
+      if (input) input.value = ''
     }
   }
 
@@ -697,10 +699,9 @@ export function TaskDetailPanel() {
                   onToggle={() => setImagesOpen(!imagesOpen)}
                 />
                 {isPending && (
-                  <button
-                    onClick={() => imageInputRef.current?.click()}
-                    disabled={isUploadingImage}
-                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors disabled:opacity-50"
+                  <label
+                    htmlFor="task-detail-image-input"
+                    className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors cursor-pointer ${isUploadingImage ? 'opacity-50 pointer-events-none' : ''}`}
                   >
                     {isUploadingImage ? (
                       <Loader className="w-3.5 h-3.5 animate-spin" />
@@ -708,17 +709,17 @@ export function TaskDetailPanel() {
                       <ImagePlus className="w-3.5 h-3.5" />
                     )}
                     {isUploadingImage ? 'Uploading...' : 'Add'}
-                  </button>
+                    <input
+                      id="task-detail-image-input"
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="sr-only"
+                    />
+                  </label>
                 )}
               </div>
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-                multiple
-                onChange={handleImageUpload}
-                className="hidden"
-              />
               {imagesOpen && taskImages.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   {taskImages.map(img => (
