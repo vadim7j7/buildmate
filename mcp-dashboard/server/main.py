@@ -279,6 +279,10 @@ async def get_task(task_id: str):
 async def update_task(task_id: str, body: TaskUpdate):
     """Update a task."""
     kwargs = {}
+    if body.title is not None:
+        kwargs["title"] = body.title
+    if body.description is not None:
+        kwargs["description"] = body.description
     if body.status is not None:
         kwargs["status"] = body.status
     if body.phase is not None:

@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  Check,
   CheckCircle,
   ChevronDown,
   ChevronRight,
@@ -11,6 +12,7 @@ import {
   GitBranch,
   Loader,
   MessageSquare,
+  Pencil,
   Play,
   RotateCcw,
   Save,
@@ -207,6 +209,12 @@ export function TaskDetailPanel() {
   const [saveFolder, setSaveFolder] = useState('')
   const [isSavingDoc, setIsSavingDoc] = useState(false)
 
+  // Inline editing state for pending tasks
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
   // Reset feedback form when switching tasks
   useEffect(() => {
     setShowFeedbackForm(false)
@@ -216,6 +224,7 @@ export function TaskDetailPanel() {
     setRevisionsOpen(false)
     setShowSaveToDocs(false)
     setSaveFolder('')
+    setIsEditing(false)
   }, [state.selectedTaskId])
 
   // Fetch revisions when task has revision_count > 0
@@ -293,6 +302,39 @@ export function TaskDetailPanel() {
     }
   }
 
+  const handleStartEdit = () => {
+    setEditTitle(task.title)
+    setEditDescription(task.description || '')
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setEditTitle('')
+    setEditDescription('')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) return
+    setIsSavingEdit(true)
+    try {
+      const updates: { title?: string; description?: string } = {}
+      if (editTitle.trim() !== task.title) updates.title = editTitle.trim()
+      if (editDescription !== (task.description || '')) updates.description = editDescription
+      if (Object.keys(updates).length > 0) {
+        await api.updateTask(task.id, updates)
+        await refreshTasks()
+      }
+      setIsEditing(false)
+    } catch (err) {
+      console.error('Failed to save task edits:', err)
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  const isPending = task.status === 'pending'
+
   const canRequestChanges = (task.status === 'completed' || task.status === 'failed') && !!task.claude_session_id
 
   const { panelWidth, handleResizeStart, MIN_WIDTH, MAX_WIDTH } = useResizablePanel('task')
@@ -312,21 +354,81 @@ export function TaskDetailPanel() {
             <div className="p-2 rounded-lg bg-surface-800">
               {STATUS_ICON[task.status]}
             </div>
-            <h2 className="text-base font-semibold text-white truncate">{task.title}</h2>
+            {isEditing ? (
+              <input
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                className="flex-1 bg-surface-800 text-base font-semibold text-white rounded-lg px-3 py-1.5 border border-surface-700 focus:border-accent-500/50 focus:outline-none"
+                autoFocus
+              />
+            ) : (
+              <h2 className="text-base font-semibold text-white truncate">{task.title}</h2>
+            )}
           </div>
-          <button
-            onClick={() => selectTask(null)}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {isPending && !isEditing && (
+              <button
+                onClick={handleStartEdit}
+                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+                title="Edit task"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+            {isEditing && (
+              <>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={!editTitle.trim() || isSavingEdit}
+                  className="p-2 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                  title="Save changes"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+                  title="Cancel editing"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            {!isEditing && (
+              <button
+                onClick={() => selectTask(null)}
+                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Single scrollable area for everything */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-5 pb-5">
-            {task.description && (
-              <ExpandableText content={task.description} label="Description" />
+            {isEditing ? (
+              <div className="mb-3">
+                <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1.5 block">
+                  Description
+                </label>
+                <textarea
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  placeholder="Task description (markdown supported)..."
+                  className="
+                    w-full bg-surface-800 text-sm text-gray-200 rounded-lg p-3
+                    border border-surface-700 focus:border-accent-500/50 focus:outline-none
+                    resize-none placeholder-gray-500
+                  "
+                  rows={6}
+                />
+              </div>
+            ) : (
+              task.description && (
+                <ExpandableText content={task.description} label="Description" />
+              )
             )}
 
             <div className="flex items-center gap-2 flex-wrap">

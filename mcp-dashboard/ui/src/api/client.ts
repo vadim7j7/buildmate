@@ -29,7 +29,7 @@ export const api = {
         ...(documentIds?.length ? { document_ids: documentIds } : {}),
       }),
     }),
-  updateTask: (id: string, data: Partial<{ status: string; phase: string; result: string }>) =>
+  updateTask: (id: string, data: Partial<{ title: string; description: string; status: string; phase: string; result: string }>) =>
     request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteTask: (id: string) => request<{ deleted: boolean }>(`/tasks/${id}`, { method: 'DELETE' }),
 

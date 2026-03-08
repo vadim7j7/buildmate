@@ -295,6 +295,8 @@ class SyncDB:
     def update_task(
         self,
         task_id: str,
+        title: str | None = None,
+        description=_UNSET,
         status: str | None = None,
         phase: str | None = None,
         result=_UNSET,
@@ -312,6 +314,12 @@ class SyncDB:
         try:
             updates = []
             params = []
+            if title is not None:
+                updates.append("title = ?")
+                params.append(title)
+            if description is not _UNSET:
+                updates.append("description = ?")
+                params.append(description)
             if status is not None:
                 updates.append("status = ?")
                 params.append(status)

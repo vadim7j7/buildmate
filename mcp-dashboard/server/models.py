@@ -18,6 +18,8 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     """Request body for updating a task."""
 
+    title: str | None = None
+    description: str | None = None
     status: str | None = None
     phase: str | None = None
     result: str | None = None
