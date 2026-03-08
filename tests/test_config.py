@@ -200,8 +200,16 @@ class TestStackInheritance:
             "default_model": "sonnet",
             "compatible_with": ["nextjs"],
             "agents": [
-                {"name": "dev-agent", "template": "agents/dev.md.j2", "tools": ["Read", "Write"]},
-                {"name": "test-agent", "template": "agents/test.md.j2", "tools": ["Bash"]},
+                {
+                    "name": "dev-agent",
+                    "template": "agents/dev.md.j2",
+                    "tools": ["Read", "Write"],
+                },
+                {
+                    "name": "test-agent",
+                    "template": "agents/test.md.j2",
+                    "tools": ["Bash"],
+                },
             ],
             "skills": ["test", "review"],
             "quality_gates": {
@@ -239,7 +247,13 @@ class TestStackInheritance:
 
     def test_no_extends_passthrough(self):
         """Config without extends should be returned unchanged."""
-        config = {"name": "plain", "display_name": "Plain", "agents": [], "skills": [], "quality_gates": {}}
+        config = {
+            "name": "plain",
+            "display_name": "Plain",
+            "agents": [],
+            "skills": [],
+            "quality_gates": {},
+        }
         resolved, parent_path = _resolve_inheritance(config, Path("/fake"))
         assert resolved is config
         assert parent_path is None
@@ -266,7 +280,11 @@ class TestStackInheritance:
 
         child = self._make_child()
         child["agents"] = [
-            {"name": "dev-agent", "template": "agents/custom-dev.md.j2", "tools": ["Read", "Write", "Bash"]},
+            {
+                "name": "dev-agent",
+                "template": "agents/custom-dev.md.j2",
+                "tools": ["Read", "Write", "Bash"],
+            },
         ]
         resolved, _ = _resolve_inheritance(child, tmp_path / "child-stack")
 

@@ -101,7 +101,15 @@ class TestLoadGoStack:
         """Go stack should have expected skills."""
         config = load_stack("go")
 
-        expected_skills = ["test", "review", "docs", "verify", "new-handler", "new-service", "new-model"]
+        expected_skills = [
+            "test",
+            "review",
+            "docs",
+            "verify",
+            "new-handler",
+            "new-service",
+            "new-model",
+        ]
         for skill in expected_skills:
             assert skill in config.skills
 

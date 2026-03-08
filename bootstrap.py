@@ -29,7 +29,9 @@ for _pkg in ("yaml", "jinja2", "jsonschema"):
     try:
         __import__(_pkg)
     except ImportError:
-        _missing.append({"yaml": "pyyaml", "jinja2": "jinja2", "jsonschema": "jsonschema"}[_pkg])
+        _missing.append(
+            {"yaml": "pyyaml", "jinja2": "jinja2", "jsonschema": "jsonschema"}[_pkg]
+        )
 if _missing:
     print(f"Error: Missing required packages: {', '.join(_missing)}")
     print(f"Install with: pip install {' '.join(_missing)}")

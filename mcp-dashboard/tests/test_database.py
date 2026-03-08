@@ -13,7 +13,8 @@ class TestTaskCRUD:
 
     def test_create_task_with_fields(self, tmp_db):
         task = tmp_db.create_task(
-            "t2", "Task 2",
+            "t2",
+            "Task 2",
             description="desc",
             parent_id=None,
             assigned_agent="dev",
@@ -152,12 +153,16 @@ class TestActivityLog:
 
         # Without children
         activity_no_children = tmp_db.get_activity("parent", include_children=False)
-        child_events = [a for a in activity_no_children if a["event_type"] == "child_event"]
+        child_events = [
+            a for a in activity_no_children if a["event_type"] == "child_event"
+        ]
         assert len(child_events) == 0
 
         # With children
         activity_with_children = tmp_db.get_activity("parent", include_children=True)
-        child_events = [a for a in activity_with_children if a["event_type"] == "child_event"]
+        child_events = [
+            a for a in activity_with_children if a["event_type"] == "child_event"
+        ]
         assert len(child_events) == 1
 
     def test_activity_since_id(self, tmp_db):
@@ -188,7 +193,9 @@ class TestQuestions:
     def test_create_question_with_options(self, tmp_db):
         tmp_db.create_task("t1", "Task")
         q = tmp_db.create_question(
-            "q1", "t1", "Pick one",
+            "q1",
+            "t1",
+            "Pick one",
             question_type="choice",
             options=["a", "b", "c"],
         )
@@ -254,7 +261,9 @@ class TestQuestions:
 class TestArtifacts:
     def test_create_artifact(self, tmp_db):
         tmp_db.create_task("t1", "Task")
-        a = tmp_db.create_artifact("a1", "t1", "screenshot", "Screenshot", "/tmp/shot.png")
+        a = tmp_db.create_artifact(
+            "a1", "t1", "screenshot", "Screenshot", "/tmp/shot.png"
+        )
         assert a["id"] == "a1"
         assert a["artifact_type"] == "screenshot"
         assert a["label"] == "Screenshot"

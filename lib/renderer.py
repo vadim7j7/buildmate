@@ -352,9 +352,7 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
             "repositories": {
                 s.working_dir: f"./{s.working_dir}" for s in config.stacks
             },
-            "stack_repo_map": {
-                s.name: s.working_dir for s in config.stacks
-            },
+            "stack_repo_map": {s.name: s.working_dir for s in config.stacks},
         }
 
     return output

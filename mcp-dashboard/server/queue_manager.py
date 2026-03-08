@@ -41,7 +41,9 @@ class QueueManager:
         self._processes: dict[str, ProcessInfo] = {}
         self._db = SyncDB(db_path)
 
-    async def spawn(self, task_id: str, prompt: str, claude_session_id: str | None = None) -> bool:
+    async def spawn(
+        self, task_id: str, prompt: str, claude_session_id: str | None = None
+    ) -> bool:
         """
         Spawn a Claude CLI process for a task.
 
@@ -65,7 +67,11 @@ class QueueManager:
             # Absolute path: project root is parent of .dashboard/
             project_root = db_path.parent.parent
 
-        abs_db_path = str(project_root / self.db_path) if not Path(self.db_path).is_absolute() else self.db_path
+        abs_db_path = (
+            str(project_root / self.db_path)
+            if not Path(self.db_path).is_absolute()
+            else self.db_path
+        )
 
         env = {
             **os.environ,
@@ -128,7 +134,9 @@ class QueueManager:
             )
 
             self._processes[task_id] = ProcessInfo(
-                task_id=task_id, process=process, prompt=prompt,
+                task_id=task_id,
+                process=process,
+                prompt=prompt,
                 claude_session_id=claude_session_id,
             )
 
@@ -144,9 +152,7 @@ class QueueManager:
             # Stream stdout and monitor in background
             asyncio.create_task(self._stream_and_monitor(task_id))
 
-            logger.info(
-                f"Spawned Claude process for task {task_id}, PID={process.pid}"
-            )
+            logger.info(f"Spawned Claude process for task {task_id}, PID={process.pid}")
             return True
 
         except FileNotFoundError:
@@ -157,9 +163,7 @@ class QueueManager:
             return False
         except Exception as e:
             logger.error(f"Failed to spawn Claude: {e}")
-            self._db.update_task(
-                task_id, status="failed", result=f"Spawn error: {e}"
-            )
+            self._db.update_task(task_id, status="failed", result=f"Spawn error: {e}")
             return False
 
     async def cancel(self, task_id: str) -> bool:
@@ -188,9 +192,7 @@ class QueueManager:
             self._db.update_task(
                 task_id, status="failed", result="Cancelled by user", pid=None
             )
-            self._db.log_activity(
-                task_id, "message", None, "Process cancelled by user"
-            )
+            self._db.log_activity(task_id, "message", None, "Process cancelled by user")
             del self._processes[task_id]
             logger.info(f"Cancelled process for task {task_id}")
             return True
@@ -267,7 +269,9 @@ class QueueManager:
             f"the task status when done."
         )
 
-        return await self.spawn(task_id, resume_prompt, claude_session_id=claude_session_id)
+        return await self.spawn(
+            task_id, resume_prompt, claude_session_id=claude_session_id
+        )
 
     @staticmethod
     def _is_pid_alive(pid: int) -> bool:
@@ -387,7 +391,11 @@ class QueueManager:
             if "env" in config:
                 env = dict(config["env"])
                 for key, val in env.items():
-                    if isinstance(val, str) and "/" in val and not Path(val).is_absolute():
+                    if (
+                        isinstance(val, str)
+                        and "/" in val
+                        and not Path(val).is_absolute()
+                    ):
                         env[key] = str(project_root / val)
                 config["env"] = env
             resolved[name] = config
@@ -599,9 +607,7 @@ class QueueManager:
 
         except Exception as e:
             logger.error(f"Error monitoring task {task_id}: {e}")
-            self._db.update_task(
-                task_id, status="failed", result=f"Monitor error: {e}"
-            )
+            self._db.update_task(task_id, status="failed", result=f"Monitor error: {e}")
         finally:
             self._processes.pop(task_id, None)
             self._db.update_task(task_id, pid=None)
@@ -686,7 +692,9 @@ class QueueManager:
             tool_name = data.get("tool", data.get("name", ""))
             # Only log meaningful results, skip empty or very short ones
             if isinstance(content, str) and len(content.strip()) > 10:
-                prefix = f"Tool result ({tool_name}): " if tool_name else "Tool result: "
+                prefix = (
+                    f"Tool result ({tool_name}): " if tool_name else "Tool result: "
+                )
                 self._db.log_activity(
                     task_id, "message", "claude", f"{prefix}{content[:250]}"
                 )
@@ -695,7 +703,11 @@ class QueueManager:
                     if isinstance(block, dict) and block.get("type") == "text":
                         snippet = block.get("text", "")[:250]
                         if snippet.strip():
-                            prefix = f"Tool result ({tool_name}): " if tool_name else "Tool result: "
+                            prefix = (
+                                f"Tool result ({tool_name}): "
+                                if tool_name
+                                else "Tool result: "
+                            )
                             self._db.log_activity(
                                 task_id, "message", "claude", f"{prefix}{snippet}"
                             )
@@ -710,9 +722,7 @@ class QueueManager:
                 self._db.update_task(task_id, claude_session_id=sid)
             message = data.get("message", data.get("text", ""))
             if isinstance(message, str) and message.strip():
-                self._db.log_activity(
-                    task_id, "message", "system", message[:300]
-                )
+                self._db.log_activity(task_id, "message", "system", message[:300])
 
     def _log_assistant_message(self, task_id: str, data: dict) -> None:
         """Extract and log text from an assistant message event."""
@@ -725,17 +735,11 @@ class QueueManager:
                 if isinstance(block, dict) and block.get("type") == "text":
                     snippet = block.get("text", "")[:300]
                     if snippet.strip():
-                        self._db.log_activity(
-                            task_id, "message", "claude", snippet
-                        )
+                        self._db.log_activity(task_id, "message", "claude", snippet)
         elif isinstance(content, str) and content.strip():
-            self._db.log_activity(
-                task_id, "message", "claude", content[:300]
-            )
+            self._db.log_activity(task_id, "message", "claude", content[:300])
 
         # Also try top-level "text" field (some formats use this)
         text = data.get("text", "")
         if isinstance(text, str) and text.strip() and not content:
-            self._db.log_activity(
-                task_id, "message", "claude", text[:300]
-            )
+            self._db.log_activity(task_id, "message", "claude", text[:300])

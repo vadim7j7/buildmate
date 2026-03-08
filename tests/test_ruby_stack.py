@@ -73,7 +73,15 @@ class TestLoadRubyStack:
         """Ruby stack should have expected skills."""
         config = load_stack("ruby")
 
-        expected_skills = ["test", "review", "docs", "verify", "new-model", "new-service", "new-spec"]
+        expected_skills = [
+            "test",
+            "review",
+            "docs",
+            "verify",
+            "new-model",
+            "new-service",
+            "new-spec",
+        ]
         for skill in expected_skills:
             assert skill in config.skills
 

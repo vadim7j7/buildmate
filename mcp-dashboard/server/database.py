@@ -182,12 +182,16 @@ def init_db(db_path: str | None = None) -> None:
             pass  # Column already exists
         # Migration: add claude_session_id column
         try:
-            conn.execute("ALTER TABLE tasks ADD COLUMN claude_session_id TEXT DEFAULT NULL")
+            conn.execute(
+                "ALTER TABLE tasks ADD COLUMN claude_session_id TEXT DEFAULT NULL"
+            )
         except sqlite3.OperationalError:
             pass
         # Migration: add revision_count column
         try:
-            conn.execute("ALTER TABLE tasks ADD COLUMN revision_count INTEGER DEFAULT 0")
+            conn.execute(
+                "ALTER TABLE tasks ADD COLUMN revision_count INTEGER DEFAULT 0"
+            )
         except sqlite3.OperationalError:
             pass
         # Migration: add token tracking columns
@@ -388,9 +392,7 @@ class SyncDB:
             params.append(now_iso())
             params.append(task_id)
 
-            conn.execute(
-                f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?", params
-            )
+            conn.execute(f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?", params)
 
             # Log status changes
             if status:
@@ -513,7 +515,9 @@ class SyncDB:
             ),
         )
 
-    def get_activity(self, task_id: str, limit: int = 50, include_children: bool = False) -> list[dict]:
+    def get_activity(
+        self, task_id: str, limit: int = 50, include_children: bool = False
+    ) -> list[dict]:
         conn = self._conn()
         try:
             if include_children:
@@ -684,9 +688,7 @@ class SyncDB:
                     "SELECT COUNT(*) FROM tasks WHERE status = ?", (status,)
                 ).fetchone()[0]
                 stats[status] = count
-            stats["total"] = conn.execute(
-                "SELECT COUNT(*) FROM tasks"
-            ).fetchone()[0]
+            stats["total"] = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
             stats["pending_questions"] = conn.execute(
                 "SELECT COUNT(*) FROM questions WHERE answer IS NULL"
             ).fetchone()[0]
@@ -818,7 +820,9 @@ class SyncDB:
 
     # --- Chat session methods ---
 
-    def create_chat_session(self, session_id: str, title: str, model: str = "sonnet") -> dict:
+    def create_chat_session(
+        self, session_id: str, title: str, model: str = "sonnet"
+    ) -> dict:
         conn = self._conn()
         try:
             now = now_iso()
@@ -884,7 +888,9 @@ class SyncDB:
     def delete_chat_session(self, session_id: str) -> bool:
         conn = self._conn()
         try:
-            cursor = conn.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+            cursor = conn.execute(
+                "DELETE FROM chat_sessions WHERE id = ?", (session_id,)
+            )
             conn.commit()
             return cursor.rowcount > 0
         finally:
@@ -1206,7 +1212,15 @@ class SyncDB:
                 """INSERT INTO task_images (id, task_id, filename, original_name,
                    mime_type, size_bytes, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (image_id, task_id, filename, original_name, mime_type, size_bytes, now),
+                (
+                    image_id,
+                    task_id,
+                    filename,
+                    original_name,
+                    mime_type,
+                    size_bytes,
+                    now,
+                ),
             )
             conn.commit()
             row = conn.execute(

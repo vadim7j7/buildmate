@@ -76,7 +76,15 @@ class TestLoadElixirStack:
         """Elixir stack should have expected skills."""
         config = load_stack("elixir")
 
-        expected_skills = ["test", "review", "docs", "verify", "new-module", "new-genserver", "new-supervisor"]
+        expected_skills = [
+            "test",
+            "review",
+            "docs",
+            "verify",
+            "new-module",
+            "new-genserver",
+            "new-supervisor",
+        ]
         for skill in expected_skills:
             assert skill in config.skills
 

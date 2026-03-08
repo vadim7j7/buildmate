@@ -49,8 +49,15 @@ class ChatManager:
 
     # Tools the chat session needs pre-authorized in headless (-p) mode
     REQUIRED_TOOLS = [
-        "Read", "Write", "Edit", "Bash", "Glob", "Grep",
-        "Task", "WebFetch", "WebSearch",
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep",
+        "Task",
+        "WebFetch",
+        "WebSearch",
     ]
 
     def __init__(
@@ -150,22 +157,28 @@ class ChatManager:
 
             asyncio.create_task(self._stream_response(session_id))
 
-            logger.info(f"Spawned chat process for session {session_id}, PID={process.pid}")
+            logger.info(
+                f"Spawned chat process for session {session_id}, PID={process.pid}"
+            )
             return True
 
         except FileNotFoundError:
             logger.error("Claude CLI not found. Is it installed?")
-            await self._broadcast({
-                "type": "chat_error",
-                "data": {"session_id": session_id, "error": "Claude CLI not found"},
-            })
+            await self._broadcast(
+                {
+                    "type": "chat_error",
+                    "data": {"session_id": session_id, "error": "Claude CLI not found"},
+                }
+            )
             return False
         except Exception as e:
             logger.error(f"Failed to spawn chat process: {e}")
-            await self._broadcast({
-                "type": "chat_error",
-                "data": {"session_id": session_id, "error": str(e)},
-            })
+            await self._broadcast(
+                {
+                    "type": "chat_error",
+                    "data": {"session_id": session_id, "error": str(e)},
+                }
+            )
             return False
 
     async def _stream_response(self, session_id: str) -> None:
@@ -175,6 +188,7 @@ class ChatManager:
             return
 
         try:
+
             async def _read_stderr():
                 assert info.process.stderr
                 chunks = []
@@ -222,9 +236,7 @@ class ChatManager:
                     sid = data.get("session_id")
                     if sid:
                         info.claude_session_id = sid
-                        self._db.update_chat_session(
-                            session_id, claude_session_id=sid
-                        )
+                        self._db.update_chat_session(session_id, claude_session_id=sid)
 
                 elif msg_type == "assistant":
                     # Extract text content and broadcast as delta
@@ -236,22 +248,26 @@ class ChatManager:
                                 delta = block.get("text", "")
                                 if delta:
                                     info.accumulated_text += delta
-                                    await self._broadcast({
-                                        "type": "chat_delta",
-                                        "data": {
-                                            "session_id": session_id,
-                                            "delta": delta,
-                                        },
-                                    })
+                                    await self._broadcast(
+                                        {
+                                            "type": "chat_delta",
+                                            "data": {
+                                                "session_id": session_id,
+                                                "delta": delta,
+                                            },
+                                        }
+                                    )
                     elif isinstance(content, str) and content:
                         info.accumulated_text += content
-                        await self._broadcast({
-                            "type": "chat_delta",
-                            "data": {
-                                "session_id": session_id,
-                                "delta": content,
-                            },
-                        })
+                        await self._broadcast(
+                            {
+                                "type": "chat_delta",
+                                "data": {
+                                    "session_id": session_id,
+                                    "delta": content,
+                                },
+                            }
+                        )
 
                 elif msg_type == "result":
                     # Extract final result text and cost/duration
@@ -269,9 +285,7 @@ class ChatManager:
                     sid = data.get("session_id")
                     if sid and not info.claude_session_id:
                         info.claude_session_id = sid
-                        self._db.update_chat_session(
-                            session_id, claude_session_id=sid
-                        )
+                        self._db.update_chat_session(session_id, claude_session_id=sid)
 
             stderr_output = await stderr_task
             await info.process.wait()
@@ -289,31 +303,37 @@ class ChatManager:
                 # Parse and execute any <task_action> blocks
                 await self._execute_task_actions(session_id, info.accumulated_text)
 
-                await self._broadcast({
-                    "type": "chat_complete",
-                    "data": {
-                        "session_id": session_id,
-                        "claude_session_id": info.claude_session_id,
-                        "cost_usd": info.cost_usd,
-                        "duration_ms": info.duration_ms,
-                    },
-                })
+                await self._broadcast(
+                    {
+                        "type": "chat_complete",
+                        "data": {
+                            "session_id": session_id,
+                            "claude_session_id": info.claude_session_id,
+                            "cost_usd": info.cost_usd,
+                            "duration_ms": info.duration_ms,
+                        },
+                    }
+                )
             else:
                 error_msg = stderr_output[-500:] if stderr_output else "Process failed"
-                await self._broadcast({
-                    "type": "chat_error",
-                    "data": {
-                        "session_id": session_id,
-                        "error": error_msg.strip(),
-                    },
-                })
+                await self._broadcast(
+                    {
+                        "type": "chat_error",
+                        "data": {
+                            "session_id": session_id,
+                            "error": error_msg.strip(),
+                        },
+                    }
+                )
 
         except Exception as e:
             logger.error(f"Error streaming chat for session {session_id}: {e}")
-            await self._broadcast({
-                "type": "chat_error",
-                "data": {"session_id": session_id, "error": str(e)},
-            })
+            await self._broadcast(
+                {
+                    "type": "chat_error",
+                    "data": {"session_id": session_id, "error": str(e)},
+                }
+            )
         finally:
             self._processes.pop(session_id, None)
 
@@ -334,10 +354,12 @@ class ChatManager:
 
         self._processes.pop(session_id, None)
 
-        await self._broadcast({
-            "type": "chat_cancelled",
-            "data": {"session_id": session_id},
-        })
+        await self._broadcast(
+            {
+                "type": "chat_cancelled",
+                "data": {"session_id": session_id},
+            }
+        )
 
         logger.info(f"Cancelled chat process for session {session_id}")
         return True
@@ -387,10 +409,12 @@ class ChatManager:
             source="dashboard",
         )
 
-        await self._broadcast({
-            "type": "chat_task_created",
-            "data": {"session_id": session_id, "task": task},
-        })
+        await self._broadcast(
+            {
+                "type": "chat_task_created",
+                "data": {"session_id": session_id, "task": task},
+            }
+        )
 
         # Auto-spawn the task if we have a queue manager
         if self._queue_mgr:
@@ -402,10 +426,12 @@ class ChatManager:
     async def _action_list_tasks(self, session_id: str) -> None:
         """List all root tasks."""
         tasks = self._db.get_root_tasks()
-        await self._broadcast({
-            "type": "chat_task_list",
-            "data": {"session_id": session_id, "tasks": tasks},
-        })
+        await self._broadcast(
+            {
+                "type": "chat_task_list",
+                "data": {"session_id": session_id, "tasks": tasks},
+            }
+        )
 
     async def _action_search_tasks(self, session_id: str, payload: dict) -> None:
         """Search tasks by keyword (case-insensitive match on title/description)."""
@@ -413,23 +439,32 @@ class ChatManager:
         tasks = self._db.get_root_tasks()
         if query:
             tasks = [
-                t for t in tasks
+                t
+                for t in tasks
                 if query in t.get("title", "").lower()
                 or query in t.get("description", "").lower()
             ]
-        await self._broadcast({
-            "type": "chat_task_list",
-            "data": {"session_id": session_id, "tasks": tasks, "query": payload.get("query", "")},
-        })
+        await self._broadcast(
+            {
+                "type": "chat_task_list",
+                "data": {
+                    "session_id": session_id,
+                    "tasks": tasks,
+                    "query": payload.get("query", ""),
+                },
+            }
+        )
 
     async def _action_get_task(self, session_id: str, payload: dict) -> None:
         """Get details of a specific task."""
         task_id = payload.get("task_id", "")
         task = self._db.get_task(task_id)
-        await self._broadcast({
-            "type": "chat_task_info",
-            "data": {"session_id": session_id, "task": task},
-        })
+        await self._broadcast(
+            {
+                "type": "chat_task_info",
+                "data": {"session_id": session_id, "task": task},
+            }
+        )
 
     async def _action_cancel_task(self, session_id: str, payload: dict) -> None:
         """Cancel a running task."""
@@ -437,19 +472,31 @@ class ChatManager:
         cancelled = False
         if self._queue_mgr:
             cancelled = await self._queue_mgr.cancel(task_id)
-        await self._broadcast({
-            "type": "chat_task_cancelled",
-            "data": {"session_id": session_id, "task_id": task_id, "cancelled": cancelled},
-        })
+        await self._broadcast(
+            {
+                "type": "chat_task_cancelled",
+                "data": {
+                    "session_id": session_id,
+                    "task_id": task_id,
+                    "cancelled": cancelled,
+                },
+            }
+        )
 
     async def _action_delete_task(self, session_id: str, payload: dict) -> None:
         """Delete a task."""
         task_id = payload.get("task_id", "")
         deleted = self._db.delete_task(task_id)
-        await self._broadcast({
-            "type": "chat_task_deleted",
-            "data": {"session_id": session_id, "task_id": task_id, "deleted": deleted},
-        })
+        await self._broadcast(
+            {
+                "type": "chat_task_deleted",
+                "data": {
+                    "session_id": session_id,
+                    "task_id": task_id,
+                    "deleted": deleted,
+                },
+            }
+        )
 
     def is_streaming(self, session_id: str) -> bool:
         """Check if a session has an active streaming process."""

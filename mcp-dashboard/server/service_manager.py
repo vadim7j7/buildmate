@@ -226,7 +226,9 @@ class ServiceManager:
                         if detected != svc.configured_port:
                             logger.info(
                                 "Service %s: detected port %d (configured %s)",
-                                svc.id, detected, svc.configured_port,
+                                svc.id,
+                                detected,
+                                svc.configured_port,
                             )
                             svc.port = detected
         except asyncio.CancelledError:

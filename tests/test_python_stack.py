@@ -75,9 +75,16 @@ class TestLoadPythonStack:
         config = load_stack("python")
 
         expected_skills = [
-            "test", "review", "docs", "verify",
-            "new-model", "new-schema", "new-service",
-            "new-test", "new-migration", "db-migrate",
+            "test",
+            "review",
+            "docs",
+            "verify",
+            "new-model",
+            "new-schema",
+            "new-service",
+            "new-test",
+            "new-migration",
+            "db-migrate",
         ]
         for skill in expected_skills:
             assert skill in config.skills
@@ -108,7 +115,10 @@ class TestLoadFlaskStack:
         assert "lint" in config.quality_gates
         assert "typecheck" in config.quality_gates
         assert "tests" in config.quality_gates
-        assert config.quality_gates["format"].command == "uv run ruff format --check src/ tests/"
+        assert (
+            config.quality_gates["format"].command
+            == "uv run ruff format --check src/ tests/"
+        )
 
     def test_flask_inherits_python_tester_agent(self):
         """Flask should have its own backend-tester and backend-reviewer."""

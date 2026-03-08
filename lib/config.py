@@ -275,9 +275,7 @@ def _resolve_inheritance(
 
     # Reject self-inheritance
     if parent_name == child_name:
-        raise ValueError(
-            f"Stack '{child_name}' cannot extend itself"
-        )
+        raise ValueError(f"Stack '{child_name}' cannot extend itself")
 
     # Load parent stack.yaml
     parent_stack_path = STACKS_DIR / parent_name
@@ -530,7 +528,13 @@ def apply_options(
         extra_variables.update(choice.variables)
         extra_quality_gates.update(choice.quality_gates)
 
-    return extra_patterns, extra_styles, extra_skills, extra_variables, extra_quality_gates
+    return (
+        extra_patterns,
+        extra_styles,
+        extra_skills,
+        extra_variables,
+        extra_quality_gates,
+    )
 
 
 def compose_stacks(
@@ -644,8 +648,8 @@ def compose_stacks(
         # Apply options if stack has any
         if stack.options:
             stack_opts = merged_options.get(stack.name, {})
-            extra_patterns, extra_styles, extra_skills, extra_vars, extra_gates = apply_options(
-                stack, stack_opts
+            extra_patterns, extra_styles, extra_skills, extra_vars, extra_gates = (
+                apply_options(stack, stack_opts)
             )
 
             # Add option-based patterns

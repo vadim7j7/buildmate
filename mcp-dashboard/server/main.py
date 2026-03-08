@@ -50,7 +50,13 @@ _poll_task: asyncio.Task | None = None
 
 
 UPLOADS_DIR = Path(".dashboard/uploads")
-ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
+ALLOWED_IMAGE_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+}
 
 
 def get_db_path() -> str:
@@ -153,33 +159,26 @@ async def _ws_poll_loop() -> None:
             snapshot = json.dumps({"t": tasks, "s": stats}, sort_keys=True)
             if snapshot != prev_snapshot:
                 prev_snapshot = snapshot
-                await _ws_broadcast(
-                    {"type": "tasks_updated", "data": tasks}
-                )
+                await _ws_broadcast({"type": "tasks_updated", "data": tasks})
                 await _ws_broadcast({"type": "stats", "data": stats})
 
             # Stream new activity entries using auto-increment ID as cursor
             new_activity = db.get_activity_since_id(last_activity_id)
             if new_activity:
                 last_activity_id = max(a["id"] for a in new_activity)
-                await _ws_broadcast(
-                    {"type": "activity", "data": new_activity}
-                )
+                await _ws_broadcast({"type": "activity", "data": new_activity})
 
             # Check for question changes (new or answered)
             all_pending = db.get_all_pending_questions()
             q_snapshot = json.dumps(all_pending, sort_keys=True)
             if q_snapshot != last_question_snapshot:
                 last_question_snapshot = q_snapshot
-                await _ws_broadcast(
-                    {"type": "questions", "data": all_pending}
-                )
+                await _ws_broadcast({"type": "questions", "data": all_pending})
 
             # Broadcast artifact changes for all in_progress tasks
             # This ensures artifacts show up in real-time when created via MCP tools
             in_progress_tasks = [
-                t for t in tasks
-                if t.get("status") in ("in_progress", "completed")
+                t for t in tasks if t.get("status") in ("in_progress", "completed")
             ]
             if in_progress_tasks:
                 all_artifacts = []
@@ -190,19 +189,13 @@ async def _ws_poll_loop() -> None:
                 a_snapshot = json.dumps(all_artifacts, sort_keys=True)
                 if a_snapshot != prev_artifact_snapshot:
                     prev_artifact_snapshot = a_snapshot
-                    await _ws_broadcast(
-                        {"type": "artifacts", "data": all_artifacts}
-                    )
+                    await _ws_broadcast({"type": "artifacts", "data": all_artifacts})
 
             # Broadcast process info — always send so UI clears stale entries
             if queue:
                 running = queue.list_running()
-                processes = {
-                    tid: queue.get_status(tid) for tid in running
-                }
-                await _ws_broadcast(
-                    {"type": "processes", "data": processes}
-                )
+                processes = {tid: queue.get_status(tid) for tid in running}
+                await _ws_broadcast({"type": "processes", "data": processes})
 
             # Broadcast service status changes
             if services and services.has_services():
@@ -210,9 +203,7 @@ async def _ws_poll_loop() -> None:
                 s_snapshot = json.dumps(service_list, sort_keys=True)
                 if s_snapshot != prev_service_snapshot:
                     prev_service_snapshot = s_snapshot
-                    await _ws_broadcast(
-                        {"type": "services", "data": service_list}
-                    )
+                    await _ws_broadcast({"type": "services", "data": service_list})
         except Exception as e:
             logger.error(f"WebSocket poll error: {e}")
 
@@ -226,9 +217,16 @@ async def websocket_endpoint(websocket: WebSocket):
         if db:
             tasks = db.get_root_tasks()
             stats = db.get_stats()
-            svc_list = services.list_services() if services and services.has_services() else []
+            svc_list = (
+                services.list_services() if services and services.has_services() else []
+            )
             await websocket.send_text(
-                json.dumps({"type": "init", "data": {"tasks": tasks, "stats": stats, "services": svc_list}})
+                json.dumps(
+                    {
+                        "type": "init",
+                        "data": {"tasks": tasks, "stats": stats, "services": svc_list},
+                    }
+                )
             )
         # Keep connection alive
         while True:
@@ -325,9 +323,13 @@ async def get_activity(task_id: str, limit: int = 50, include_children: bool = T
 
 
 @app.get("/api/tasks/{task_id}/questions")
-async def get_questions(task_id: str, pending_only: bool = False, include_children: bool = True):
+async def get_questions(
+    task_id: str, pending_only: bool = False, include_children: bool = True
+):
     """Get questions for a task and optionally its children."""
-    return db.get_questions(task_id, pending_only=pending_only, include_children=include_children)
+    return db.get_questions(
+        task_id, pending_only=pending_only, include_children=include_children
+    )
 
 
 @app.get("/api/tasks/{task_id}/revisions")
@@ -374,7 +376,9 @@ async def get_artifact_content(artifact_id: str):
     resolved = file_path.resolve()
     artifacts_root = (Path.cwd() / ".dashboard" / "artifacts").resolve()
     cwd_root = Path.cwd().resolve()
-    if not (resolved.is_relative_to(artifacts_root) or resolved.is_relative_to(cwd_root)):
+    if not (
+        resolved.is_relative_to(artifacts_root) or resolved.is_relative_to(cwd_root)
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
 
     return FileResponse(
@@ -424,8 +428,7 @@ async def run_task(task_id: str, body: RunTaskRequest | None = None):
     docs = db.get_task_documents(task_id)
     if docs:
         doc_context = "\n\n".join(
-            f"--- Document: {d['title']} ---\n{d['content']}"
-            for d in docs
+            f"--- Document: {d['title']} ---\n{d['content']}" for d in docs
         )
         prompt = f"## Reference Documents\n\n{doc_context}\n\n---\n\n{prompt}"
 
@@ -436,7 +439,10 @@ async def run_task(task_id: str, body: RunTaskRequest | None = None):
         for img in images:
             abs_path = str((UPLOADS_DIR / img["filename"]).resolve())
             image_lines.append(f"- {img['original_name']}: {abs_path}")
-        image_section = "## Attached Images\n\nThe following images are attached to this task. Use the Read tool to view them:\n" + "\n".join(image_lines)
+        image_section = (
+            "## Attached Images\n\nThe following images are attached to this task. Use the Read tool to view them:\n"
+            + "\n".join(image_lines)
+        )
         prompt = f"{image_section}\n\n---\n\n{prompt}"
 
     # If the task has a stored session ID (from resume picker), use it
@@ -464,7 +470,10 @@ async def request_changes(task_id: str, body: RequestChangesRequest):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     if task["status"] not in ("completed", "failed"):
-        raise HTTPException(status_code=400, detail="Task must be completed or failed to request changes")
+        raise HTTPException(
+            status_code=400,
+            detail="Task must be completed or failed to request changes",
+        )
     if not task.get("claude_session_id"):
         raise HTTPException(status_code=400, detail="No Claude session to resume")
 
@@ -544,15 +553,17 @@ async def list_agents():
                 else:
                     description = ""
 
-                agents.append({
-                    "name": f.stem,
-                    "filename": f.name,
-                    "description": description,
-                    "tools": tools,
-                    "model": fm.get("model", ""),
-                    "skills": skills,
-                    "memory": fm.get("memory", None),
-                })
+                agents.append(
+                    {
+                        "name": f.stem,
+                        "filename": f.name,
+                        "description": description,
+                        "tools": tools,
+                        "model": fm.get("model", ""),
+                        "skills": skills,
+                        "memory": fm.get("memory", None),
+                    }
+                )
     return agents
 
 
@@ -645,7 +656,9 @@ async def cancel_chat(session_id: str):
     """Cancel a streaming chat response."""
     cancelled = await chat_mgr.cancel(session_id)
     if not cancelled:
-        raise HTTPException(status_code=404, detail="No active chat process for session")
+        raise HTTPException(
+            status_code=404, detail="No active chat process for session"
+        )
     return {"status": "cancelled", "session_id": session_id}
 
 
@@ -800,7 +813,9 @@ async def serve_upload(filename: str):
         ".webp": "image/webp",
         ".svg": "image/svg+xml",
     }
-    return FileResponse(path=str(file_path), media_type=mime_map.get(ext, "application/octet-stream"))
+    return FileResponse(
+        path=str(file_path), media_type=mime_map.get(ext, "application/octet-stream")
+    )
 
 
 # --- Services API ---
@@ -897,7 +912,11 @@ if UI_DIR.exists():
         """Serve static files or fall back to index.html for SPA routing."""
         file_path = (UI_DIR / full_path).resolve()
         # Ensure the resolved path stays within UI_DIR
-        if file_path.is_relative_to(UI_DIR.resolve()) and file_path.exists() and file_path.is_file():
+        if (
+            file_path.is_relative_to(UI_DIR.resolve())
+            and file_path.exists()
+            and file_path.is_file()
+        ):
             return FileResponse(file_path)
         index = UI_DIR / "index.html"
         if index.exists():

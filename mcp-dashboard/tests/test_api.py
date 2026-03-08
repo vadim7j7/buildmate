@@ -1,7 +1,6 @@
 """Tests for FastAPI API endpoints via TestClient."""
 
 
-
 class TestTaskEndpoints:
     def test_create_task(self, test_client):
         resp = test_client.post("/api/tasks", json={"title": "Test Task"})

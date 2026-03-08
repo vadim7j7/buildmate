@@ -61,8 +61,19 @@ class TestServiceManagerConfig:
         dashboard_dir.mkdir()
         config = {
             "services": [
-                {"id": "web", "name": "Web Server", "command": "npm run dev", "cwd": ".", "port": 3000},
-                {"id": "api", "name": "API Server", "command": "uvicorn main:app", "cwd": "backend"},
+                {
+                    "id": "web",
+                    "name": "Web Server",
+                    "command": "npm run dev",
+                    "cwd": ".",
+                    "port": 3000,
+                },
+                {
+                    "id": "api",
+                    "name": "API Server",
+                    "command": "uvicorn main:app",
+                    "cwd": "backend",
+                },
             ]
         }
         (dashboard_dir / "services.json").write_text(json.dumps(config))
@@ -92,7 +103,11 @@ class TestServiceManagerConfig:
         dashboard_dir = tmp_path / ".dashboard"
         dashboard_dir.mkdir()
 
-        config1 = {"services": [{"id": "web", "name": "Web", "command": "npm start", "cwd": "."}]}
+        config1 = {
+            "services": [
+                {"id": "web", "name": "Web", "command": "npm start", "cwd": "."}
+            ]
+        }
         (dashboard_dir / "services.json").write_text(json.dumps(config1))
 
         mgr = ServiceManager(tmp_path)
@@ -116,7 +131,17 @@ class TestServiceManagerSerialization:
     def test_stopped_service_fields(self, tmp_path):
         dashboard_dir = tmp_path / ".dashboard"
         dashboard_dir.mkdir()
-        config = {"services": [{"id": "web", "name": "Web", "command": "npm start", "cwd": ".", "port": 3000}]}
+        config = {
+            "services": [
+                {
+                    "id": "web",
+                    "name": "Web",
+                    "command": "npm start",
+                    "cwd": ".",
+                    "port": 3000,
+                }
+            ]
+        }
         (dashboard_dir / "services.json").write_text(json.dumps(config))
 
         mgr = ServiceManager(tmp_path)
