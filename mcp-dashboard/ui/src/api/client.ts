@@ -83,6 +83,12 @@ export const api = {
   restartService: (id: string) => request<Service>(`/services/${id}/restart`, { method: 'POST' }),
   getServiceLogs: (id: string, limit = 200) => request<{ logs: string[] }>(`/services/${id}/logs?limit=${limit}`),
   reloadServices: () => request<{ status: string; services: Service[] }>('/services/reload', { method: 'POST' }),
+  killExternalService: (id: string) => request<{ killed: boolean; pid_count: number }>(`/services/${id}/kill-external`, { method: 'POST' }),
+  createService: (data: { name: string; command: string; cwd: string; port?: number | null }) =>
+    request<Service>('/services', { method: 'POST', body: JSON.stringify(data) }),
+  updateService: (id: string, data: { name?: string; command?: string; cwd?: string; port?: number | null; clear_port?: boolean }) =>
+    request<Service>(`/services/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteService: (id: string) => request<{ deleted: boolean }>(`/services/${id}`, { method: 'DELETE' }),
 
   // Chat
   listChatSessions: () => request<ChatSession[]>('/chat/sessions'),

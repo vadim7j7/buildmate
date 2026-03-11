@@ -117,6 +117,7 @@ export interface Service {
   status: 'stopped' | 'starting' | 'running' | 'failed'
   pid: number | null
   uptime: number | null
+  port_in_use: boolean
 }
 
 export interface ChatSession {

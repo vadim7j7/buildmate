@@ -148,3 +148,22 @@ class SaveFromTaskRequest(BaseModel):
     title: str
     content: str
     folder: str = ""
+
+
+class ServiceCreate(BaseModel):
+    """Request body for creating a new service definition."""
+
+    name: str
+    command: str
+    cwd: str = "."
+    port: int | None = None
+
+
+class ServiceUpdate(BaseModel):
+    """Request body for updating an existing service definition."""
+
+    name: str | None = None
+    command: str | None = None
+    cwd: str | None = None
+    port: int | None = None
+    clear_port: bool = False  # Set True to explicitly remove the port

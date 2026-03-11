@@ -420,6 +420,10 @@
   @apply status-dot bg-red-400;
 }
 
+.status-dot-external {
+  @apply status-dot bg-amber-400;
+}
+
 @keyframes pulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);

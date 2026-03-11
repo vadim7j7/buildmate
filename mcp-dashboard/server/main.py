@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -31,6 +32,8 @@ from .models import (
     RequestChangesRequest,
     RunTaskRequest,
     SaveFromTaskRequest,
+    ServiceCreate,
+    ServiceUpdate,
     StatsResponse,
     TaskCreate,
     TaskUpdate,
@@ -145,6 +148,7 @@ async def _ws_poll_loop() -> None:
     last_question_snapshot: str = ""
     prev_artifact_snapshot: str = ""
     prev_service_snapshot: str = ""
+    last_port_check: float = 0.0
 
     while True:
         await asyncio.sleep(0.5)
@@ -199,6 +203,11 @@ async def _ws_poll_loop() -> None:
 
             # Broadcast service status changes
             if services and services.has_services():
+                # Check external port occupation every 5 s to avoid excess connections
+                now = time.time()
+                if now - last_port_check >= 5.0:
+                    await services.check_ports()
+                    last_port_check = now
                 service_list = services.list_services()
                 s_snapshot = json.dumps(service_list, sort_keys=True)
                 if s_snapshot != prev_service_snapshot:
@@ -885,6 +894,61 @@ async def reload_services_config():
         raise HTTPException(status_code=503, detail="Service manager not available")
     services.reload_config()
     return {"status": "ok", "services": services.list_services()}
+
+
+@app.post("/api/services/{service_id}/kill-external")
+async def kill_external_service(service_id: str):
+    """Kill any external process occupying a service's configured port."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    status = services.get_status(service_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Service not found")
+    result = await services.kill_external(service_id)
+    return result
+
+
+@app.post("/api/services")
+async def create_service(body: ServiceCreate):
+    """Create a new service definition and persist to services.json."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    svc = services.create_service(
+        name=body.name,
+        command=body.command,
+        cwd=body.cwd,
+        port=body.port,
+    )
+    return svc
+
+
+@app.patch("/api/services/{service_id}")
+async def update_service(service_id: str, body: ServiceUpdate):
+    """Update a service definition and persist. Stops the service if running."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    svc = await services.update_service(
+        service_id,
+        name=body.name,
+        command=body.command,
+        cwd=body.cwd,
+        port=body.port,
+        clear_port=body.clear_port,
+    )
+    if svc is None:
+        raise HTTPException(status_code=404, detail="Service not found")
+    return svc
+
+
+@app.delete("/api/services/{service_id}")
+async def delete_service(service_id: str):
+    """Stop and delete a service definition from services.json."""
+    if not services:
+        raise HTTPException(status_code=503, detail="Service manager not available")
+    ok = await services.delete_service(service_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Service not found")
+    return {"deleted": True}
 
 
 # --- Static file serving ---

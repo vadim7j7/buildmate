@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertTriangle, ChevronDown, ChevronRight, ExternalLink, Eye,
-  Maximize2, Play, RefreshCw, Server, Square, Terminal, X,
+  Maximize2, Pencil, Play, Plus, RefreshCw, Server, Square, Terminal, Trash2, X, Zap,
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useDashboard } from '../context/DashboardContext'
 import { useResizablePanel } from '../hooks/useResizablePanel'
 import { ResizeHandle } from './ResizeHandle'
+import { ServiceFormModal } from './ServiceFormModal'
 import type { Service } from '../types'
 
 const STATUS_CLASS: Record<Service['status'], string> = {
@@ -188,12 +189,13 @@ function ServicePreviewModal({ service, onClose }: { service: Service; onClose: 
   )
 }
 
-function ServiceRow({ service }: { service: Service }) {
+function ServiceRow({ service, onEdit }: { service: Service; onEdit: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<ExpandedTab>('logs')
   const [logs, setLogs] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const logEndRef = useRef<HTMLDivElement>(null)
 
   const fetchLogs = useCallback(async () => {
@@ -250,7 +252,30 @@ function ServiceRow({ service }: { service: Service }) {
     setLoading(false)
   }
 
+  const handleKillExternal = async () => {
+    setLoading(true)
+    try {
+      await api.killExternalService(service.id)
+    } catch {
+      // ignore
+    }
+    setLoading(false)
+  }
+
+  const handleDeleteClick = () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      // Auto-cancel after 3 seconds
+      setTimeout(() => setConfirmDelete(false), 3000)
+      return
+    }
+    setConfirmDelete(false)
+    setLoading(true)
+    api.deleteService(service.id).catch(() => {}).finally(() => setLoading(false))
+  }
+
   const isRunning = service.status === 'running' || service.status === 'starting'
+  const isExternal = service.port_in_use && !isRunning
   const hasPreview = isRunning && !!service.port
 
   // Reset to logs tab when service stops or loses port
@@ -278,7 +303,7 @@ function ServiceRow({ service }: { service: Service }) {
           </button>
 
           {/* Status dot */}
-          <span className={STATUS_CLASS[service.status]} />
+          <span className={isExternal ? 'status-dot-external' : STATUS_CLASS[service.status]} />
 
           {/* Name + info */}
           <div className="flex-1 min-w-0">
@@ -286,22 +311,24 @@ function ServiceRow({ service }: { service: Service }) {
           </div>
 
           {/* Port */}
-          {service.port && isRunning && (
+          {service.port && (isRunning || isExternal) && (
             <a
               href={`http://localhost:${service.port}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="
-                flex items-center gap-1 px-2 py-0.5 rounded-lg
-                text-xs text-accent-400 bg-accent-500/10
-                hover:bg-accent-500/20 transition-colors
-              "
+              className={`
+                flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs transition-colors
+                ${isExternal
+                  ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20'
+                  : 'text-accent-400 bg-accent-500/10 hover:bg-accent-500/20'
+                }
+              `}
             >
               :{service.port}
               <ExternalLink className="w-3 h-3" />
             </a>
           )}
-          {service.port && !isRunning && (
+          {service.port && !isRunning && !isExternal && (
             <span className="text-xs text-gray-600 px-2 py-0.5">:{service.port}</span>
           )}
 
@@ -323,6 +350,48 @@ function ServiceRow({ service }: { service: Service }) {
 
           {/* Action buttons */}
           <div className="flex items-center gap-0.5">
+            {/* Edit */}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onEdit() }}
+              disabled={loading}
+              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-surface-800 disabled:opacity-50 transition-colors"
+              title="Edit service"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Delete (two-step confirm) */}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); handleDeleteClick() }}
+              disabled={loading}
+              className={`p-1.5 rounded-lg disabled:opacity-50 transition-colors ${
+                confirmDelete
+                  ? 'text-red-400 bg-red-500/15 hover:bg-red-500/25'
+                  : 'text-gray-500 hover:text-red-400 hover:bg-surface-800'
+              }`}
+              title={confirmDelete ? 'Click again to confirm delete' : 'Delete service'}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="w-px h-4 bg-surface-700 mx-0.5" />
+
+            {isExternal && (
+              <button
+                onClick={handleKillExternal}
+                disabled={loading}
+                className="
+                  p-1.5 rounded-lg text-amber-400
+                  hover:bg-amber-500/15 hover:text-amber-300
+                  disabled:opacity-50 transition-colors
+                "
+                title="Kill external process on this port"
+              >
+                <Zap className="w-3.5 h-3.5" />
+              </button>
+            )}
             {!isRunning && (
               <button
                 onClick={handleStart}
@@ -332,7 +401,7 @@ function ServiceRow({ service }: { service: Service }) {
                   hover:bg-emerald-500/15 hover:text-emerald-300
                   disabled:opacity-50 transition-colors
                 "
-                title="Start"
+                title={isExternal ? 'Kill external process first, then start' : 'Start'}
               >
                 <Play className="w-3.5 h-3.5" />
               </button>
@@ -451,6 +520,8 @@ export function ServicesPanel() {
   const { state, toggleServices } = useDashboard()
   const { services } = state
   const [reloading, setReloading] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingService, setEditingService] = useState<Service | null>(null)
   const { handleResizeStart } = useResizablePanel('stack')
 
   const runningCount = services.filter(s => s.status === 'running').length
@@ -465,6 +536,12 @@ export function ServicesPanel() {
     setReloading(false)
   }
 
+  const handleSaved = () => {
+    setShowAddModal(false)
+    setEditingService(null)
+    // WebSocket will push the updated list automatically
+  }
+
   return (
     <div className="w-full border-l border-surface-800/50 bg-surface-900/95 backdrop-blur-md flex flex-col h-full animate-slide-in-right relative">
       <ResizeHandle onMouseDown={handleResizeStart} />
@@ -477,10 +554,17 @@ export function ServicesPanel() {
             {runningCount}/{services.length}
           </span>
           <button
+            onClick={() => setShowAddModal(true)}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+            title="Add service"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={handleReload}
             disabled={reloading}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-surface-800 disabled:opacity-50 transition-colors"
-            title="Reload configuration"
+            title="Reload configuration from file"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${reloading ? 'animate-spin' : ''}`} />
           </button>
@@ -500,16 +584,41 @@ export function ServicesPanel() {
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <Server className="w-8 h-8 mb-3 opacity-40" />
             <p className="text-sm">No services configured</p>
-            <p className="text-xs mt-1 text-gray-600">
-              Add <code className="text-accent-400 bg-surface-800 px-1 py-0.5 rounded text-[10px]">services.json</code> to <code className="text-accent-400 bg-surface-800 px-1 py-0.5 rounded text-[10px]">.dashboard/</code>
-            </p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="mt-3 flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add your first service
+            </button>
           </div>
         ) : (
           services.map((svc) => (
-            <ServiceRow key={svc.id} service={svc} />
+            <ServiceRow
+              key={svc.id}
+              service={svc}
+              onEdit={() => setEditingService(svc)}
+            />
           ))
         )}
       </div>
+
+      {/* Add modal */}
+      {showAddModal && (
+        <ServiceFormModal
+          onClose={() => setShowAddModal(false)}
+          onSaved={handleSaved}
+        />
+      )}
+
+      {/* Edit modal */}
+      {editingService && (
+        <ServiceFormModal
+          service={editingService}
+          onClose={() => setEditingService(null)}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   )
 }
