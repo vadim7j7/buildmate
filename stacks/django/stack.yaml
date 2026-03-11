@@ -82,6 +82,39 @@ variables:
   validation: DRF serializers
   dev_port: 8000
 
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL (recommended for production)
+        variables:
+          database: PostgreSQL
+          db_adapter: psycopg
+          db_engine: django.db.backends.postgresql
+      mysql:
+        description: MySQL / MariaDB
+        variables:
+          database: MySQL
+          db_adapter: mysqlclient
+          db_engine: django.db.backends.mysql
+      sqlite:
+        description: SQLite (development only)
+        variables:
+          database: SQLite
+          db_adapter: ""
+          db_engine: django.db.backends.sqlite3
+      mongodb:
+        description: MongoDB with Djongo
+        patterns:
+          - patterns/mongodb.md
+        variables:
+          database: MongoDB
+          db_adapter: djongo
+          db_engine: djongo
+          orm: Django ORM (MongoDB via Djongo)
+
 verification:
   enabled: true
   auto_verify: true
