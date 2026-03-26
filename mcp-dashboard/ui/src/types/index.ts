@@ -22,6 +22,7 @@ export interface Task {
   parent_id: string | null
   title: string
   description: string
+  qa_details: string
   status: TaskStatus
   assigned_agent: string | null
   phase: string | null

@@ -267,6 +267,7 @@ async def create_task(body: TaskCreate):
         task_id=task_id,
         title=body.title,
         description=body.description,
+        qa_details=body.qa_details,
         auto_accept=body.auto_accept,
         source="dashboard",
     )
@@ -297,6 +298,8 @@ async def update_task(task_id: str, body: TaskUpdate):
         kwargs["title"] = body.title
     if body.description is not None:
         kwargs["description"] = body.description
+    if body.qa_details is not None:
+        kwargs["qa_details"] = body.qa_details
     if body.status is not None:
         kwargs["status"] = body.status
     if body.phase is not None:

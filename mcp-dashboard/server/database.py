@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     parent_id TEXT REFERENCES tasks(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT DEFAULT '',
+    qa_details TEXT DEFAULT '',
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK(status IN ('pending','in_progress','completed','failed','blocked')),
     assigned_agent TEXT,
@@ -256,6 +257,13 @@ def init_db(db_path: str | None = None) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_task_images_task_id ON task_images(task_id);
         """)
+        # Migration: add qa_details column
+        try:
+            conn.execute(
+                "ALTER TABLE tasks ADD COLUMN qa_details TEXT DEFAULT ''"
+            )
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
     finally:
         conn.close()
@@ -286,6 +294,7 @@ class SyncDB:
         task_id: str,
         title: str,
         description: str = "",
+        qa_details: str = "",
         parent_id: str | None = None,
         assigned_agent: str | None = None,
         phase: str | None = None,
@@ -296,14 +305,15 @@ class SyncDB:
         try:
             now = now_iso()
             conn.execute(
-                """INSERT INTO tasks (id, parent_id, title, description, assigned_agent,
+                """INSERT INTO tasks (id, parent_id, title, description, qa_details, assigned_agent,
                    phase, auto_accept, source, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     task_id,
                     parent_id,
                     title,
                     description,
+                    qa_details,
                     assigned_agent,
                     phase,
                     auto_accept,
@@ -325,6 +335,7 @@ class SyncDB:
         task_id: str,
         title: str | None = None,
         description=_UNSET,
+        qa_details=_UNSET,
         status: str | None = None,
         phase: str | None = None,
         result=_UNSET,
@@ -348,6 +359,9 @@ class SyncDB:
             if description is not _UNSET:
                 updates.append("description = ?")
                 params.append(description)
+            if qa_details is not _UNSET:
+                updates.append("qa_details = ?")
+                params.append(qa_details)
             if status is not None:
                 updates.append("status = ?")
                 params.append(status)

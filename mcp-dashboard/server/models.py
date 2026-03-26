@@ -10,6 +10,7 @@ class TaskCreate(BaseModel):
 
     title: str
     description: str = ""
+    qa_details: str = ""
     auto_accept: bool = False
     resume_session_id: str | None = None
     document_ids: list[str] = Field(default_factory=list)
@@ -20,6 +21,7 @@ class TaskUpdate(BaseModel):
 
     title: str | None = None
     description: str | None = None
+    qa_details: str | None = None
     status: str | None = None
     phase: str | None = None
     result: str | None = None
@@ -33,6 +35,7 @@ class TaskResponse(BaseModel):
     parent_id: str | None = None
     title: str
     description: str = ""
+    qa_details: str = ""
     status: str = "pending"
     assigned_agent: str | None = None
     phase: str | None = None

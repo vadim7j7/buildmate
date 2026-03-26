@@ -18,7 +18,7 @@ export const api = {
   // Tasks
   listTasks: () => request<Task[]>('/tasks'),
   getTask: (id: string) => request<Task>(`/tasks/${id}`),
-  createTask: (title: string, description: string, autoAccept: boolean, resumeSessionId?: string, documentIds?: string[]) =>
+  createTask: (title: string, description: string, autoAccept: boolean, resumeSessionId?: string, documentIds?: string[], qaDetails?: string) =>
     request<Task>('/tasks', {
       method: 'POST',
       body: JSON.stringify({
@@ -27,9 +27,10 @@ export const api = {
         auto_accept: autoAccept,
         ...(resumeSessionId ? { resume_session_id: resumeSessionId } : {}),
         ...(documentIds?.length ? { document_ids: documentIds } : {}),
+        ...(qaDetails ? { qa_details: qaDetails } : {}),
       }),
     }),
-  updateTask: (id: string, data: Partial<{ title: string; description: string; status: string; phase: string; result: string }>) =>
+  updateTask: (id: string, data: Partial<{ title: string; description: string; qa_details: string; status: string; phase: string; result: string }>) =>
     request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteTask: (id: string) => request<{ deleted: boolean }>(`/tasks/${id}`, { method: 'DELETE' }),
 

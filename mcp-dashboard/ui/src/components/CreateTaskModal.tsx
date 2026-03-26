@@ -14,6 +14,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
   const { state, refreshTasks, refreshStats } = useDashboard()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [qaDetails, setQaDetails] = useState('')
   const [autoAccept, setAutoAccept] = useState(false)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -88,7 +89,7 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
 
     setLoading(true)
     try {
-      const task = await api.createTask(title.trim(), description.trim(), autoAccept, resumeSessionId || undefined, selectedDocIds.size > 0 ? [...selectedDocIds] : undefined)
+      const task = await api.createTask(title.trim(), description.trim(), autoAccept, resumeSessionId || undefined, selectedDocIds.size > 0 ? [...selectedDocIds] : undefined, qaDetails.trim() || undefined)
       // Upload pending images to the created task
       for (const file of pendingImages) {
         await api.uploadTaskImage(task.id, file)
@@ -235,6 +236,27 @@ export function CreateTaskModal({ onClose }: CreateTaskModalProps) {
                   `}
                 />
               )}
+            </div>
+
+            {/* QA / Testing Details */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                QA / Testing Details
+                <span className="text-xs text-gray-500 ml-2 font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={qaDetails}
+                onChange={e => setQaDetails(e.target.value)}
+                placeholder="How to verify this task... (e.g., test URLs, expected behavior, manual checks)"
+                rows={3}
+                className="
+                  w-full bg-surface-850 border border-surface-700 rounded-xl
+                  px-4 py-3 text-sm text-white placeholder-gray-500
+                  resize-y transition-all duration-200
+                  focus:outline-none focus:border-accent-500/50 focus:ring-2 focus:ring-accent-500/20
+                  min-h-[80px] max-h-[200px]
+                "
+              />
             </div>
 
             {/* Attach Documents */}

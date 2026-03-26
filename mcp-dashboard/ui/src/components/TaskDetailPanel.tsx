@@ -214,6 +214,7 @@ export function TaskDetailPanel() {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [editQaDetails, setEditQaDetails] = useState('')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   // Task images state
@@ -321,6 +322,7 @@ export function TaskDetailPanel() {
   const handleStartEdit = () => {
     setEditTitle(task.title)
     setEditDescription(task.description || '')
+    setEditQaDetails(task.qa_details || '')
     setIsEditing(true)
   }
 
@@ -328,15 +330,17 @@ export function TaskDetailPanel() {
     setIsEditing(false)
     setEditTitle('')
     setEditDescription('')
+    setEditQaDetails('')
   }
 
   const handleSaveEdit = async () => {
     if (!editTitle.trim()) return
     setIsSavingEdit(true)
     try {
-      const updates: { title?: string; description?: string } = {}
+      const updates: { title?: string; description?: string; qa_details?: string } = {}
       if (editTitle.trim() !== task.title) updates.title = editTitle.trim()
       if (editDescription !== (task.description || '')) updates.description = editDescription
+      if (editQaDetails !== (task.qa_details || '')) updates.qa_details = editQaDetails
       if (Object.keys(updates).length > 0) {
         await api.updateTask(task.id, updates)
         await refreshTasks()
@@ -469,11 +473,32 @@ export function TaskDetailPanel() {
                   "
                   rows={6}
                 />
+                <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1.5 block mt-3">
+                  QA / Testing Details <span className="text-gray-600 normal-case tracking-normal font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={editQaDetails}
+                  onChange={e => setEditQaDetails(e.target.value)}
+                  placeholder="How to verify this task... (e.g., test URLs, expected behavior)"
+                  className="
+                    w-full bg-surface-800 text-sm text-gray-200 rounded-lg p-3
+                    border border-surface-700 focus:border-accent-500/50 focus:outline-none
+                    resize-none placeholder-gray-500
+                  "
+                  rows={3}
+                />
               </div>
             ) : (
               task.description && (
                 <ExpandableText content={task.description} label="Description" />
               )
+            )}
+
+            {task.qa_details && (
+              <div className="mt-3 p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/20">
+                <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">QA / Testing Details</span>
+                <ExpandableText content={task.qa_details} label="QA Details" maxLines={3} />
+              </div>
             )}
 
             <div className="flex items-center gap-2 flex-wrap">

@@ -26,6 +26,7 @@ class ProcessInfo:
     process: asyncio.subprocess.Process
     prompt: str
     claude_session_id: str | None = None
+    agent_name: str = "claude"
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float = 0.0
@@ -612,6 +613,30 @@ class QueueManager:
             self._processes.pop(task_id, None)
             self._db.update_task(task_id, pid=None)
 
+    def _get_agent_name(self, task_id: str) -> str:
+        """Get the registered agent name for a task, defaulting to 'claude'."""
+        info = self._processes.get(task_id)
+        return info.agent_name if info else "claude"
+
+    def _detect_agent_name(self, task_id: str, tool_name: str, tool_input: dict) -> None:
+        """Detect and store agent name from MCP tool calls in the stream.
+
+        When the orchestrator calls dashboard_register_task or dashboard_log
+        with an agent name, we capture it so subsequent stream messages
+        are attributed correctly.
+        """
+        info = self._processes.get(task_id)
+        if not info:
+            return
+
+        if tool_name == "dashboard_register_task":
+            # dashboard_register_task is always called by the orchestrator
+            info.agent_name = "orchestrator"
+        elif tool_name == "dashboard_log":
+            agent = tool_input.get("agent", "")
+            if agent:
+                info.agent_name = agent
+
     def _log_stream_line(self, task_id: str, text: str) -> None:
         """Parse a stream-json line and log meaningful content.
 
@@ -625,7 +650,8 @@ class QueueManager:
         except json.JSONDecodeError:
             # Not JSON — log raw text
             if len(text) > 10:
-                self._db.log_activity(task_id, "message", "claude", text[:300])
+                agent = self._get_agent_name(task_id)
+                self._db.log_activity(task_id, "message", agent, text[:300])
             return
 
         msg_type = data.get("type", "")
@@ -642,16 +668,17 @@ class QueueManager:
                 if info and not info.claude_session_id:
                     info.claude_session_id = sid
                     self._db.update_task(task_id, claude_session_id=sid)
+            agent = self._get_agent_name(task_id)
             result_text = data.get("result", "")
             if isinstance(result_text, str) and result_text.strip():
                 self._db.log_activity(
-                    task_id, "message", "claude", f"Result: {result_text[:300]}"
+                    task_id, "message", agent, f"Result: {result_text[:300]}"
                 )
             # Also check for subResult (nested agent results)
             sub_result = data.get("subResult", "")
             if isinstance(sub_result, str) and sub_result.strip():
                 self._db.log_activity(
-                    task_id, "message", "claude", f"Agent result: {sub_result[:300]}"
+                    task_id, "message", agent, f"Agent result: {sub_result[:300]}"
                 )
             # Extract usage/cost data from result event
             info = self._processes.get(task_id)
@@ -678,25 +705,30 @@ class QueueManager:
         elif msg_type == "tool_use":
             tool_name = data.get("tool", data.get("name", "unknown"))
             tool_input = data.get("input", {})
+            # Detect agent name from MCP tool calls
+            if isinstance(tool_input, dict):
+                self._detect_agent_name(task_id, tool_name, tool_input)
+            agent = self._get_agent_name(task_id)
             # Log tool name, and for Task tool also log the prompt snippet
             msg = f"Using tool: {tool_name}"
             if tool_name == "Task" and isinstance(tool_input, dict):
                 desc = tool_input.get("description", "")
                 if desc:
                     msg += f" — {desc}"
-            self._db.log_activity(task_id, "message", "claude", msg[:300])
+            self._db.log_activity(task_id, "message", agent, msg[:300])
 
         # --- Tool result ---
         elif msg_type == "tool_result":
             content = data.get("content", "")
             tool_name = data.get("tool", data.get("name", ""))
+            agent = self._get_agent_name(task_id)
             # Only log meaningful results, skip empty or very short ones
             if isinstance(content, str) and len(content.strip()) > 10:
                 prefix = (
                     f"Tool result ({tool_name}): " if tool_name else "Tool result: "
                 )
                 self._db.log_activity(
-                    task_id, "message", "claude", f"{prefix}{content[:250]}"
+                    task_id, "message", agent, f"{prefix}{content[:250]}"
                 )
             elif isinstance(content, list):
                 for block in content:
@@ -709,7 +741,7 @@ class QueueManager:
                                 else "Tool result: "
                             )
                             self._db.log_activity(
-                                task_id, "message", "claude", f"{prefix}{snippet}"
+                                task_id, "message", agent, f"{prefix}{snippet}"
                             )
 
         # --- System message ---
@@ -726,6 +758,7 @@ class QueueManager:
 
     def _log_assistant_message(self, task_id: str, data: dict) -> None:
         """Extract and log text from an assistant message event."""
+        agent = self._get_agent_name(task_id)
         # Try nested message.content structure
         message = data.get("message", data)
         content = message.get("content", "")
@@ -735,11 +768,11 @@ class QueueManager:
                 if isinstance(block, dict) and block.get("type") == "text":
                     snippet = block.get("text", "")[:300]
                     if snippet.strip():
-                        self._db.log_activity(task_id, "message", "claude", snippet)
+                        self._db.log_activity(task_id, "message", agent, snippet)
         elif isinstance(content, str) and content.strip():
-            self._db.log_activity(task_id, "message", "claude", content[:300])
+            self._db.log_activity(task_id, "message", agent, content[:300])
 
         # Also try top-level "text" field (some formats use this)
         text = data.get("text", "")
         if isinstance(text, str) and text.strip() and not content:
-            self._db.log_activity(task_id, "message", "claude", text[:300])
+            self._db.log_activity(task_id, "message", agent, text[:300])
