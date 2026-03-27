@@ -17,6 +17,17 @@ export interface Artifact {
   created_at: string
 }
 
+export interface TaskBranch {
+  id: string
+  task_id: string
+  repo_name: string
+  repo_path: string
+  branch_name: string
+  pr_url: string | null
+  pr_number: number | null
+  created_at: string
+}
+
 export interface Task {
   id: string
   parent_id: string | null
@@ -38,6 +49,7 @@ export interface Task {
   num_turns: number
   created_at: string
   updated_at: string
+  branches: TaskBranch[]
   children: Task[]
   pending_questions: number
   eval_score?: number | null

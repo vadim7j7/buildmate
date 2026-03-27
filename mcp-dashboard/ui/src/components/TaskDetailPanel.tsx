@@ -8,6 +8,7 @@ import {
   Clock,
   Coins,
   Expand,
+  ExternalLink,
   FileText,
   GitBranch,
   ImagePlus,
@@ -515,6 +516,35 @@ export function TaskDetailPanel() {
                 </span>
               )}
             </div>
+
+            {/* Branches & PRs */}
+            {task.branches?.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                {task.branches.map(branch => (
+                  <div
+                    key={branch.id}
+                    className="flex items-center gap-2 px-3 py-2 bg-surface-850 rounded-lg border border-surface-700/50"
+                  >
+                    <GitBranch className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                    <code className="text-xs text-cyan-300 font-mono truncate">{branch.branch_name}</code>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-surface-700 text-[10px] text-gray-400 font-medium flex-shrink-0">
+                      {branch.repo_name}
+                    </span>
+                    {branch.pr_url && (
+                      <a
+                        href={branch.pr_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-auto inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0"
+                      >
+                        PR #{branch.pr_number}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Usage Stats */}
             {(task.input_tokens > 0 || task.output_tokens > 0 || task.cost_usd > 0) && (

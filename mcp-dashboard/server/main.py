@@ -25,6 +25,8 @@ from .chat_manager import ChatManager
 from .database import SyncDB, init_db
 from .models import (
     AnswerRequest,
+    BranchCreate,
+    BranchUpdatePR,
     ChatSendMessage,
     ChatSessionUpdate,
     DocumentCreate,
@@ -804,6 +806,57 @@ async def delete_task_image(task_id: str, image_id: str):
     if file_path.exists():
         file_path.unlink()
     return {"deleted": True}
+
+
+# --- Branch tracking ---
+
+
+@app.get("/api/tasks/{task_id}/branches")
+async def list_task_branches(task_id: str):
+    """List branches tracked for a task."""
+    return db.get_task_branches(task_id)
+
+
+@app.post("/api/tasks/{task_id}/branches")
+async def create_task_branch(task_id: str, body: BranchCreate):
+    """Track a branch for a task. Upserts by (task_id, repo_name)."""
+    task = db.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    # Upsert: if branch already exists for this repo, update it
+    existing = db.find_branch(task_id, body.repo_name)
+    if existing:
+        # Update branch name (repo may have been re-branched)
+        conn = db._conn()
+        try:
+            conn.execute(
+                "UPDATE task_branches SET branch_name = ?, repo_path = ? WHERE id = ?",
+                (body.branch_name, body.repo_path, existing["id"]),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM task_branches WHERE id = ?", (existing["id"],)
+            ).fetchone()
+            return dict(row)
+        finally:
+            conn.close()
+    branch_id = str(uuid.uuid4())[:8]
+    return db.create_branch(
+        branch_id=branch_id,
+        task_id=task_id,
+        repo_name=body.repo_name,
+        branch_name=body.branch_name,
+        repo_path=body.repo_path,
+    )
+
+
+@app.patch("/api/tasks/{task_id}/branches/{branch_id}")
+async def update_task_branch_pr(task_id: str, branch_id: str, body: BranchUpdatePR):
+    """Add PR info to a tracked branch."""
+    result = db.update_branch_pr(branch_id, body.pr_url, body.pr_number)
+    if not result:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    return result
 
 
 @app.get("/api/uploads/{filename}")

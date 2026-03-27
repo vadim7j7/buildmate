@@ -347,6 +347,103 @@ def dashboard_add_artifact(
 
 
 @mcp.tool()
+def dashboard_track_branch(
+    task_id: str,
+    repo_name: str,
+    branch_name: str,
+    repo_path: str = "",
+) -> dict:
+    """
+    Track a git branch for a task. Call after creating a feature branch.
+
+    If a branch already exists for the same (task_id, repo_name), it is updated.
+    For multi-repo setups, call once per repo.
+
+    Args:
+        task_id: Task ID this branch belongs to
+        repo_name: Short repo identifier (e.g., 'backend', 'web')
+        branch_name: Full branch name (e.g., 'feature/user-auth')
+        repo_path: Relative path to the repo (e.g., './backend')
+
+    Returns:
+        dict with branch details including 'id'
+    """
+    db = _get_db()
+    task = db.get_task(task_id)
+    if not task:
+        return {"error": f"Task {task_id} not found"}
+
+    # Upsert: update if branch already exists for this repo
+    existing = db.find_branch(task_id, repo_name)
+    if existing:
+        conn = db._conn()
+        try:
+            conn.execute(
+                "UPDATE task_branches SET branch_name = ?, repo_path = ? WHERE id = ?",
+                (branch_name, repo_path, existing["id"]),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM task_branches WHERE id = ?", (existing["id"],)
+            ).fetchone()
+            return dict(row)
+        finally:
+            conn.close()
+
+    branch_id = str(uuid.uuid4())[:8]
+    branch = db.create_branch(
+        branch_id=branch_id,
+        task_id=task_id,
+        repo_name=repo_name,
+        branch_name=branch_name,
+        repo_path=repo_path,
+    )
+    db.log_activity(
+        task_id,
+        "git_branch",
+        "orchestrator",
+        f"Branch created: {branch_name} ({repo_name})",
+    )
+    return branch
+
+
+@mcp.tool()
+def dashboard_track_pr(
+    task_id: str,
+    repo_name: str,
+    pr_url: str,
+    pr_number: int = 0,
+) -> dict:
+    """
+    Track a PR URL for a branch. Call after creating a pull request.
+
+    Finds the existing branch for (task_id, repo_name) and attaches the PR info.
+
+    Args:
+        task_id: Task ID
+        repo_name: Repo identifier matching the branch (e.g., 'backend', 'web')
+        pr_url: Full PR URL (e.g., 'https://github.com/org/repo/pull/42')
+        pr_number: PR number for display (e.g., 42)
+
+    Returns:
+        Updated branch dict, or error if no branch found
+    """
+    db = _get_db()
+    existing = db.find_branch(task_id, repo_name)
+    if not existing:
+        return {"error": f"No branch found for task {task_id} repo {repo_name}"}
+
+    result = db.update_branch_pr(existing["id"], pr_url, pr_number or None)
+    db.log_activity(
+        task_id,
+        "git_pr",
+        "orchestrator",
+        f"PR created: #{pr_number} ({repo_name}) — {pr_url}",
+    )
+    return result or {"error": "Failed to update branch"}
+
+
+@mcp.tool()
 def dashboard_get_task(task_id: str) -> dict:
     """
     Get a task's current state including children and pending questions.

@@ -48,6 +48,34 @@ class TaskResponse(BaseModel):
     pending_questions: int = 0
 
 
+class BranchCreate(BaseModel):
+    """Request body for tracking a branch on a task."""
+
+    repo_name: str
+    branch_name: str
+    repo_path: str = ""
+
+
+class BranchUpdatePR(BaseModel):
+    """Request body for adding PR info to a branch."""
+
+    pr_url: str
+    pr_number: int | None = None
+
+
+class BranchResponse(BaseModel):
+    """Branch tracking entry."""
+
+    id: str
+    task_id: str
+    repo_name: str
+    repo_path: str = ""
+    branch_name: str
+    pr_url: str | None = None
+    pr_number: int | None = None
+    created_at: str | None = None
+
+
 class ActivityResponse(BaseModel):
     """Activity log entry."""
 

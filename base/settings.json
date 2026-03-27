@@ -1,6 +1,6 @@
 {
   "pm": {
-    "git_workflow": "none",
+    "git_workflow": "full",
     "multi_repo": {
       "enabled": false,
       "repositories": {},

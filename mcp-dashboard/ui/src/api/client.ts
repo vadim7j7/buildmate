@@ -1,4 +1,4 @@
-import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, Document, ProcessStatus, Question, Service, Stats, Task, TaskDoc, TaskImage, TaskRevision } from '../types'
+import type { Activity, AgentInfo, Artifact, ChatMessage, ChatSession, Document, ProcessStatus, Question, Service, Stats, Task, TaskBranch, TaskDoc, TaskImage, TaskRevision } from '../types'
 
 const BASE = '/api'
 
@@ -134,6 +134,9 @@ export const api = {
       body: JSON.stringify({ artifact_id: artifactId, title, content, folder }),
     }),
   getTaskDocuments: (taskId: string) => request<Document[]>(`/tasks/${taskId}/documents`),
+
+  // Branches
+  listTaskBranches: (taskId: string) => request<TaskBranch[]>(`/tasks/${taskId}/branches`),
 
   // Task Images
   uploadTaskImage: async (taskId: string, file: File): Promise<TaskImage> => {

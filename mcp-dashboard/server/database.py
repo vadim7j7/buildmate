@@ -80,6 +80,18 @@ CREATE TABLE IF NOT EXISTS artifacts (
 );
 CREATE INDEX IF NOT EXISTS idx_artifacts_task_id ON artifacts(task_id);
 
+CREATE TABLE IF NOT EXISTS task_branches (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    repo_name TEXT NOT NULL,
+    repo_path TEXT DEFAULT '',
+    branch_name TEXT NOT NULL,
+    pr_url TEXT,
+    pr_number INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_task_branches_task_id ON task_branches(task_id);
+
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -264,6 +276,20 @@ def init_db(db_path: str | None = None) -> None:
             )
         except sqlite3.OperationalError:
             pass
+        # Migration: add task_branches table
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS task_branches (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                repo_name TEXT NOT NULL,
+                repo_path TEXT DEFAULT '',
+                branch_name TEXT NOT NULL,
+                pr_url TEXT,
+                pr_number INTEGER,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_task_branches_task_id ON task_branches(task_id);
+        """)
         conn.commit()
     finally:
         conn.close()
@@ -454,6 +480,8 @@ class SyncDB:
             task["pending_questions"] = count
             # Attach eval score from child eval_report artifact
             self._attach_eval_score(conn, task)
+            # Attach branches
+            self._attach_branches(conn, task)
             return task
         finally:
             conn.close()
@@ -478,6 +506,7 @@ class SyncDB:
                 ).fetchone()[0]
                 task["pending_questions"] = count
                 self._attach_eval_score(conn, task)
+                self._attach_branches(conn, task)
                 tasks.append(task)
             return tasks
         finally:
@@ -970,6 +999,89 @@ class SyncDB:
                 task["eval_grade"] = meta.get("grade")
             except (json.JSONDecodeError, TypeError):
                 pass
+
+    def _attach_branches(self, conn: sqlite3.Connection, task: dict) -> None:
+        """Attach branches list to a task dict."""
+        rows = conn.execute(
+            "SELECT * FROM task_branches WHERE task_id = ? ORDER BY created_at",
+            (task["id"],),
+        ).fetchall()
+        task["branches"] = [dict(r) for r in rows]
+
+    # --- Branch methods ---
+
+    def create_branch(
+        self,
+        branch_id: str,
+        task_id: str,
+        repo_name: str,
+        branch_name: str,
+        repo_path: str = "",
+    ) -> dict:
+        conn = self._conn()
+        try:
+            now = now_iso()
+            conn.execute(
+                """INSERT INTO task_branches (id, task_id, repo_name, repo_path, branch_name, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (branch_id, task_id, repo_name, repo_path, branch_name, now),
+            )
+            conn.commit()
+            return {
+                "id": branch_id,
+                "task_id": task_id,
+                "repo_name": repo_name,
+                "repo_path": repo_path,
+                "branch_name": branch_name,
+                "pr_url": None,
+                "pr_number": None,
+                "created_at": now,
+            }
+        finally:
+            conn.close()
+
+    def update_branch_pr(
+        self,
+        branch_id: str,
+        pr_url: str,
+        pr_number: int | None = None,
+    ) -> dict | None:
+        conn = self._conn()
+        try:
+            conn.execute(
+                "UPDATE task_branches SET pr_url = ?, pr_number = ? WHERE id = ?",
+                (pr_url, pr_number, branch_id),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT * FROM task_branches WHERE id = ?", (branch_id,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def get_task_branches(self, task_id: str) -> list[dict]:
+        conn = self._conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM task_branches WHERE task_id = ? ORDER BY created_at",
+                (task_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def find_branch(self, task_id: str, repo_name: str) -> dict | None:
+        """Find a branch by task_id + repo_name (unique pair)."""
+        conn = self._conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM task_branches WHERE task_id = ? AND repo_name = ?",
+                (task_id, repo_name),
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
 
     # --- Task revision methods ---
 
