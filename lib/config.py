@@ -28,6 +28,7 @@ MULTI_STACK_WORKING_DIRS: dict[str, str] = {
     "python": "backend",
     "flask": "backend",
     "react-native": "mobile",
+    "browser-extension": "extension",
     "scraping": "scraping",
     "ruby": "backend",
     "sinatra": "backend",
@@ -138,6 +139,10 @@ class StackConfig:
     extends: str | None = None
     parent_stack_path: Path | None = None
 
+    # Scaffold: project-root files copied into the target project
+    scaffold_enabled: bool = False
+    scaffold_source: str = "scaffold"
+
     # Internal - path to the stack directory
     stack_path: Path = field(default_factory=Path)
 
@@ -173,6 +178,8 @@ class StackConfig:
             for opt_name, opt_data in data.get("options", {}).items()
         }
 
+        scaffold = data.get("scaffold", {}) or {}
+
         return cls(
             name=data["name"],
             display_name=data.get("display_name", ""),
@@ -188,6 +195,8 @@ class StackConfig:
             variables=data.get("variables", {}),
             options=options,
             extends=data.get("extends"),
+            scaffold_enabled=scaffold.get("enabled", False),
+            scaffold_source=scaffold.get("source", "scaffold"),
             stack_path=stack_path,
         )
 
@@ -388,6 +397,12 @@ def _resolve_inheritance(
         resolved["setup"] = child_config["setup"]
     elif "setup" in parent_config:
         resolved["setup"] = parent_config["setup"]
+
+    # scaffold: child wins if present, else parent (pass-through)
+    if "scaffold" in child_config:
+        resolved["scaffold"] = child_config["scaffold"]
+    elif "scaffold" in parent_config:
+        resolved["scaffold"] = parent_config["scaffold"]
 
     return resolved, parent_stack_path
 

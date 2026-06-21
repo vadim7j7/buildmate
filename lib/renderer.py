@@ -30,6 +30,8 @@ class RenderedOutput:
         default_factory=dict
     )  # filename -> source path (non-template)
     services_config: dict[str, Any] | None = None  # services.json for dashboard
+    # Scaffold: target-relative path -> rendered content (str) or source path (Path)
+    scaffold: dict[str, "str | Path"] = field(default_factory=dict)
 
 
 def create_jinja_env(template_dirs: list[Path]) -> Environment:
@@ -267,6 +269,70 @@ def collect_hooks(config: ComposedConfig) -> tuple[dict[str, str], dict[str, Pat
     return rendered, static
 
 
+def collect_scaffold(
+    env: Environment,
+    context: dict[str, Any],
+    config: ComposedConfig,
+) -> dict[str, "str | Path"]:
+    """
+    Collect project-root scaffold files from stacks that declare ``scaffold.enabled``.
+
+    Each file is placed under the stack's working directory (``mobile``/``web``/
+    ``backend`` for multi-stack, or the project root for a single stack). ``.j2``
+    files are Jinja-rendered with the same context as agents (so ``variables`` like
+    the locale set interpolate); all other files are copied verbatim.
+
+    Later stacks override earlier ones on a target-path collision, matching the
+    agent-merge rule.
+
+    Returns:
+        Dictionary of target-relative POSIX path -> rendered content (str) or
+        source Path (verbatim copy).
+    """
+    scaffold: dict[str, str | Path] = {}
+
+    for stack in config.stacks:
+        if not stack.scaffold_enabled:
+            continue
+
+        # Resolve the scaffold source directory (stack-local, else parent).
+        source_dir = stack.stack_path / stack.scaffold_source
+        if not source_dir.exists() and stack.parent_stack_path:
+            source_dir = stack.parent_stack_path / stack.scaffold_source
+        if not source_dir.exists():
+            continue
+
+        # Working dir prefix: "." (single stack) means project root.
+        prefix = "" if stack.working_dir in (".", "") else stack.working_dir.strip("/")
+
+        stack_context = {**context, "stack": stack}
+
+        for item in sorted(source_dir.rglob("*")):
+            if not item.is_file():
+                continue
+
+            rel = item.relative_to(source_dir)
+
+            if item.suffix == ".j2":
+                # Render through Jinja; output path drops the .j2 suffix.
+                template_path = item.relative_to(V2_ROOT).as_posix()
+                out_rel = rel.with_suffix("")  # strip .j2
+                try:
+                    template = env.get_template(template_path)
+                    content: str | Path = template.render(**stack_context)
+                except Exception as e:  # pragma: no cover - surfaced as a warning
+                    print(f"Warning: Failed to render scaffold {template_path}: {e}")
+                    continue
+            else:
+                out_rel = rel
+                content = item
+
+            target = f"{prefix}/{out_rel.as_posix()}" if prefix else out_rel.as_posix()
+            scaffold[target] = content
+
+    return scaffold
+
+
 def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutput:
     """
     Render all templates for a composed configuration.
@@ -303,6 +369,9 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
 
     # Collect skills
     output.skills = collect_skills(config)
+
+    # Collect project-root scaffold (rendered .j2 / verbatim files)
+    output.scaffold = collect_scaffold(env, context, config)
 
     # Collect hooks
     output.hooks, output.hook_files = collect_hooks(config)

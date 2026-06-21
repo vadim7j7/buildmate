@@ -29,6 +29,8 @@ class InstallResult:
     hooks_count: int = 0
     patterns_count: int = 0
     styles_count: int = 0
+    scaffold_count: int = 0
+    scaffold_skipped: list[str] = field(default_factory=list)
     files_written: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     dry_run: bool = False
@@ -406,6 +408,30 @@ def install(
             shutil.copy2(source_path, style_dst)
         result.styles_count += 1
 
+    # Install project-root scaffold (real files written into the project, not .claude/)
+    scaffold_written: list[str] = []
+    for rel_path, content_or_src in output.scaffold.items():
+        dst = target_path / rel_path
+        # Never clobber existing project files unless --force was given.
+        if dst.exists() and not force:
+            result.scaffold_skipped.append(rel_path)
+            if dry_run:
+                print(f"[DRY RUN] Would SKIP existing scaffold file: {rel_path}")
+            continue
+        if dry_run:
+            print(f"[DRY RUN] Would write scaffold: {rel_path}")
+        else:
+            ensure_directory(dst.parent)
+            if isinstance(content_or_src, Path):
+                shutil.copy2(content_or_src, dst)
+            else:
+                with open(dst, "w") as f:
+                    f.write(content_or_src)
+            if rel_path.endswith(".sh"):
+                make_executable(dst)
+        scaffold_written.append(rel_path)
+        result.scaffold_count += 1
+
     # Install dashboard if requested (before settings.json so MCP config is included)
     if dashboard:
         if dry_run:
@@ -490,6 +516,7 @@ def install(
             installed_files.append(f".claude/patterns/{filename}")
         for filename in output.styles:
             installed_files.append(f".claude/styles/{filename}")
+        installed_files.extend(scaffold_written)
         installed_files.append(".claude/settings.json")
         installed_files.append("CLAUDE.md")
 
@@ -521,6 +548,13 @@ def print_summary(result: InstallResult, stacks: list[str]) -> None:
     print(f"  Hooks:    {result.hooks_count}")
     print(f"  Patterns: {result.patterns_count}")
     print(f"  Styles:   {result.styles_count}")
+    if result.scaffold_count or result.scaffold_skipped:
+        print(f"  Scaffold: {result.scaffold_count}")
+        if result.scaffold_skipped:
+            print(
+                f"            ({len(result.scaffold_skipped)} skipped — "
+                f"existing files, use --force to overwrite)"
+            )
 
     if result.errors:
         print()

@@ -100,9 +100,28 @@
     },
     "setup": {
       "$ref": "#/$defs/setup"
+    },
+    "scaffold": {
+      "$ref": "#/$defs/scaffold"
     }
   },
   "$defs": {
+    "scaffold": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this stack ships a scaffold tree copied into the project working dir"
+        },
+        "source": {
+          "type": "string",
+          "default": "scaffold",
+          "description": "Directory under the stack (relative) holding the scaffold tree"
+        }
+      },
+      "description": "Project-root scaffolding written into the target project (Jinja-rendered for .j2 files)"
+    },
     "agent": {
       "type": "object",
       "required": ["name", "template", "tools"],
