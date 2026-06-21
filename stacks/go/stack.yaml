@@ -8,6 +8,7 @@ compatible_with:
   - nextjs
   - nuxt
   - react-native
+  - browser-extension
   - scraping
 
 options:

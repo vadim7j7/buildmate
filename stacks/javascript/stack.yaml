@@ -6,6 +6,7 @@ default_model: opus
 
 compatible_with:
   - react-native
+  - browser-extension
   - scraping
 
 agents: []
