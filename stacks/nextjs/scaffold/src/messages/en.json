@@ -1,0 +1,12 @@
+{
+  "Nav": {
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing"
+  },
+  "Hero": {
+    "title": "Your app, beautifully localized",
+    "subtitle": "One landing page, every language.",
+    "cta": "Get started"
+  }
+}

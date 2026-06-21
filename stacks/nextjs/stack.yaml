@@ -19,6 +19,8 @@ compatible_with:
   - chi
   - elixir
   - phoenix
+  - react-native
+  - browser-extension
 
 options:
   ui:
@@ -109,6 +111,23 @@ options:
         variables:
           state_library: None
 
+  languages:
+    description: Locale set for next-intl i18n (kept identical to the mobile app)
+    default: standard
+    choices:
+      minimal:
+        description: English + Spanish only
+        variables:
+          locales: "en,es"
+          default_locale: en
+          locale_count: 2
+      standard:
+        description: Full 18-locale union set used across all apps
+        variables:
+          locales: "en,es,fr,de,it,pt-BR,nl,pl,tr,vi,id,ja,ko,ru,zh,tl,th,ms"
+          default_locale: en
+          locale_count: 18
+
 agents:
   - name: frontend-developer
     template: agents/frontend-developer.md.j2
@@ -180,11 +199,21 @@ patterns:
 styles:
   - styles/frontend-typescript.md
 
+# Real project files written into the landing site on bootstrap (web/ in multi-stack).
+# .j2 files are Jinja-rendered with `variables` (so the locale set is baked in).
+scaffold:
+  enabled: true
+
 variables:
-  framework: Next.js 14+ (App Router)
+  framework: Next.js (App Router)
   language: TypeScript
   test_framework: Jest + React Testing Library
   linter: ESLint + Prettier
+  i18n: next-intl
+  # Locale defaults — overridden by the `languages` option / profile.
+  locales: "en,es,fr,de,it,pt-BR,nl,pl,tr,vi,id,ja,ko,ru,zh,tl,th,ms"
+  default_locale: en
+  locale_count: 18
   dev_port: 3000
 
 verification:

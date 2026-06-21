@@ -1,0 +1,28 @@
+// Locale set for the landing site. Baked in by buildmate and kept identical to the
+// mobile app's i18n config. Add/remove locales via the `languages` option, not here.
+export const locales = {{ variables.locales.split(',') | map('trim') | list | tojson }} as const;
+export const defaultLocale = "{{ variables.default_locale }}" as const;
+
+export type Locale = (typeof locales)[number];
+
+// Native language names for a language switcher. Fill in any missing endonyms.
+export const localeNames: Record<string, string> = {
+  en: "English",
+  es: "Español",
+  fr: "Français",
+  de: "Deutsch",
+  it: "Italiano",
+  "pt-BR": "Português (Brasil)",
+  nl: "Nederlands",
+  pl: "Polski",
+  tr: "Türkçe",
+  vi: "Tiếng Việt",
+  id: "Bahasa Indonesia",
+  ja: "日本語",
+  ko: "한국어",
+  ru: "Русский",
+  zh: "中文",
+  tl: "Tagalog",
+  th: "ไทย",
+  ms: "Bahasa Melayu",
+};
