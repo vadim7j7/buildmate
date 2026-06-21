@@ -218,7 +218,17 @@ buildmate sinatra+nextjs /path/to/app        # Sinatra API + Next.js
 buildmate gin+nextjs /path/to/app            # Fullstack Gin + Next.js
 buildmate phoenix+nuxt /path/to/app          # Fullstack Phoenix + Nuxt
 buildmate fiber+nextjs /path/to/app          # Fullstack Fiber + Next.js
+
+# Custom target folder per stack (--dir STACK=FOLDER, repeatable)
+buildmate react-native /path/to/app --dir react-native=waisly-mobile-app
+buildmate fastapi+react-native /path/to/app --dir react-native=mobile-app --dir fastapi=api
 ```
+
+By default scaffold files and quality-gate commands target the project root for a
+single stack, or a per-stack default folder for multi-stack builds (`react-native→mobile`,
+`nextjs→web`, `rails→backend`, …). Use `--dir STACK=FOLDER` to point a stack at a
+custom directory (e.g. an existing `waisly-mobile-app/`). Precedence: `--dir` >
+multi-stack default > the stack's own `working_dir`.
 
 ## Directory Structure
 

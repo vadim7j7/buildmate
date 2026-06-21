@@ -559,6 +559,7 @@ def compose_stacks(
     validate: bool = True,
     options: dict[str, dict[str, str]] | None = None,
     profile: Profile | None = None,
+    working_dirs: dict[str, str] | None = None,
 ) -> ComposedConfig:
     """
     Compose multiple stacks into a single configuration.
@@ -570,6 +571,10 @@ def compose_stacks(
         validate: Whether to validate configurations
         options: Option selections per stack {stack_name: {option_name: choice}}
         profile: Profile to apply (provides default options)
+        working_dirs: Per-stack working_dir overrides {stack_name: folder}. Takes
+            precedence over the single-stack default (".") and the multi-stack
+            MULTI_STACK_WORKING_DIRS map. Drives scaffold target paths, quality
+            gate cd-prefixes, and the multi-repo map.
 
     Returns:
         ComposedConfig with merged agents, skills, etc.
@@ -709,20 +714,27 @@ def compose_stacks(
     if profile:
         merged_variables.update(profile.variables)
 
-    # Multi-stack: override working_dir and prefix quality gate commands
-    if len(stacks) > 1:
-        for stack in stacks:
+    # Resolve each stack's working_dir. Precedence (highest first):
+    #   1. explicit --dir override (working_dirs)
+    #   2. multi-stack default folder (MULTI_STACK_WORKING_DIRS)
+    #   3. stack.yaml working_dir (usually ".")
+    user_dirs = working_dirs or {}
+    for stack in stacks:
+        if stack.name in user_dirs:
+            stack.working_dir = user_dirs[stack.name].strip("/") or "."
+        elif len(stacks) > 1:
             override = MULTI_STACK_WORKING_DIRS.get(stack.name)
             if override:
                 stack.working_dir = override
 
-        for stack in stacks:
-            if stack.working_dir != ".":
-                wd = stack.working_dir
-                for gate in stack.quality_gates.values():
-                    gate.command = f"cd {wd} && {gate.command}"
-                    if gate.fix_command:
-                        gate.fix_command = f"cd {wd} && {gate.fix_command}"
+    # Prefix quality gate commands for any stack not living at the project root.
+    for stack in stacks:
+        if stack.working_dir != ".":
+            wd = stack.working_dir
+            for gate in stack.quality_gates.values():
+                gate.command = f"cd {wd} && {gate.command}"
+                if gate.fix_command:
+                    gate.fix_command = f"cd {wd} && {gate.fix_command}"
 
     # Determine default model
     final_default_model = force_model or default_model or stacks[0].default_model

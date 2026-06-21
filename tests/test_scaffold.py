@@ -52,6 +52,38 @@ class TestCollectScaffold:
         assert "web/src/i18n/config.ts" in output.scaffold
         assert "web/next.config.ts" in output.scaffold
 
+    def test_working_dir_override_single_stack(self):
+        # --dir react-native=waisly-mobile-app -> scaffold under that folder.
+        composed = compose_stacks(
+            ["react-native"], working_dirs={"react-native": "waisly-mobile-app"}
+        )
+        output = render_all(composed)
+        assert "waisly-mobile-app/eas.json" in output.scaffold
+        assert "waisly-mobile-app/src/db/client.ts" in output.scaffold
+        # No root-level copy leaked through.
+        assert "eas.json" not in output.scaffold
+
+    def test_working_dir_override_beats_multi_stack_default(self):
+        # Override wins over the MULTI_STACK_WORKING_DIRS "mobile" default.
+        composed = compose_stacks(
+            ["react-native", "nextjs"],
+            working_dirs={"react-native": "mobile-app"},
+        )
+        output = render_all(composed)
+        assert "mobile-app/eas.json" in output.scaffold
+        assert "mobile/eas.json" not in output.scaffold
+        # Unoverridden stack keeps its default folder.
+        assert "web/next.config.ts" in output.scaffold
+
+    def test_working_dir_override_prefixes_quality_gates(self):
+        composed = compose_stacks(
+            ["react-native"], working_dirs={"react-native": "mobile-app"}
+        )
+        rn = next(s for s in composed.stacks if s.name == "react-native")
+        assert rn.working_dir == "mobile-app"
+        for gate in rn.quality_gates.values():
+            assert gate.command.startswith("cd mobile-app && ")
+
     def test_locale_set_rendered_into_scaffold(self):
         composed = compose_stacks(["react-native", "nextjs"])
         output = render_all(composed)

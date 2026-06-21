@@ -624,7 +624,23 @@ buildmate django+nuxt /path/to/app
 buildmate express+nextjs /path/to/app
 buildmate gin+nextjs /path/to/app
 buildmate phoenix+nuxt /path/to/app
+
+# Override a stack's target folder (scaffold paths + quality-gate cwd)
+# --dir STACK=FOLDER, repeatable. Works for single- and multi-stack builds.
+buildmate react-native /path/to/app --dir react-native=waisly-mobile-app
+buildmate fastapi+react-native /path/to/app --dir react-native=mobile-app --dir fastapi=api
 ```
+
+### Target folder per stack
+
+By default scaffold files and quality-gate commands target:
+- **single stack** → the project root (`working_dir: "."`)
+- **multi-stack** → a per-stack default folder (`MULTI_STACK_WORKING_DIRS` in
+  `lib/config.py`: `react-native→mobile`, `nextjs→web`, `rails→backend`, …)
+
+Override either with `--dir STACK=FOLDER` (repeatable). Precedence: `--dir` >
+multi-stack default > the stack's `working_dir`. Useful when your repo already
+keeps a stack in a custom directory (e.g. `waisly-mobile-app`, `rentwise-mobile`).
 
 ## Development
 

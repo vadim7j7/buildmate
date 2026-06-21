@@ -266,6 +266,7 @@ def cmd_bootstrap(
     profile_name: str | None = None,
     extra_args: list[str] | None = None,
     dashboard: bool = False,
+    working_dirs: dict[str, str] | None = None,
 ):
     """Bootstrap stacks to target directory."""
     print_header()
@@ -326,6 +327,7 @@ def cmd_bootstrap(
             force_model=force_model,
             options=cli_options,
             profile=profile,
+            working_dirs=working_dirs,
         )
     except FileNotFoundError as e:
         print(f"Error: {e}")
@@ -834,9 +836,30 @@ Extend existing projects:
         action="store_true",
         help="Install MCP Dashboard for monitoring and control",
     )
+    parser.add_argument(
+        "--dir",
+        action="append",
+        metavar="STACK=FOLDER",
+        default=[],
+        help="Override a stack's target folder, e.g. --dir react-native=mobile-app "
+        "(repeatable). Controls scaffold paths and quality-gate working dir.",
+    )
 
     # Parse known args and collect unknown args (for dynamic options)
     args, unknown_args = parser.parse_known_args()
+
+    # Parse --dir STACK=FOLDER overrides into {stack: folder}
+    working_dirs: dict[str, str] = {}
+    for item in args.dir:
+        if "=" not in item:
+            print(f"Error: --dir expects STACK=FOLDER, got: {item}")
+            return 1
+        stack_name, _, folder = item.partition("=")
+        stack_name, folder = stack_name.strip(), folder.strip()
+        if not stack_name or not folder:
+            print(f"Error: --dir expects STACK=FOLDER, got: {item}")
+            return 1
+        working_dirs[stack_name] = folder
 
     # Handle --credits
     if args.credits:
@@ -919,6 +942,7 @@ Extend existing projects:
         profile_name=args.profile,
         extra_args=unknown_args,
         dashboard=args.dashboard,
+        working_dirs=working_dirs,
     )
 
 
