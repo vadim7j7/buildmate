@@ -1,0 +1,224 @@
+name: browser-extension
+display_name: Browser Extension (WXT)
+description: Cross-browser web extension development with WXT, TypeScript, and Manifest V3
+
+default_model: opus
+
+# Pairs with backend APIs and a companion web app. Two extensions are not composed.
+compatible_with:
+  - rails
+  - ruby
+  - sinatra
+  - fastapi
+  - flask
+  - python
+  - django
+  - express
+  - javascript
+  - go
+  - gin
+  - fiber
+  - chi
+  - elixir
+  - phoenix
+  - nextjs
+
+options:
+  ui:
+    description: UI framework for popup / options / side panel surfaces
+    default: react
+    choices:
+      react:
+        description: React (via @wxt-dev/module-react)
+        styles:
+          - styles/ui-react.md
+        variables:
+          ui_framework: React
+          wxt_module: "@wxt-dev/module-react"
+          ui_ext: tsx
+      vue:
+        description: Vue 3 (via @wxt-dev/module-vue)
+        variables:
+          ui_framework: Vue
+          wxt_module: "@wxt-dev/module-vue"
+          ui_ext: ts
+      svelte:
+        description: Svelte (via @wxt-dev/module-svelte)
+        variables:
+          ui_framework: Svelte
+          wxt_module: "@wxt-dev/module-svelte"
+          ui_ext: ts
+      vanilla:
+        description: No UI framework — plain TypeScript + HTML
+        variables:
+          ui_framework: Vanilla TS
+          wxt_module: ""
+          ui_ext: ts
+
+  css:
+    description: CSS / styling approach for extension UI surfaces
+    default: none
+    choices:
+      none:
+        description: Plain CSS
+        variables:
+          css_framework: Plain CSS
+          use_tailwind: false
+      tailwind:
+        description: Tailwind CSS v4 (via @tailwindcss/vite)
+        styles:
+          - styles/tailwind.md
+        variables:
+          css_framework: Tailwind CSS
+          use_tailwind: true
+
+  target:
+    description: Primary browser build target (WXT builds all from one codebase)
+    default: chrome
+    choices:
+      chrome:
+        description: Chromium (Chrome, Edge, Brave, Arc) — Manifest V3
+        variables:
+          target_browser: chrome
+          build_targets: "chrome, edge"
+      firefox:
+        description: Firefox — Manifest V3 (Gecko)
+        variables:
+          target_browser: firefox
+          build_targets: firefox
+      edge:
+        description: Microsoft Edge — Manifest V3
+        variables:
+          target_browser: edge
+          build_targets: edge
+      safari:
+        description: Safari (via xcrun safari-web-extension-converter)
+        variables:
+          target_browser: safari
+          build_targets: safari
+      all:
+        description: Build for every supported browser
+        variables:
+          target_browser: chrome
+          build_targets: "chrome, firefox, edge, safari"
+
+agents:
+  - name: extension-developer
+    template: agents/extension-developer.md.j2
+    description: WXT cross-browser extension implementation specialist
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-entrypoint
+      - new-content-script
+      - new-message
+      - new-storage-item
+
+  - name: extension-tester
+    template: agents/extension-tester.md.j2
+    description: Vitest + fake-browser extension testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - test
+
+  - name: extension-reviewer
+    template: agents/extension-reviewer.md.j2
+    description: Browser extension code reviewer (security, permissions, MV3)
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - test
+  - review
+  - docs
+  - verify
+  - new-entrypoint
+  - new-content-script
+  - new-message
+  - new-storage-item
+  - permissions-audit
+
+quality_gates:
+  typecheck:
+    command: npm run compile
+    description: WXT prepare + TypeScript type checking (wxt prepare && tsc --noEmit)
+  lint:
+    command: npm run lint
+    fix_command: npm run lint -- --fix
+    description: ESLint checks
+  tests:
+    command: npm test
+    description: Vitest test suite
+
+working_dir: "."
+
+patterns:
+  - patterns/wxt-entrypoints.md
+  - patterns/background.md
+  - patterns/content-scripts.md
+  - patterns/messaging.md
+  - patterns/storage.md
+  - patterns/permissions.md
+  - patterns/cross-browser.md
+  - patterns/ui-surfaces.md
+  - patterns/security.md
+  - patterns/testing.md
+  - patterns/publishing.md
+
+styles:
+  - styles/extension.md
+
+# Real project files written into the app root on bootstrap.
+# .j2 files are Jinja-rendered with `variables` (ui framework + targets baked in).
+scaffold:
+  enabled: true
+
+setup:
+  install_command: npm install
+  post_install:
+    - npx wxt prepare
+  dev_server_check: node -v && npm -v
+
+variables:
+  framework: WXT (Vite-powered, cross-browser)
+  language: TypeScript 5+ (strict mode)
+  test_framework: Vitest + @webext-core/fake-browser
+  manifest: Manifest V3 (auto-generated by WXT)
+  messaging: "@webext-core/messaging"
+  storage_api: wxt/storage (storage.defineItem)
+  browser_api: wxt/browser (unified WebExtension polyfill)
+  package_manager: npm
+  dev_port: 3000
+  # Defaults — overridden by the ui / target options.
+  ui_framework: React
+  wxt_module: "@wxt-dev/module-react"
+  ui_ext: tsx
+  target_browser: chrome
+  build_targets: "chrome, edge"
+  css_framework: Plain CSS
+  use_tailwind: false
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: npm run dev
+    port: 3000

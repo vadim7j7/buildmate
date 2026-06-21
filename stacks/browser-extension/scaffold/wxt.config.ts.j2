@@ -1,0 +1,19 @@
+import { defineConfig } from 'wxt';
+{% if variables.use_tailwind %}import tailwindcss from '@tailwindcss/vite';
+{% endif %}
+// WXT auto-generates manifest.json from the entrypoints/ directory.
+// Declare manifest fields and modules here — never hand-edit manifest.json.
+// Docs: https://wxt.dev/api/config.html
+export default defineConfig({
+{% if variables.wxt_module %}  modules: ['{{ variables.wxt_module }}'],
+{% endif %}{% if variables.use_tailwind %}  vite: () => ({
+    plugins: [tailwindcss()],
+  }),
+{% endif %}  manifest: {
+    name: 'My Extension',
+    description: 'A cross-browser extension built with WXT',
+    // Least-privilege: declare only what you use. See patterns/permissions.md
+    permissions: ['storage', 'activeTab'],
+    // host_permissions: ['*://*.example.com/*'],
+  },
+});

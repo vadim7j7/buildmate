@@ -1,0 +1,20 @@
+name: extension-backend
+display_name: Browser Extension + API
+description: >-
+  A cross-browser WXT extension (React) paired with a FastAPI backend. The
+  extension lives in extension/ and talks to the API in backend/. Good for
+  productivity tools, scrapers-with-sync, and SaaS companion extensions.
+
+stacks:
+  - fastapi
+  - browser-extension
+
+options:
+  browser-extension:
+    ui: react
+    target: all
+
+variables:
+  project_type: extension-backend
+  has_extension: true
+  has_api: true

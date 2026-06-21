@@ -1,0 +1,47 @@
+# My Extension
+
+A cross-browser web extension built with [WXT]({{ "https://wxt.dev" }}) and
+**{{ variables.ui_framework }}**. One codebase ships to **{{ variables.build_targets }}**.
+
+## Develop
+
+```bash
+npm install            # also runs `wxt prepare`
+npm run dev            # launches a browser with HMR (target: {{ variables.target_browser }})
+npm run dev:firefox    # develop against Firefox
+```
+
+`npm run dev` opens a dev browser with the extension loaded. Edit files under
+`entrypoints/` and changes hot-reload.
+
+## Project layout
+
+```
+entrypoints/        # every extension surface (manifest is generated from these)
+  background.ts     # service worker (MV3) — defineBackground()
+  content.ts        # content script — defineContentScript()
+  popup/            # toolbar popup (index.html + main)
+utils/
+  messaging.ts      # typed @webext-core/messaging protocol
+  storage.ts        # typed wxt/storage items
+wxt.config.ts       # manifest, permissions, modules — the single source of truth
+```
+
+## Quality gates
+
+```bash
+npm run compile      # wxt prepare && tsc --noEmit
+npm run lint         # eslint
+npm test             # vitest
+```
+
+## Build & ship
+
+```bash
+npm run build              # .output/{{ variables.target_browser }}-mv3/
+npm run zip                # store-ready zip
+npm run zip:firefox        # Firefox zip (+ sources)
+```
+
+Load the unpacked build from `.output/` while developing. See `patterns/publishing.md`
+for Chrome Web Store / Firefox AMO / Edge submission.
