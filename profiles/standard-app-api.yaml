@@ -1,0 +1,28 @@
+name: standard-app-api
+display_name: Standard App + API (Mobile + Landing + Backend)
+description: >-
+  Same as standard-app (Expo mobile + Next.js landing with a shared locale set and
+  full ship pipeline) plus a FastAPI + PostgreSQL backend for apps that need sync,
+  accounts, billing, or server data.
+
+stacks:
+  - react-native
+  - nextjs
+  - fastapi
+
+options:
+  react-native:
+    state: zustand
+    languages: standard
+  nextjs:
+    ui: tailwind
+    state: zustand
+    languages: standard
+  fastapi:
+    db: postgresql
+
+variables:
+  project_type: standard-app-api
+  has_mobile: true
+  has_landing: true
+  has_backend: true

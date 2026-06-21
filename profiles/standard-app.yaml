@@ -1,0 +1,24 @@
+name: standard-app
+display_name: Standard App (Mobile + Landing)
+description: >-
+  React Native (Expo) mobile app + Next.js landing site, sharing one canonical
+  locale set. Offline-first Drizzle + SQLite, Zustand, and a full EAS / Fastlane /
+  Maestro ship pipeline scaffolded into the project.
+
+stacks:
+  - react-native
+  - nextjs
+
+options:
+  react-native:
+    state: zustand
+    languages: standard
+  nextjs:
+    ui: tailwind
+    state: zustand
+    languages: standard
+
+variables:
+  project_type: standard-app
+  has_mobile: true
+  has_landing: true

@@ -1,0 +1,266 @@
+name: rails-monolith
+extends: ruby
+display_name: Ruby on Rails Monolith (ViewComponent + Hotwire)
+description: Server-rendered Rails app with ViewComponent, Turbo, Stimulus, and TailwindCSS
+
+compatible_with:
+  - react-native
+  - browser-extension
+  - scraping
+
+options:
+  jobs:
+    description: Background job processor
+    default: sidekiq
+    choices:
+      sidekiq:
+        description: Redis-backed job processor (most popular)
+        patterns:
+          - patterns/sidekiq.md
+        variables:
+          background_jobs: Sidekiq
+          job_adapter: sidekiq
+      good_job:
+        description: Postgres-backed job processor (no Redis needed)
+        variables:
+          background_jobs: GoodJob
+          job_adapter: good_job
+      solid_queue:
+        description: Database-backed job processor (Rails 8+ default)
+        variables:
+          background_jobs: SolidQueue
+          job_adapter: solid_queue
+
+  components:
+    description: Component library for views
+    default: view_component
+    choices:
+      view_component:
+        description: GitHub's ViewComponent (Ruby class + sidecar template)
+        variables:
+          component_library: ViewComponent
+      phlex:
+        description: Phlex (pure-Ruby views, no ERB)
+        variables:
+          component_library: Phlex
+      none:
+        description: Plain ERB partials (no component layer)
+        variables:
+          component_library: None (plain partials)
+
+  realtime:
+    description: Real-time interactivity layer
+    default: hotwire
+    choices:
+      hotwire:
+        description: Turbo + Stimulus (server-rendered SPA-like UX)
+        patterns:
+          - patterns/hotwire-patterns.md
+          - patterns/stimulus-patterns.md
+        variables:
+          realtime: Hotwire (Turbo + Stimulus)
+      stimulus_only:
+        description: Stimulus only (no Turbo)
+        patterns:
+          - patterns/stimulus-patterns.md
+        variables:
+          realtime: Stimulus
+      none:
+        description: Server-rendered HTML only (no JS)
+        variables:
+          realtime: None
+
+  ui:
+    description: CSS framework
+    default: tailwind
+    choices:
+      tailwind:
+        description: TailwindCSS (utility-first)
+        patterns:
+          - patterns/tailwind-in-rails.md
+        variables:
+          ui_library: TailwindCSS
+      bootstrap:
+        description: Bootstrap 5
+        variables:
+          ui_library: Bootstrap 5
+      none:
+        description: Plain CSS / SCSS
+        variables:
+          ui_library: Plain CSS
+
+  preview:
+    description: Component preview tool
+    default: lookbook
+    choices:
+      lookbook:
+        description: Lookbook for ViewComponent previews and design system docs
+        skills:
+          - new-component-preview
+        patterns:
+          - patterns/lookbook-patterns.md
+        variables:
+          preview_tool: Lookbook
+      none:
+        description: No component preview tool
+        variables:
+          preview_tool: None
+
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Senior Rails developer for monolith (models, services, jobs, HTML/JSON controllers)
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-model
+      - new-controller
+      - new-service
+      - new-migration
+      - new-job
+      - new-helper
+      - new-presenter
+      - new-mailer
+
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: RSpec testing specialist for models, services, controllers, and jobs
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-spec
+      - test
+
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Rails code reviewer (server-rendered + API conventions)
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+  - name: view-developer
+    template: agents/view-developer.md.j2
+    description: Senior frontend developer for ViewComponents, Hotwire, and TailwindCSS
+    model: opus
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-component
+      - new-stimulus-controller
+      - new-turbo-frame
+      - new-turbo-stream
+      - new-view
+      - new-partial
+      - new-form-component
+      - new-mailer-template
+
+  - name: view-tester
+    template: agents/view-tester.md.j2
+    description: ViewComponent + system spec testing specialist
+    model: sonnet
+    tools:
+      - Read
+      - Write
+      - Edit
+      - Bash
+      - Grep
+      - Glob
+    skills:
+      - new-spec
+      - test
+
+  - name: view-reviewer
+    template: agents/view-reviewer.md.j2
+    description: Reviewer for ViewComponents, Hotwire usage, accessibility, and CSS conventions
+    model: opus
+    tools:
+      - Read
+      - Grep
+      - Glob
+      - Bash
+
+skills:
+  - new-model
+  - new-controller
+  - new-service
+  - new-migration
+  - new-job
+  - new-presenter
+  - new-mailer
+  - new-policy
+  - new-concern
+  - new-spec
+  - db-migrate
+  - new-component
+  - new-stimulus-controller
+  - new-turbo-frame
+  - new-turbo-stream
+  - new-view
+  - new-partial
+  - new-helper
+  - new-form-component
+  - new-mailer-template
+
+patterns:
+  - patterns/rails-monolith-patterns.md
+  - patterns/auth.md
+  - patterns/pagination.md
+  - patterns/forms-patterns.md
+  - patterns/flash-and-redirect-patterns.md
+  - patterns/view-component-patterns.md
+  - patterns/file-upload.md
+  - patterns/verification.md
+
+styles:
+  - styles/view-component-style.md
+  - styles/erb-style.md
+  - styles/stimulus-style.md
+
+setup:
+  install_command: bundle install && yarn install
+  post_install:
+    - bundle exec rails db:setup
+    - bundle exec rails assets:precompile
+  dev_server_check: ruby -v && bundle -v && node -v
+
+variables:
+  framework: Rails 7/8 (Monolith)
+  language: Ruby 3.2+
+  test_framework: RSpec
+  orm: ActiveRecord
+  linter: RuboCop
+  dev_port: 3000
+  component_library: ViewComponent
+  realtime: Hotwire (Turbo + Stimulus)
+  ui_library: TailwindCSS
+  preview_tool: Lookbook
+  background_jobs: Sidekiq
+
+verification:
+  enabled: true
+  auto_verify: true
+  max_retries: 3
+  dev_server:
+    command: bin/dev
+    port: 3000
+    health_check: /health
