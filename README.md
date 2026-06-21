@@ -42,6 +42,7 @@ python3 -m venv .venv
 ```bash
 # Bootstrap a project
 buildmate rails /path/to/my-rails-app
+buildmate rails-monolith /path/to/my-rails-app    # Rails monolith (ViewComponent + Hotwire)
 buildmate nextjs /path/to/my-nextjs-app
 buildmate django /path/to/my-django-app
 
@@ -68,12 +69,12 @@ Buildmate organizes stacks into **language parents** and **framework children**.
 ### Stack Hierarchy
 
 ```
-ruby (parent)           → rails, sinatra
+ruby (parent)           → rails, rails-monolith, sinatra
 javascript (parent)     → nextjs, express, nuxt
 python (parent)         → flask, fastapi, django
 go (parent)             → gin, fiber, chi
 elixir (parent)         → phoenix
-standalone              → react-native, scraping
+standalone              → react-native, browser-extension, scraping
 ```
 
 ### All Stacks
@@ -83,6 +84,7 @@ standalone              → react-native, scraping
 | **Ruby Ecosystem** |
 | `ruby` | — | Generic Ruby development | backend-developer, backend-tester, backend-reviewer | test, review, new-model, new-service, new-spec |
 | `rails` | `ruby` | Ruby on Rails API | backend-developer, backend-tester, backend-reviewer | new-controller, new-presenter, new-job, db-migrate |
+| `rails-monolith` | `ruby` | Rails Monolith (ViewComponent + Hotwire) | backend-developer, backend-tester, backend-reviewer, view-developer, view-tester, view-reviewer | new-component, new-stimulus-controller, new-turbo-frame, new-turbo-stream, new-view, new-form-component, new-mailer-template, new-component-preview |
 | `sinatra` | `ruby` | Sinatra Web Application | backend-developer, backend-tester, backend-reviewer | new-route, new-helper |
 | **JavaScript Ecosystem** |
 | `javascript` | — | Generic TypeScript/JS development | *(none — children define their own)* | test, review, docs, verify |
@@ -104,6 +106,7 @@ standalone              → react-native, scraping
 | `phoenix` | `elixir` | Phoenix Framework | backend-developer, backend-tester, backend-reviewer | new-context, new-live, new-controller, new-channel |
 | **Standalone** |
 | `react-native` | — | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer | new-screen, new-store, new-query, platform-check |
+| `browser-extension` | — | Browser Extension (WXT, cross-browser MV3 — Chrome/Firefox/Edge/Safari) | extension-developer, extension-tester, extension-reviewer | new-entrypoint, new-content-script, new-message, new-storage-item, permissions-audit |
 | `scraping` | — | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer, site-analyzer, ui-cloner, api-generator | new-spider, new-scraper, analyze-target, clone-page, clone-site |
 
 ## Profiles
@@ -116,6 +119,8 @@ Profiles are pre-defined stack combinations with recommended options:
 | `saas` | rails + nextjs | Full configuration | SaaS applications |
 | `api-only` | rails | jobs=sidekiq, db=postgresql | API backends |
 | `mobile-backend` | rails + react-native | jobs=sidekiq, db=postgresql | Mobile apps with API |
+| `extension` | browser-extension | ui=react, target=chrome | Cross-browser web extension |
+| `extension-backend` | fastapi + browser-extension | ui=react, target=all | Extension with a Python API |
 
 ```bash
 # List available profiles
@@ -230,7 +235,9 @@ buildmate/
 │   ├── landing.yaml          # Next.js + Tailwind for landing pages
 │   ├── saas.yaml             # Rails + Next.js full SaaS setup
 │   ├── api-only.yaml         # Rails API backend
-│   └── mobile-backend.yaml   # Rails + React Native
+│   ├── mobile-backend.yaml   # Rails + React Native
+│   ├── extension.yaml        # Browser extension (WXT)
+│   └── extension-backend.yaml # FastAPI + browser extension
 ├── lib/
 │   ├── __init__.py           # Package version
 │   ├── schema.py             # Schema validation utilities
@@ -278,6 +285,7 @@ buildmate/
 │   ├── elixir/              # Language parent (agents, gates, patterns, styles)
 │   ├── phoenix/             # extends: elixir (overrides developer agent)
 │   ├── react-native/        # Standalone (mobile-* agents)
+│   ├── browser-extension/   # Standalone (extension-* agents, WXT scaffold)
 │   └── scraping/            # Standalone (scraper-* agents)
 ├── mcp-dashboard/            # Real-time web dashboard
 │   ├── server/               # FastAPI backend (REST, WebSocket, process mgmt)

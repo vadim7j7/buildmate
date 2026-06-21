@@ -49,7 +49,7 @@ javascript (parent)     → nextjs, express, nuxt
 python (parent)         → flask, fastapi, django
 go (parent)             → gin, fiber, chi
 elixir (parent)         → phoenix
-standalone              → react-native, scraping
+standalone              → react-native, browser-extension, scraping
 ```
 
 | Stack | Extends | Description | Agents |
@@ -72,6 +72,7 @@ standalone              → react-native, scraping
 | `elixir` | — | Generic Elixir development | backend-developer, backend-tester, backend-reviewer |
 | `phoenix` | `elixir` | Phoenix Framework | backend-developer, backend-tester, backend-reviewer |
 | `react-native` | — | React Native + Expo | mobile-developer, mobile-tester, mobile-code-reviewer |
+| `browser-extension` | — | Browser Extension (WXT, cross-browser MV3) | extension-developer, extension-tester, extension-reviewer |
 | `scraping` | — | Web Scraping (Python/Node.js) | scraper-developer, scraper-tester, scraper-reviewer |
 
 ## Profiles
@@ -84,6 +85,8 @@ Profiles are pre-defined stack combinations with recommended options:
 | `saas` | rails + nextjs | SaaS applications |
 | `api-only` | rails | API backends |
 | `mobile-backend` | rails + react-native | Mobile apps with API |
+| `extension` | browser-extension | Cross-browser web extension (WXT) |
+| `extension-backend` | fastapi + browser-extension | Browser extension with a Python API |
 
 ```bash
 buildmate --profiles              # List available profiles
@@ -155,6 +158,7 @@ buildmate/
 │   ├── elixir/              # Language parent (extends: none)
 │   ├── phoenix/             # extends: elixir
 │   ├── react-native/        # Standalone
+│   ├── browser-extension/   # Standalone (WXT, cross-browser MV3)
 │   └── scraping/            # Standalone
 ├── mcp-dashboard/            # Real-time web dashboard
 │   ├── server/               # FastAPI backend (REST, WebSocket, process mgmt)

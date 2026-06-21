@@ -50,6 +50,9 @@ node_modules/
 tmp/
 *.tmp
 
+# MCP dashboard runtime data (SQLite DB, uploads)
+mcp-dashboard/.dashboard/
+
 # Python
 __pycache__/
 *.py[cod]

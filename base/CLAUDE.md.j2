@@ -62,6 +62,20 @@ Before the review stage, the following gates **must** pass:
 If any gate fails, the **grind agent** runs fix-verify loops until all gates
 pass or max iterations are reached.
 
+{% if variables.locales %}
+## Localization
+
+This project ships in **{{ variables.locale_count or (variables.locales.split(',') | length) }} languages**, kept identical across every app (mobile + landing):
+
+`{{ variables.locales }}` (default: `{{ variables.default_locale }}`)
+
+- Every user-facing string must be localized — never hardcode display text.
+- The locale set is fixed at bootstrap; change it via the `languages` option, not by
+  editing i18n config files. Add one translation catalog per locale above.
+- Mobile (`i18next` + `expo-localization`) and landing (`next-intl`) use the **same** set,
+  and store screenshots are captured per-locale from this list.
+
+{% endif %}
 ## Available Slash Commands
 
 ### Core Commands
