@@ -132,6 +132,10 @@ BLOCKER if:
 
 - [ ] All user-facing strings use `t('key')` (WARNING if hardcoded)
 - [ ] Translation keys follow dot notation convention
+- [ ] Any new key added to `src/i18n/locales/en.json` (the source catalog) — the
+      i18n catalog-parity test will fail if other shipped locales drift (WARNING)
+- [ ] Locales are NOT added/removed by hand — the supported set is fixed by the
+      `languages` build option and must stay identical to the landing site (BLOCKER if changed ad hoc)
 
 ---
 

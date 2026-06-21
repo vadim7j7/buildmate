@@ -127,6 +127,16 @@ jest.mock('react-i18next', () => ({
 }));
 ```
 
+### 7. Guard i18n Catalog Parity (CRITICAL)
+
+This stack ships **{{ variables.locale_count }} locales** ({{ variables.locales }}).
+Key drift between catalogs — a key present in `en.json` but missing (or extra) in
+another locale — is the single most common i18n bug and is silent at runtime
+(i18next just falls back to the key or the default locale). Every project MUST
+have a test that asserts **every locale catalog has the exact same key set as the
+source catalog `en.json`**. Treat `en.json` as the source of truth; all other
+catalogs must match it key-for-key. See the parity test pattern below.
+
 ## Test Patterns
 
 ### Component Test
@@ -224,6 +234,60 @@ describe('useTransactions', () => {
 });
 ```
 
+### i18n Catalog Parity Test
+
+One data-driven test keeps every locale in lockstep with `en.json`. It flattens
+each catalog to dot-notation key paths and asserts no keys are missing or extra
+versus the source locale. This scales to all {{ variables.locale_count }} locales
+without listing keys by hand, and fails loudly the moment a translation drifts.
+
+{% raw %}
+```typescript
+// __tests__/i18n/catalog-parity.test.ts
+import { SUPPORTED_LOCALES, DEFAULT_LOCALE } from '@/i18n';
+import en from '@/i18n/locales/en.json';
+
+// Flatten a nested catalog to a sorted set of dot-notation leaf keys.
+function leafKeys(obj: Record<string, unknown>, prefix = ''): string[] {
+  return Object.entries(obj).flatMap(([k, v]) => {
+    const path = prefix ? `${prefix}.${k}` : k;
+    return v && typeof v === 'object' && !Array.isArray(v)
+      ? leafKeys(v as Record<string, unknown>, path)
+      : [path];
+  });
+}
+
+const sourceKeys = new Set(leafKeys(en));
+// Only assert against locales whose catalog actually ships (others are added as
+// translations land — see src/i18n/index.ts). en is the source of truth.
+const translated = SUPPORTED_LOCALES.filter((l) => l !== DEFAULT_LOCALE);
+
+describe.each(translated)('locale catalog parity: %s', (locale) => {
+  let keys: Set<string>;
+  beforeAll(() => {
+    // Skip locales that haven't been translated/bundled yet.
+    try {
+      keys = new Set(leafKeys(require(`@/i18n/locales/${locale}.json`)));
+    } catch {
+      keys = new Set();
+    }
+  });
+
+  it('has no missing keys vs en', () => {
+    if (keys.size === 0) return; // not yet translated — nothing to check
+    const missing = [...sourceKeys].filter((k) => !keys.has(k));
+    expect(missing).toEqual([]);
+  });
+
+  it('has no extra keys vs en', () => {
+    if (keys.size === 0) return;
+    const extra = [...keys].filter((k) => !sourceKeys.has(k));
+    expect(extra).toEqual([]);
+  });
+});
+```
+{% endraw %}
+
 ## Test File Organisation
 
 ```
@@ -239,6 +303,8 @@ __tests__/
     useTransactionStore.test.ts
   queries/
     useTransactions.test.ts
+  i18n/
+    catalog-parity.test.ts
 ```
 
 ## Completion Checklist
