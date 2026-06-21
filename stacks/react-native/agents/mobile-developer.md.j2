@@ -256,6 +256,22 @@ export async function createFeature(data: NewFeature) {
 - All user-facing strings MUST use `t('key')` from `useTranslation()`
 - Translation keys use dot notation: `t('feature.section.label')`
 - Never hardcode UI text strings
+- **Supported locales (fixed, identical to the landing site):** {{ variables.locales }}
+  (default `{{ variables.default_locale }}`). Setup lives in `src/i18n/`; translate from
+  `src/i18n/locales/en.json`. Do not add/remove locales here — change the `languages` option.
+
+## Build, Release & Store Pipeline
+
+This project is scaffolded with real build infrastructure — use it, don't reinvent it:
+
+- **`eas.json`** — `development` / `preview` / `production` EAS profiles.
+- **`Makefile`** — `make help` lists build / submit / OTA / screenshot targets
+  (e.g. `make build-preview-ios`, `make ship-prod-android`, `make update-prod`, `make verify`).
+- **`fastlane/`** — Maestro capture scripts + Fastlane lanes push **localized metadata +
+  framed screenshots only** (no binary) to App Store Connect / Google Play, looping the same
+  locale set as i18n. See `patterns/fastlane-screenshots.md` and `patterns/eas-build.md`.
+- Drizzle migrations are applied **on startup** (`patterns/drizzle-sqlite.md`); after editing
+  `src/db/schema.ts`, run `npx drizzle-kit generate`.
 
 ## Performance Rules
 

@@ -1,0 +1,65 @@
+# Fastlane: localized store metadata + framed screenshots (NO binary upload).
+# EAS owns the app binary; these lanes only push listing text + screenshots.
+# Locales ({{ variables.locale_count }}): {{ variables.locales }}
+#
+# Pipeline per platform:
+#   1. caption_screenshots  — frame raw Maestro captures with brand gradient + localized captions
+#   2. stage_screenshots    — copy framed PNGs into the supply/deliver metadata dirs
+#   3. upload_metadata      — push title/descriptions/images to the store (no binary, no submit)
+
+skip_docs
+
+CAPTION_SCRIPT = File.expand_path("screenshots/render_captions.sh", __dir__)
+
+platform :ios do
+  desc "Frame raw iOS captures (iPhone 6.9\", iPad 13\")"
+  lane :caption_screenshots do
+    sh("ROOT=#{File.expand_path('screenshots-ios', __dir__)} bash #{CAPTION_SCRIPT}")
+  end
+
+  desc "Flatten framed iOS shots into ios-screenshots/ with device prefixes"
+  lane :stage_screenshots do
+    sh("bash #{File.expand_path('stage-ios.sh', __dir__)}") if File.exist?(File.expand_path("stage-ios.sh", __dir__))
+  end
+
+  desc "Push localized metadata + screenshots to App Store Connect (no IPA, no submit)"
+  lane :upload_metadata do |options|
+    deliver(
+      api_key_path: ".creds/asc_api_key.json",
+      metadata_path: "./metadata/ios",
+      screenshots_path: "./ios-screenshots",
+      skip_binary_upload: true,
+      skip_app_version_update: false,
+      submit_for_review: false,
+      force: true,
+      run_precheck_before_submit: false,
+      overwrite_screenshots: true,
+      verify_only: options[:verify_only] == true || options[:verify_only] == "true"
+    )
+  end
+end
+
+platform :android do
+  desc "Frame raw Android captures with brand gradient + localized captions"
+  lane :caption_screenshots do
+    sh("ROOT=#{File.expand_path('screenshots', __dir__)} bash #{CAPTION_SCRIPT}")
+  end
+
+  desc "Copy framed PNGs into metadata/android/<locale>/images/"
+  lane :stage_screenshots do
+    sh("bash #{File.expand_path('stage-android.sh', __dir__)}") if File.exist?(File.expand_path("stage-android.sh", __dir__))
+  end
+
+  desc "Push localized metadata + screenshots to Google Play (no AAB)"
+  lane :upload_metadata do |options|
+    supply(
+      json_key: ".creds/google-play-service-account.json",
+      track: options[:track] || "production",
+      metadata_path: "./metadata/android",
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_changelogs: true,
+      validate_only: options[:validate_only] == true || options[:validate_only] == "true"
+    )
+  end
+end

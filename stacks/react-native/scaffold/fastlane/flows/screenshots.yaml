@@ -1,0 +1,15 @@
+# Maestro flow for store screenshots. Set APP_LOCALE + SCREENSHOT_OUT from the
+# capture scripts. Replace the steps below with your real onboarding/home flow.
+appId: ${ANDROID_APP_ID}
+env:
+  APP_LOCALE: en
+  SCREENSHOT_OUT: screenshots/en-US/phone
+---
+- launchApp:
+    clearState: true
+    arguments:
+      forceLocale: ${APP_LOCALE}
+- waitForAnimationToEnd
+- takeScreenshot: ${SCREENSHOT_OUT}/01_home
+# - tapOn: "Next"
+# - takeScreenshot: ${SCREENSHOT_OUT}/02_detail

@@ -1,0 +1,38 @@
+// i18next + expo-localization. The supported locale set is baked in by buildmate
+// and kept identical to the landing site. Add a catalog under ./locales/<code>.json
+// for every locale below (en.json is the source of truth to translate from).
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { getLocales } from "expo-localization";
+
+import en from "./locales/en.json";
+
+export const SUPPORTED_LOCALES = {{ variables.locales.split(',') | map('trim') | list | tojson }} as const;
+export const DEFAULT_LOCALE = "{{ variables.default_locale }}";
+
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
+
+// Statically require each catalog you have translated. en is always present.
+const resources: Partial<Record<Locale, { translation: object }>> = {
+  en: { translation: en },
+  // es: { translation: require("./locales/es.json") },
+  // ...add the rest of SUPPORTED_LOCALES as their catalogs land.
+};
+
+function resolveDeviceLocale(): Locale {
+  const device = getLocales()[0]?.languageTag ?? DEFAULT_LOCALE;
+  const exact = SUPPORTED_LOCALES.find((l) => l === device);
+  if (exact) return exact as Locale;
+  const base = device.split("-")[0];
+  const partial = SUPPORTED_LOCALES.find((l) => l.split("-")[0] === base);
+  return (partial ?? DEFAULT_LOCALE) as Locale;
+}
+
+i18n.use(initReactI18next).init({
+  resources: resources as Record<string, { translation: object }>,
+  lng: resolveDeviceLocale(),
+  fallbackLng: DEFAULT_LOCALE,
+  interpolation: { escapeValue: false },
+});
+
+export default i18n;

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Capture iOS store screenshots via Maestro, looping locales × device slots.
+# Locales ({{ variables.locale_count }}): {{ variables.locales }}
+# Output: fastlane/screenshots-ios/<asc-locale>/<device>/NN_*.png
+set -euo pipefail
+cd "$(dirname "$0")"
+
+APP_LOCALES=({{ variables.locales.replace(',', ' ') }})
+DEVICES=(iphone69 ipad13)
+FLOW="${FLOW:-flows/screenshots.yaml}"
+
+# Map app locale -> App Store Connect listing locale. Extend as needed.
+asc_locale() {
+  case "$1" in
+    en) echo "en-US" ;; es) echo "es-MX" ;; fr) echo "fr-FR" ;; de) echo "de-DE" ;;
+    pt-BR) echo "pt-BR" ;; ja) echo "ja" ;; ko) echo "ko" ;; ru) echo "ru" ;;
+    zh) echo "zh-Hans" ;; tl) echo "fil" ;; *) echo "$1" ;;
+  esac
+}
+
+[ -n "${LOCALES:-}" ] && APP_LOCALES=(${LOCALES})
+[ -n "${DEVICES_OVERRIDE:-}" ] && DEVICES=(${DEVICES_OVERRIDE})
+
+for loc in "${APP_LOCALES[@]}"; do
+  out_loc="$(asc_locale "$loc")"
+  for device in "${DEVICES[@]}"; do
+    echo "==> iOS $loc ($out_loc) / $device"
+    OUT="screenshots-ios/${out_loc}/${device}"
+    mkdir -p "$OUT"
+    APP_LOCALE="$loc" SCREENSHOT_OUT="$OUT" maestro test "$FLOW"
+  done
+done
+echo "Done. Next: make frame-ios && make stage-ios && make upload-ios-dry"

@@ -1,0 +1,11 @@
+import type { Config } from "drizzle-kit";
+
+// Offline-first local SQLite via expo-sqlite. Run `npx drizzle-kit generate`
+// after editing src/db/schema.ts; generated migrations are applied on startup
+// (see src/db/client.ts).
+export default {
+  schema: "./src/db/schema.ts",
+  out: "./src/db/migrations",
+  dialect: "sqlite",
+  driver: "expo",
+} satisfies Config;

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Capture Android store screenshots via Maestro, looping locales × device types.
+# Locales ({{ variables.locale_count }}): {{ variables.locales }}
+# Output: fastlane/screenshots/<play-locale>/<device>/NN_*.png
+set -euo pipefail
+cd "$(dirname "$0")"
+
+APP_LOCALES=({{ variables.locales.replace(',', ' ') }})
+DEVICES=(phone sevenInch tenInch)
+FLOW="${FLOW:-flows/screenshots.yaml}"
+
+# Map app locale -> Google Play listing locale. Extend as needed.
+play_locale() {
+  case "$1" in
+    en) echo "en-US" ;; es) echo "es-419" ;; fr) echo "fr-FR" ;; de) echo "de-DE" ;;
+    pt-BR) echo "pt-BR" ;; ja) echo "ja-JP" ;; ko) echo "ko-KR" ;; ru) echo "ru-RU" ;;
+    zh) echo "zh-CN" ;; tl) echo "fil" ;; *) echo "$1" ;;
+  esac
+}
+
+# Optional locale/device subsetting via env (space-separated).
+[ -n "${LOCALES:-}" ] && APP_LOCALES=(${LOCALES})
+[ -n "${DEVICES_OVERRIDE:-}" ] && DEVICES=(${DEVICES_OVERRIDE})
+
+for loc in "${APP_LOCALES[@]}"; do
+  out_loc="$(play_locale "$loc")"
+  for device in "${DEVICES[@]}"; do
+    echo "==> Android $loc ($out_loc) / $device"
+    adb shell pm clear "${ANDROID_APP_ID:?set ANDROID_APP_ID}" || true
+    OUT="screenshots/${out_loc}/${device}"
+    mkdir -p "$OUT"
+    APP_LOCALE="$loc" SCREENSHOT_OUT="$OUT" maestro test "$FLOW"
+  done
+done
+echo "Done. Next: make frame-android && make stage-android && make upload-android-dry"

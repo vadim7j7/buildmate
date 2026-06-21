@@ -1,0 +1,3 @@
+# Place store credentials here (gitignored):
+#   asc_api_key.json                     — App Store Connect API key
+#   google-play-service-account.json     — Google Play service account

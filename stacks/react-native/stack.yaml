@@ -19,6 +19,7 @@ compatible_with:
   - chi
   - elixir
   - phoenix
+  - nextjs
 
 options:
   ui:
@@ -88,6 +89,23 @@ options:
         description: No global state management (React Query only)
         variables:
           state_library: None
+
+  languages:
+    description: Locale set for i18n (kept identical across mobile + landing)
+    default: standard
+    choices:
+      minimal:
+        description: English + Spanish only
+        variables:
+          locales: "en,es"
+          default_locale: en
+          locale_count: 2
+      standard:
+        description: Full 18-locale union set used across all apps
+        variables:
+          locales: "en,es,fr,de,it,pt-BR,nl,pl,tr,vi,id,ja,ko,ru,zh,tl,th,ms"
+          default_locale: en
+          locale_count: 18
 
 agents:
   - name: mobile-developer
@@ -170,9 +188,18 @@ patterns:
   - patterns/error-tracking.md
   - patterns/browser-cloning.md
   - patterns/verification.md
+  - patterns/drizzle-sqlite.md
+  - patterns/mobile-i18n.md
+  - patterns/fastlane-screenshots.md
+  - patterns/eas-build.md
 
 styles:
   - styles/react-native.md
+
+# Real project files written into the app on bootstrap (mobile/ in multi-stack).
+# .j2 files are Jinja-rendered with `variables` (so the locale set is baked in).
+scaffold:
+  enabled: true
 
 setup:
   install_command: npm install
@@ -181,15 +208,19 @@ setup:
   dev_server_check: node -v && npm -v
 
 variables:
-  framework: React Native 0.81+ with Expo SDK 54
+  framework: React Native + Expo (SDK 54+)
   language: TypeScript (strict mode)
   test_framework: Jest + React Native Testing Library
   ui_state: Zustand
   server_state: React Query (TanStack Query v5)
   database: Drizzle ORM (SQLite)
-  navigation: expo-router v4
+  navigation: expo-router
   lists: FlashList
-  i18n: i18next
+  i18n: i18next + expo-localization
+  # Locale defaults — overridden by the `languages` option / profile.
+  locales: "en,es,fr,de,it,pt-BR,nl,pl,tr,vi,id,ja,ko,ru,zh,tl,th,ms"
+  default_locale: en
+  locale_count: 18
   dev_port: 8081
 
 verification:
