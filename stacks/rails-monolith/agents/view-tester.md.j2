@@ -45,7 +45,7 @@ end-to-end browser behavior with Capybara.
 - **{{ variables.test_framework }}** view specs (`render partial:`) and system specs
 {% endif %}
 {% if v.stim %}
-- **Capybara** with the `:rack_test` driver (fast) and `:selenium_chrome_headless` driver ({% if v.turbo %}Turbo/{% endif %}Stimulus)
+- **Capybara** with the `:rack_test` driver (fast) and a JS driver for {% if v.turbo %}Turbo/{% endif %}Stimulus: the one the project registers, else Cuprite (`/new-system-spec` sets it up)
 {% else %}
 - **Capybara** with the `:rack_test` driver (no JavaScript in this app)
 {% endif %}

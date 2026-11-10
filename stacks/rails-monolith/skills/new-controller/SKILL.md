@@ -9,7 +9,7 @@ description: Generate a Rails controller with HTML views, JSON support, and full
 
 Generates a new RESTful controller for the **monolith**: HTML by default, JSON when
 needed. Includes routes, strong params, before_actions for auth + resource loading,
-and Turbo-aware redirect statuses.
+and the 422/303 statuses forms and redirects need (required by Turbo, correct without it).
 
 ## Usage
 
@@ -40,7 +40,7 @@ and Turbo-aware redirect statuses.
    - `before_action :authorize_<resource>!` for mutations
    - `respond_to :html, :json` if both formats supported
    - Strong params method
-   - **Turbo-compatible status codes** (`:unprocessable_entity` on validation, `:see_other` on DELETE)
+   - **Status codes** `:unprocessable_entity` on failed validation, `:see_other` on DELETE redirects
 
 4. **Generate ERB views** (HTML controllers only): `index`, `show`, `new`, `edit`, `_form` partial
 
@@ -123,7 +123,7 @@ class ProfilesController < ApplicationController
   end
 
   def profile_params
-    params.require(:profile).permit(:name, :email, :bio, :company_id)
+    params.expect(profile: [:name, :email, :bio, :company_id])
   end
 end
 ```
@@ -136,7 +136,7 @@ end
 - **Always** use `status: :see_other` on DELETE redirects
 - Use `t('...')` for flash messages
 - Scope queries through `current_user` for authorization-by-default
-- Use strong params with explicit `permit` list
+- Use strong params with `params.expect(model: [...])` (Rails 8; not `require(...).permit(...)`)
 - Use `includes()` to prevent N+1 queries
 
 ## Output

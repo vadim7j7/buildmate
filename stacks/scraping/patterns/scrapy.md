@@ -165,6 +165,58 @@ def parse(self, response):
             }
 ```
 
+## JavaScript Pages: scrapy-playwright
+
+When only some pages need a browser, keep Scrapy's scheduling, throttling and
+pipelines and render those requests with `scrapy-playwright` (add the dep, then
+`uv run playwright install chromium`). Check first for a JSON API (see
+`api-discovery.md`): it is faster and more stable than rendering.
+
+```python
+# settings.py
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+PLAYWRIGHT_BROWSER_TYPE = "chromium"
+PLAYWRIGHT_LAUNCH_OPTIONS = {"headless": True}
+PLAYWRIGHT_MAX_PAGES_PER_CONTEXT = 4
+```
+
+```python
+# spiders/js_spider.py
+import scrapy
+from scrapy_playwright.page import PageMethod
+
+
+class JsSpider(scrapy.Spider):
+    name = "js"
+
+    def start_requests(self):
+        yield scrapy.Request(
+            "https://example.com/products",
+            meta={
+                "playwright": True,  # only these requests use the browser
+                "playwright_page_methods": [
+                    # Wait for the data, not for "networkidle"
+                    PageMethod("wait_for_selector", "div.product-card"),
+                ],
+            },
+        )
+
+    def parse(self, response):
+        # response is the rendered HTML: normal selectors work
+        for card in response.css("div.product-card"):
+            yield {"name": card.css("h2::text").get()}
+```
+
+- Requests without `"playwright": True` go through the normal HTTP downloader.
+- Need the page object (clicks, scrolling)? Set `"playwright_include_page": True`,
+  then `page = response.meta["playwright_page"]` and `await page.close()` in a
+  `finally` (and in an `errback`), or pages leak.
+- Abort images/fonts with `PLAYWRIGHT_ABORT_REQUEST` to cut bandwidth.
+
 ## Key Rules
 
 1. Always obey `robots.txt` unless explicitly authorized otherwise

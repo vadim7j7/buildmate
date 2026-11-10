@@ -13,6 +13,7 @@ skills:
 memory: {{ agent.memory }}
 {% endif %}
 ---
+{% import 'stacks/nextjs/agents/_backend-api.j2' as api with context %}
 
 # Frontend Tester Agent
 
@@ -36,7 +37,8 @@ Jest, React Testing Library, and Playwright.
 
 ```typescript
 // src/components/ProjectCard.test.tsx
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ProjectCard } from './ProjectCard';
 
 const mockProject = {
@@ -53,11 +55,12 @@ describe('ProjectCard', () => {
     expect(screen.getByText('A test project')).toBeInTheDocument();
   });
 
-  it('calls onDelete when delete button is clicked', () => {
+  it('calls onDelete when delete button is clicked', async () => {
+    const user = userEvent.setup();
     const onDelete = jest.fn();
     render(<ProjectCard project={mockProject} onDelete={onDelete} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await user.click(screen.getByRole('button', { name: /delete/i }));
 
     expect(onDelete).toHaveBeenCalledWith('1');
   });
@@ -81,11 +84,20 @@ Server Actions. Test each layer where it lives:
 | Client islands | Render with props, mock the Server Action, assert it is called |
 | Async Server Component pages | Playwright E2E (RTL cannot render async Server Components reliably) |
 
+{% if api.bff %}
+This app is a BFF for the {{ api.api_name }} backend: there is no `@/lib/db`. In data function
+and Server Action tests, mock the service module (`jest.mock('@/services/projects')`)
+where the examples below mock `@/lib/db`, and assert the service was called with the
+validated input. Ownership is enforced by the backend, so test that an `ApiError(403/404)`
+from the service surfaces as the action's error state.
+
+{% endif %}
 ### Client Island (Container) Test
 
 ```typescript
 // src/components/projects/DeleteProjectButton.test.tsx
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 {% if variables.i18n %}
 import { NextIntlClientProvider } from 'next-intl';
 import messages from '@/messages/{{ variables.default_locale }}.json';
@@ -112,13 +124,14 @@ describe('DeleteProjectButton', () => {
   });
 
   it('calls the deleteProject Server Action with the id it was given', async () => {
+    const user = userEvent.setup();
 {% if variables.i18n %}
     renderWithIntl(<DeleteProjectButton projectId="p1" />);
 {% else %}
     render(<DeleteProjectButton projectId="p1" />);
 {% endif %}
 
-    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await user.click(screen.getByRole('button', { name: /delete/i }));
 
     await waitFor(() => {
       expect(deleteProject).toHaveBeenCalledWith('p1');
@@ -216,21 +229,21 @@ test.describe('Projects', () => {
   test('can create a new project', async ({ page }) => {
     await page.goto('/projects');
 
-    await page.click('button:has-text("New Project")');
-    await page.fill('input[name="name"]', 'My New Project');
-    await page.fill('input[name="description"]', 'A test project');
-    await page.click('button:has-text("Create")');
+    await page.getByRole('button', { name: 'New Project' }).click();
+    await page.getByLabel('Name').fill('My New Project');
+    await page.getByLabel('Description').fill('A test project');
+    await page.getByRole('button', { name: 'Create' }).click();
 
-    await expect(page.locator('text=My New Project')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'My New Project' })).toBeVisible();
   });
 
   test('can delete a project', async ({ page }) => {
     await page.goto('/projects');
 
-    await page.click('button:has-text("Delete")');
-    await page.click('button:has-text("Confirm")');
+    await page.getByRole('button', { name: 'Delete' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
 
-    await expect(page.locator('text=Project deleted')).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText(/Project deleted/);
   });
 });
 ```
@@ -240,9 +253,10 @@ test.describe('Projects', () => {
 1. **Describe/it blocks** - Use descriptive names
 2. **Mock external dependencies** - DB, backend services, Server Actions, `server-only`
 3. **Test user behavior** - Not implementation details
-4. **Use screen queries** - Not container queries
-5. **Async/await** - For async operations
-6. **Clear mocks** - In beforeEach
+4. **Query like a user** - `getByRole` / `getByLabel` / `getByText` (RTL `screen.*`, Playwright `page.getBy*`); no CSS or `text=` selectors
+5. **`userEvent`, not `fireEvent`** - `const user = userEvent.setup()` then `await user.click(...)` / `user.type(...)`
+6. **Async/await** - For async operations
+7. **Clear mocks** - In beforeEach
 
 ## Completion Checklist
 

@@ -7,11 +7,12 @@
 const puppeteer = require("puppeteer");
 
 async function scrapeArticles(url) {
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
   await page.setViewport({ width: 1280, height: 720 });
-  await page.goto(url, { waitUntil: "networkidle2" });
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector("article.post");
 
   const articles = await page.evaluate(() => {
     return Array.from(document.querySelectorAll("article.post")).map((el) => ({
@@ -29,11 +30,15 @@ async function scrapeArticles(url) {
 ## Waiting for Content
 
 ```javascript
-// Wait for specific elements
+// Wait for the element you need (preferred)
 await page.waitForSelector(".results-loaded", { timeout: 10000 });
 
-// Wait for network to be idle
-await page.goto(url, { waitUntil: "networkidle0" });
+// Avoid waitUntil "networkidle0"/"networkidle2": analytics, long polling and
+// websockets keep the network busy (timeouts) or it goes idle before the data
+// renders. Navigate with "domcontentloaded", then wait for a selector or response.
+await page.waitForResponse(
+  (res) => res.url().includes("/api/search") && res.ok()
+);
 
 // Wait for a function to return true
 await page.waitForFunction(
@@ -58,8 +63,11 @@ await page.waitForFunction(
 async function login(page, username, password) {
   await page.type("#username", username, { delay: 50 });
   await page.type("#password", password, { delay: 50 });
-  await page.click("#login-button");
-  await page.waitForNavigation({ waitUntil: "networkidle2" });
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: "domcontentloaded" }),
+    page.click("#login-button"),
+  ]);
+  await page.waitForSelector(".account-menu"); // proof the login worked
 }
 
 // Search and scrape
@@ -74,11 +82,12 @@ async function search(page, query) {
 
 ```javascript
 async function scrapeAllPages(startUrl) {
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
   const allResults = [];
 
-  await page.goto(startUrl, { waitUntil: "networkidle2" });
+  await page.goto(startUrl, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".item");
 
   while (true) {
     const pageResults = await page.evaluate(() => {
@@ -93,8 +102,11 @@ async function scrapeAllPages(startUrl) {
     const nextButton = await page.$("a.next-page");
     if (!nextButton) break;
 
-    await nextButton.click();
-    await page.waitForNavigation({ waitUntil: "networkidle2" });
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
+      nextButton.click(),
+    ]);
+    await page.waitForSelector(".item");
   }
 
   await browser.close();
@@ -160,13 +172,15 @@ const page = await context.newPage();
 
 ## Anti-Detection
 
-```javascript
-// Stealth settings
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-puppeteer.use(StealthPlugin());
+`puppeteer-extra-plugin-stealth` has had no release since March 2023 (2.11.2)
+and its evasions are fingerprinted by current bot managers: do not add it to new
+projects. Prefer, in order: the site's JSON API or feeds, honest identification
+with polite rate limits, a realistic real-Chrome setup (`channel: "chrome"`,
+headful if needed, persistent profile), and for sites that require it a
+maintained managed browser/unblocker service. Keep any patching minimal:
 
-// Custom user agent
+```javascript
+// Custom user agent (match the real browser version you launch)
 await page.setUserAgent(
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 );
@@ -182,12 +196,12 @@ await page.evaluateOnNewDocument(() => {
 ```javascript
 async function safeScrape(url, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
-    const browser = await puppeteer.launch({ headless: "new" });
+    const browser = await puppeteer.launch({ headless: true });
     try {
       const page = await browser.newPage();
       page.setDefaultTimeout(30000);
 
-      const response = await page.goto(url, { waitUntil: "networkidle2" });
+      const response = await page.goto(url, { waitUntil: "domcontentloaded" });
       if (!response.ok()) {
         throw new Error(`HTTP ${response.status()}`);
       }
@@ -209,10 +223,10 @@ async function safeScrape(url, retries = 3) {
 ## Key Rules
 
 1. Always close the browser in a `finally` block
-2. Use `waitForSelector` or `waitForNavigation` before extracting data
+2. Use `waitForSelector` / `waitForResponse` before extracting data, never `networkidle*` or fixed sleeps
 3. Set reasonable timeouts (10-30s) to avoid hanging
 4. Block unnecessary resources (images, fonts) for faster scraping
 5. Use `page.evaluate()` for DOM extraction (runs in browser context)
 6. Implement retry logic with exponential backoff
 7. Respect rate limits — add delays between requests
-8. Use `headless: "new"` for the latest headless mode
+8. Use `headless: true` for the latest headless mode

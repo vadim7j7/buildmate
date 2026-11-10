@@ -1,86 +1,109 @@
 # MobX State Management Patterns (React Native)
 
-## Store Definition
+MobX stores hold **UI state only**. Tokens and secrets live in `expo-secure-store`
+(`@/services/auth`, see `.claude/patterns/security.md`); the user profile and every
+server or DB record live in TanStack Query. The session store keeps only the
+session *status*. Never write a token to AsyncStorage (it is unencrypted).
+
+## Session Store (status only)
 
 ```typescript
-// src/stores/AuthStore.ts
+// src/stores/SessionStore.ts
 import { makeAutoObservable, runInAction } from 'mobx';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken, storeTokens, clearTokens } from '@/services/auth';
+import { queryClient } from '@/queries/queryClient';
 
-class AuthStore {
-  user: User | null = null;
-  token: string | null = null;
-  isLoading = false;
+type SessionStatus = 'unknown' | 'signedIn' | 'signedOut';
+
+export class SessionStore {
+  status: SessionStatus = 'unknown';
 
   constructor() {
     makeAutoObservable(this);
-    this.loadFromStorage();
   }
 
-  get isAuthenticated() {
-    return !!this.token && !!this.user;
+  get isSignedIn() {
+    return this.status === 'signedIn';
   }
 
-  async loadFromStorage() {
-    try {
-      const data = await AsyncStorage.getItem('auth');
-      if (data) {
-        runInAction(() => {
-          const parsed = JSON.parse(data);
-          this.user = parsed.user;
-          this.token = parsed.token;
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load auth from storage:', error);
-    }
+  async restore() {
+    const token = await getAccessToken();              // SecureStore
+    runInAction(() => {
+      this.status = token ? 'signedIn' : 'signedOut';
+    });
   }
 
-  async login(user: User, token: string) {
-    this.user = user;
-    this.token = token;
-    await AsyncStorage.setItem('auth', JSON.stringify({ user, token }));
+  async signIn(accessToken: string, refreshToken: string) {
+    await storeTokens(accessToken, refreshToken);      // SecureStore
+    runInAction(() => {
+      this.status = 'signedIn';
+    });
   }
 
-  async logout() {
-    this.user = null;
-    this.token = null;
-    await AsyncStorage.removeItem('auth');
-  }
-
-  updateUser(updates: Partial<User>) {
-    if (this.user) {
-      this.user = { ...this.user, ...updates };
-    }
+  async signOut() {
+    await clearTokens();
+    queryClient.clear();                               // drop the previous user's data
+    runInAction(() => {
+      this.status = 'signedOut';
+    });
   }
 }
-
-export const authStore = new AuthStore();
 ```
 
-## Root Store Pattern
+## UI Store
+
+```typescript
+// src/stores/TransactionFilterStore.ts
+import { makeAutoObservable } from 'mobx';
+
+export class TransactionFilterStore {
+  category: string | null = null;
+  sortOrder: 'asc' | 'desc' = 'desc';
+
+  constructor() {
+    makeAutoObservable(this);
+  }
+
+  setCategory(category: string | null) {
+    this.category = category;
+  }
+
+  toggleSortOrder() {
+    this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+  }
+
+  reset() {
+    this.category = null;
+    this.sortOrder = 'desc';
+  }
+}
+```
+
+## Root Store and Provider
 
 ```typescript
 // src/stores/RootStore.ts
-import { authStore } from './AuthStore';
-import { uiStore } from './UIStore';
 import { createContext, useContext } from 'react';
+import { SessionStore } from './SessionStore';
+import { TransactionFilterStore } from './TransactionFilterStore';
 
-class RootStore {
-  authStore = authStore;
-  uiStore = uiStore;
+export class RootStore {
+  session = new SessionStore();
+  transactionFilter = new TransactionFilterStore();
 }
 
-export const rootStore = new RootStore();
-export const StoreContext = createContext(rootStore);
-export const useStores = () => useContext(StoreContext);
+// Tests pass a fresh `new RootStore()` through the provider
+export const StoreContext = createContext<RootStore | null>(null);
+export function useStores(): RootStore {
+  const stores = useContext(StoreContext);
+  if (!stores) throw new Error('useStores must be used inside StoreContext.Provider');
+  return stores;
+}
 ```
-
-## Provider Setup
 
 ```typescript
 // src/app/_layout.tsx
-import { StoreContext, rootStore } from '@/stores/RootStore';
+const rootStore = new RootStore();
 
 export default function RootLayout() {
   return (
@@ -96,33 +119,31 @@ export default function RootLayout() {
 ```typescript
 // src/app/(tabs)/profile.tsx
 import { observer } from 'mobx-react-lite';
-import { useStores } from '@/stores/RootStore';
 
-const ProfileScreen = observer(() => {
-  const { authStore } = useStores();
+export default observer(function ProfileScreen() {
+  const { t } = useTranslation();
+  const { session } = useStores();
+  const { data: user } = useCurrentUser();   // profile: TanStack Query, not MobX
 
-  const handleLogout = async () => {
-    await authStore.logout();
+  const handleSignOut = async () => {
+    await session.signOut();
     router.replace('/login');
   };
 
   return (
     <View>
-      <Text>{authStore.user?.name}</Text>
-      <Text>{authStore.isAuthenticated ? 'Logged in' : 'Guest'}</Text>
-      <Button onPress={handleLogout} title="Logout" />
+      <Text>{user?.name}</Text>
+      <Button onPress={handleSignOut} title={t('auth.signOut')} />
     </View>
   );
 });
-
-export default ProfileScreen;
 ```
 
 ## Key Patterns
 
-1. **Use makeAutoObservable** for automatic observable detection
-2. **Wrap async updates** in runInAction when not using flow
-3. **Use observer HOC** on all components that read observables
-4. **Use computed getters** for derived state (isAuthenticated)
-5. **Root Store pattern** for dependency injection
-6. **Persist to AsyncStorage** manually or with mobx-persist-store
+1. **UI state only**: no tokens, no profile, no server records in stores
+2. **Tokens in expo-secure-store**; the session store keeps only the status
+3. **`makeAutoObservable`**; async updates after `await` go in `runInAction`
+4. **`observer`** on every component that reads observables
+5. **Classes + a root store in context**, so tests create fresh instances
+6. **`reset()`** on UI stores for sign-out and test isolation

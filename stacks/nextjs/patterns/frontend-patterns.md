@@ -105,11 +105,46 @@ export async function getProjectsFromApi(): Promise<Project[]> {
 ### Key Points
 
 - Functions in `lib/data/` run on the server only
-- Use `cache()` from React to deduplicate requests
-- Use `next: { revalidate: N }` for time-based caching
-- Use `next: { tags: ['projects'] }` for on-demand revalidation
-- Direct database access or external API calls
+- Use `cache()` from React to deduplicate calls within one request
+- Caching across requests depends on `next.config.*`: with `cacheComponents: true`
+  use `'use cache'` + `cacheLife` + `cacheTag` (see `patterns/cache-components.md`);
+  otherwise `fetch` options `next: { revalidate: N, tags: ['projects'] }`
+- Direct database access, or (BFF) calls to the external backend API: see below
 - Types exported for use in components
+
+### Variant: Next.js as a BFF for an External Backend
+
+When the data lives behind a separate API (Rails, Django, FastAPI, Express, Go,
+Phoenix...), Next.js has no database client. Data functions and Server Actions call
+that API on the server, forwarding the user's token; the browser never calls the
+backend directly and never sees `API_URL` or service secrets.
+
+```typescript
+// src/lib/data/projects.ts
+import 'server-only';
+import { cache } from 'react';
+import { fetchProjectsApi, fetchProjectApi, type Project } from '@/services/projects'; // /new-api-service
+import { ApiError } from '@/services/request';
+
+export const getProjects = cache(async (): Promise<Project[]> => fetchProjectsApi());
+
+export const getProject = cache(async (id: string): Promise<Project | null> => {
+  try {
+    return await fetchProjectApi(id);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+});
+```
+
+- `src/services/request.ts` (server-only) adds `Authorization: Bearer <token>` from
+  the session cookie, sets a timeout, and throws `ApiError(status, body)`.
+- The backend authorizes every request; Next.js still authenticates in each Server
+  Action, but ownership checks are the backend's job (it owns the data).
+- Map backend validation errors (422/400 bodies) to `fieldErrors` in the action's state.
+- Types come from the backend contract (OpenAPI-generated types, or Zod schemas that
+  parse responses), not hand-guessed.
 
 ---
 
@@ -587,6 +622,19 @@ export default function ProjectNotFound() {
 - `not-found.tsx` for custom 404 pages
 - These are automatic - Next.js uses them based on file location
 - Replace plain HTML with your UI library's components
+
+---
+
+## Memoization and the React Compiler
+
+Check `next.config.*` for `reactCompiler: true` (Next.js 16; needs
+`babel-plugin-react-compiler`; off unless the project turned it on).
+
+- **Compiler on:** write plain functions and values; no `useMemo`, `useCallback`,
+  `React.memo`. The compiler memoizes components and hooks.
+- **Compiler off:** still no memoization by reflex. Add it only with a reason you can
+  name: the React Profiler shows a slow render, a value must keep its identity (an
+  effect dependency, a context value, a third-party API comparing references).
 
 ---
 

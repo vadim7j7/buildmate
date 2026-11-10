@@ -235,7 +235,7 @@ func NewUserHandler(svc service.UserService) *UserHandler {
 func (h *UserHandler) Create(c *gin.Context) {
 	var input CreateUserRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBindError(c, err)
 		return
 	}
 
@@ -284,31 +284,67 @@ func (r *CreateUserRequest) ToServiceInput() service.CreateUserInput {
 }
 ```
 
-### Error Handling Middleware
+### Error Responses
+
+Clients get a stable `code` and a fixed message, never `err.Error()`: wrapped
+errors carry SQL, IDs and parser text. Validation failures may list fields and
+the rule that failed, built from `validator.ValidationErrors`.
 
 ```go
 package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
+// FieldError is one failed validation rule; safe to return to clients.
+type FieldError struct {
+	Field string `json:"field"`
+	Rule  string `json:"rule"`
+}
+
+// respondBindError maps a ShouldBind* error to 400 without echoing parser text.
+func respondBindError(c *gin.Context, err error) {
+	var verrs validator.ValidationErrors
+	if errors.As(err, &verrs) {
+		fields := make([]FieldError, 0, len(verrs))
+		for _, fe := range verrs {
+			fields = append(fields, FieldError{Field: fe.Field(), Rule: fe.Tag()})
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":  "validation failed",
+			"code":   "VALIDATION_FAILED",
+			"fields": fields,
+		})
+		return
+	}
+	// Malformed JSON, wrong types, empty body.
+	c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "code": "INVALID_BODY"})
+}
+
+// handleError maps service errors to responses; the cause is logged, not sent.
 func handleError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, apperror.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error": "resource not found", "code": "NOT_FOUND"})
 	case errors.Is(err, apperror.ErrValidation):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed", "code": "VALIDATION_FAILED"})
 	case errors.Is(err, apperror.ErrUnauthorized):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "code": "UNAUTHORIZED"})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		slog.ErrorContext(c.Request.Context(), "unhandled error", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error", "code": "INTERNAL"})
 	}
 }
 ```
+
+`fe.Field()` is the Go field name unless the validator reports JSON names; register
+that once at startup (see `gin-patterns.md`, Error Handling).
 
 {% include 'stacks/go/agents/partials/data-access.md.j2' %}
 
@@ -321,7 +357,7 @@ func handleError(c *gin.Context, err error) {
 5. **c.Request.Context()** - Pass request context to service layer
 6. **c.Param / c.Query** - Use Gin helpers for path and query params
 7. **Middleware** - Return `gin.HandlerFunc`, call `c.Next()` or `c.Abort()`
-8. **Error responses** - Consistent JSON error format: `{"error": "message"}`
+8. **Error responses** - `{"error": "<fixed message>", "code": "<CODE>"}` (+ `fields` for validation); never `err.Error()`
 9. **Status codes** - Use `net/http` constants, not magic numbers
 10. **Struct tags** - Use `binding` tags for validation
 11. **Entry point** - `cmd/server/main.go`, `PORT` env (default 8080), `GET /health`, `http.Server` + graceful shutdown (no `r.Run()`)

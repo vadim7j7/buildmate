@@ -129,7 +129,7 @@ After any edit, rebuild to confirm the manifest is still valid and the code
 still type-checks:
 
 ```bash
-npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
+npm run compile   # wxt prepare + type check
 npx wxt build && npx wxt build -b firefox
 ```
 

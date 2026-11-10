@@ -352,7 +352,7 @@ describe('useTransactionFilterStore', () => {
 {% elif lib == 'Redux Toolkit' %}
 # Redux Toolkit Slice Examples
 
-Slice code: see `SKILL.md` and `.claude/patterns/redux.md`.
+Slice code: see `SKILL.md` and `.claude/patterns/{{ 'patterns/redux.md' | installed(stack) }}`.
 
 ## Testing Pattern for All Slices
 
@@ -391,7 +391,7 @@ describe('transactionFilterSlice', () => {
 {% elif lib == 'MobX' %}
 # MobX Store Examples
 
-Store code: see `SKILL.md` and `.claude/patterns/mobx.md`.
+Store code: see `SKILL.md` and `.claude/patterns/{{ 'patterns/mobx.md' | installed(stack) }}`.
 
 ## Testing Pattern for All Stores
 
@@ -428,7 +428,7 @@ describe('TransactionFilterStore', () => {
 {% elif lib == 'Jotai' %}
 # Jotai Atom Examples
 
-Atom code: see `SKILL.md` and `.claude/patterns/jotai.md`.
+Atom code: see `SKILL.md` and `.claude/patterns/{{ 'patterns/jotai.md' | installed(stack) }}`.
 
 ## Testing Pattern for All Atoms
 

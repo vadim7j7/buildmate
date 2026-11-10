@@ -27,7 +27,7 @@ options:
           database: MySQL
           db_adapter: mysql2
       sqlite:
-        description: SQLite (development only)
+        description: SQLite (fine in production on Rails 8 with Solid Queue/Cache/Cable on one host; plan backups, e.g. Litestream)
         variables:
           database: SQLite
           db_adapter: sqlite3
@@ -55,6 +55,8 @@ agents:
     skills:
       - new-model
       - new-service
+      - new-rake-task
+      - new-cli
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
@@ -89,6 +91,8 @@ skills:
   - new-model
   - new-service
   - new-spec
+  - new-rake-task
+  - new-cli
 
 quality_gates:
   lint:

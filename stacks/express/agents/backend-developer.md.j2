@@ -167,7 +167,7 @@ export function errorHandler(
     return;
   }
 
-  logger.error('Unhandled error', { error: err });
+  logger.error({ err }, 'Unhandled error'); // pino: object first, message second
   res.status(500).json({ error: 'Internal server error' });
 }
 ```
@@ -180,7 +180,7 @@ someone else's data.
 ```typescript
 // src/services/project-service.ts
 import { prisma } from '@/lib/db';
-import type { Project } from '@prisma/client';
+import type { Project } from '@/generated/prisma/client';
 import type { CreateProjectInput, ListProjectsQuery, UpdateProjectInput } from '@/schemas/project';
 
 export class ProjectService {
@@ -208,26 +208,35 @@ export class ProjectService {
 }
 ```
 
-### Server Entry (port)
+### Server Entry (port + graceful shutdown)
 
 The app reads its port from `PORT`; the dev server runs with
 `PORT={{ variables.dev_port }} npm run dev`
 (port {{ variables.dev_port }}, because frontends own 3000). Keep `src/app.ts` (exported for Supertest)
-separate from `src/server.ts` (listens):
+separate from `src/server.ts` (listens). On `SIGTERM`/`SIGINT` the server stops
+accepting connections, finishes in-flight requests, closes the DB pool, and exits
+(forced after 10 s): see "Server Entry and Graceful Shutdown" in `express-patterns.md`.
 
 ```typescript
-// src/server.ts
-import { app } from '@/app';
-
-const port = Number(process.env.PORT ?? {{ variables.dev_port }});
-
-app.listen(port, (error) => {
+// src/server.ts (shape; full version in express-patterns.md)
+const server = app.listen(port, (error) => {
   if (error) throw error; // Express 5 passes listen errors (e.g. EADDRINUSE) here
-  console.log(`API listening on http://localhost:${port}`);
+  logger.info({ port }, 'API listening');
 });
+
+process.on('SIGTERM', shutdown); // server.close() → prisma.$disconnect() → process.exit()
+process.on('SIGINT', shutdown);
 ```
 
-The app must expose `GET /health` returning 200 (used by verification).
+The app must expose `GET /health` returning 200 (used by verification; 503 while
+shutting down).
+
+### Database ({{ variables.orm }})
+
+{{ variables.orm }} 7: the client is generated into `src/generated/prisma` (import types from
+`@/generated/prisma/client`, not `@prisma/client`), the connection URL lives in
+`prisma.config.ts`, and `src/lib/db.ts` builds the client with a driver adapter. Schema
+changes: `/new-model`, then `/db-migrate`. Follow an older setup if the project has one.
 
 ## Style Rules (MANDATORY)
 
@@ -240,7 +249,9 @@ The app must expose `GET /health` returning 200 (used by verification).
 7. **Error middleware** - Let errors propagate from `async` handlers (Express 5 forwards them); no `try/catch` + `next(error)` boilerplate
 8. **`req.query` is read-only** - Parse it into a new variable (`const query = schema.parse(req.query)`)
 9. **`@/` imports** - Absolute imports for internal modules
-10. **Prisma for DB** - Use Prisma client, never raw SQL
+10. **{{ variables.orm }} for DB** - Prisma client; raw SQL only via the tagged template ``prisma.$queryRaw`...` `` (parameterized), never `$queryRawUnsafe` with input
+11. **Logging with pino** - `logger.info({ ...context }, 'message')`; no `console.log`; never log secrets, tokens or bodies with passwords
+12. **Security middleware** - `helmet`, an explicit CORS allow-list, rate limits on auth routes (`express-security.md`)
 
 ## Completion Checklist
 

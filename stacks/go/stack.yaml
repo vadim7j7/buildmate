@@ -59,6 +59,8 @@ agents:
       - new-handler
       - new-service
       - new-model
+      - new-migration
+      - db-migrate
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
@@ -92,6 +94,8 @@ skills:
   - new-handler
   - new-service
   - new-model
+  - new-migration
+  - db-migrate
 
 quality_gates:
   format:
@@ -105,9 +109,25 @@ quality_gates:
   tests:
     command: go test ./...
     description: Go test suite
+  security:
+    # Exits non-zero only when the code calls a vulnerable function (text output mode)
+    command: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+    description: Known-vulnerability scan with govulncheck
 
 patterns:
   - patterns/backend-patterns.md
+
+# Installed for every Go stack; read only when the task touches the topic.
+# Framework children add their own wiring (e.g. gin-auth.md).
+reference_patterns:
+  - patterns/testing.md
+  - patterns/security.md
+  - patterns/auth.md
+  - patterns/rate-limiting.md
+  - patterns/logging.md
+  - patterns/pagination.md
+  - patterns/pitfalls.md
+  - patterns/sqlc.md  # SQL databases only; the file says so for MongoDB projects
 
 styles:
   - styles/backend-go.md

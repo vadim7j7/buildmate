@@ -435,7 +435,7 @@ failure{% if v.turbo %} or Turbo will not re-render the form{% endif %}.
 After writing code, ALWAYS run:
 
 {% for gate_name, gate in stack.quality_gates.items() %}
-{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }} <changed_files>` (must pass)
+{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }}{{ ' <changed_files>' if gate_name != 'security' else '' }}` (must pass{{ ', scans the whole app' if gate_name == 'security' else '' }})
 {% endfor %}
 
 For HTML changes, ALSO verify:

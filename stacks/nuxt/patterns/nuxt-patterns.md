@@ -15,7 +15,8 @@ app/
   components/
   composables/
   middleware/     # route middleware
-  stores/         # Pinia (if used)
+  plugins/        # runtime plugins (*.client.ts / *.server.ts for one side)
+  stores/         # Pinia stores (if the project uses Pinia)
   utils/
 server/
   api/            # API routes (Nitro)
@@ -230,38 +231,22 @@ export default defineEventHandler(async (event) => {
 
 ---
 
-## 4. Pinia Store Pattern
+## 4. Shared State
+
+Server data a page reads stays in `useFetch` / `useAsyncData`. For small shared
+state, use `useState` (SSR-safe, serialized to the client, one copy per request):
 
 ```typescript
-// app/stores/auth.ts
-export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null);
-  const isAuthenticated = computed(() => user.value !== null);
-
-  async function login(email: string, password: string) {
-    const response = await $fetch('/api/auth/login', {
-      method: 'POST',
-      body: { email, password },
-    });
-    user.value = response.user;
-  }
-
-  async function logout() {
-    await $fetch('/api/auth/logout', { method: 'POST' });
-    user.value = null;
-    await navigateTo('/login');
-  }
-
-  return { user, isAuthenticated, login, logout };
-});
+// app/composables/useSidebar.ts
+export function useSidebar() {
+  const open = useState('sidebar-open', () => false);
+  const toggle = () => { open.value = !open.value; };
+  return { open, toggle };
+}
 ```
 
-### Rules
-
-- Use `defineStore` with Composition API (not Options API)
-- Name stores with `use` prefix
-- Return only what consumers need
-- Use `$fetch` for API calls within store actions
+Never keep state in a module-level `ref`: on the server it is shared by every
+request. If the project uses Pinia, stores follow `pinia.md`.
 
 ---
 
@@ -271,14 +256,17 @@ Route middleware only guards navigation; server routes still check auth themselv
 
 ```typescript
 // app/middleware/auth.ts
-export default defineNuxtRouteMiddleware(() => {
-  const auth = useAuthStore();
+export default defineNuxtRouteMiddleware((to) => {
+  const { loggedIn } = useUserSession(); // nuxt-auth-utils; see nuxt-auth.md
 
-  if (!auth.isAuthenticated) {
-    return navigateTo('/login');
+  if (!loggedIn.value) {
+    return navigateTo({ path: '/login', query: { redirect: to.fullPath } });
   }
 });
 ```
+
+Pages opt in with `definePageMeta({ middleware: 'auth' })`; a file named
+`*.global.ts` runs on every navigation.
 
 ---
 

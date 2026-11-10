@@ -29,6 +29,9 @@ agents:
       - new-service
       - new-migration
       - db-migrate
+      - new-endpoint
+      - new-admin
+      - new-command
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
@@ -66,6 +69,9 @@ skills:
   - new-migration
   - db-migrate
   - test
+  - new-endpoint
+  - new-admin
+  - new-command
 
 # Apps live at the project root (<app>/, tests in <app>/tests/), so the python
 # parent's `src/ tests/` paths do not apply: check the whole project.
@@ -87,6 +93,13 @@ quality_gates:
 
 patterns:
   - patterns/django-patterns.md
+
+# Installed too, read only when the task touches the topic
+reference_patterns:
+  - patterns/settings.md
+  - patterns/permissions.md
+  - patterns/migrations-safety.md
+  - patterns/celery.md
 
 setup:
   install_command: uv sync

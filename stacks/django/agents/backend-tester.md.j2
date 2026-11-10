@@ -23,7 +23,8 @@ pytest tests using pytest-django, factory_boy, and the Django test client.
 
 - {{ variables.test_framework }} with pytest-django plugin
 - Django test client and DRF APIClient for integration tests
-- factory_boy / model_bakery for test data
+- factory_boy (+ pytest-factoryboy) for test data
+- Query-count assertions (`django_assert_num_queries`) against N+1 regressions
 - {{ variables.orm }} queries and transactions in tests
 - Coverage analysis
 
@@ -131,6 +132,58 @@ class TestArticleAPI:
         assert response.status_code in (401, 403)
 ```
 
+### Test Data: factory_boy
+
+Use **factory_boy** with **pytest-factoryboy** (add both as dev deps if missing).
+Factories live in `<app>/tests/factories.py`; register them in the root
+`conftest.py`, which creates the `project_factory` / `project` fixtures:
+
+```python
+# projects/tests/factories.py
+import factory
+
+from projects.models import Project
+from users.tests.factories import UserFactory
+
+
+class ProjectFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Project
+
+    name = factory.Sequence(lambda n: f"Project {n}")
+    owner = factory.SubFactory(UserFactory)
+    is_active = True
+```
+
+```python
+# conftest.py
+from pytest_factoryboy import register
+
+from projects.tests.factories import ProjectFactory
+from users.tests.factories import UserFactory
+
+register(UserFactory)     # fixtures: user, user_factory
+register(ProjectFactory)  # fixtures: project, project_factory
+```
+
+### N+1 Checks
+
+Every list endpoint gets a test that its query count does not grow with rows:
+
+```python
+def test_list_projects_query_count(api_client, user, project_factory, django_assert_num_queries):
+    api_client.force_authenticate(user=user)
+    project_factory.create_batch(5, owner=user)
+    # auth/session + count + page; fixed no matter how many rows
+    with django_assert_num_queries(2):
+        response = api_client.get("/api/projects/")
+    assert response.status_code == 200
+```
+
+Find the right number once by running the test, then keep it exact
+(`django_assert_max_num_queries` when the number legitimately varies). A failing
+count means a missing `select_related` / `prefetch_related`.
+
 ### Service Tests
 
 ```python
@@ -166,7 +219,7 @@ class TestArticlePublishService:
 
 1. **Use `pytestmark = pytest.mark.django_db`** on modules that need database access
 2. **Use `pytest.fixture`** with appropriate scope
-3. **Use `factory_boy`** or `model_bakery` for test data, not raw `Model.objects.create`
+3. **Use factory_boy factories** for test data, not raw `Model.objects.create`
 4. **Use `APIClient`** for DRF endpoint tests, `Client` for Django view tests
 5. **Use `force_authenticate`** to set auth context in tests
 6. **One assertion focus per test** where practical

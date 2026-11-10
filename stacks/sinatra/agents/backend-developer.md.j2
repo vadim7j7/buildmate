@@ -242,7 +242,7 @@ end
 
 1. **`frozen_string_literal: true`** - First line of every Ruby file
 2. **Modular style** - Always `class App < Sinatra::Base`, never classic style
-3. **Single quotes** - Always, unless string interpolation is needed
+3. **Quotes per `.rubocop.yml`** - RuboCop default is single quotes; `standard` means double quotes. Match the config
 4. **Hash shorthand** - `{ id:, name: }` not `{ id: id, name: name }`
 5. **Guard clauses** - `return if condition?` instead of wrapping in `if`/`unless`
 6. **YARD docs** - On every public method

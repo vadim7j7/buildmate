@@ -214,16 +214,17 @@ export function CardContent({ children }: { children: ReactNode }) {
 ```typescript
 // src/components/Input.tsx
 import { View, Text, TextInput, TextInputProps } from 'react-native';
-import { forwardRef } from 'react';
+import type { Ref } from 'react';
 
+// React 19: `ref` is a normal prop -- no forwardRef
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   helperText?: string;
+  ref?: Ref<TextInput>;
 }
 
-export const Input = forwardRef<TextInput, InputProps>(
-  ({ label, error, helperText, className = '', ...props }, ref) => {
+export function Input({ label, error, helperText, className = '', ref, ...props }: InputProps) {
     return (
       <View className="mb-4">
         {label && (
@@ -255,8 +256,7 @@ export const Input = forwardRef<TextInput, InputProps>(
         )}
       </View>
     );
-  }
-);
+}
 ```
 
 ---

@@ -1,0 +1,109 @@
+---
+name: new-job
+description: Create an Oban background job (worker, enqueue call and tests)
+---
+
+# /new-job
+
+## What This Does
+
+Creates an Oban worker for background work (emails, webhooks, imports, cleanup),
+the context function that enqueues it, and tests. Installs Oban first if the project
+does not have it yet.
+
+## Usage
+
+```
+/new-job Accounts.SendWelcomeEmail
+/new-job Billing.SyncInvoice --queue billing --max-attempts 10
+/new-job Maintenance.PurgeOldTokens --cron "0 3 * * *"
+```
+
+## How It Works
+
+1. **Check for Oban** in `mix.exs` and `config/config.exs`. If missing, install it:
+   - With Igniter available: `mix igniter.install oban`
+   - Otherwise by hand: add `{:oban, "~> 2.20"}` to deps (or the current version from
+     the Oban installation guide), `mix deps.get`, then:
+
+```elixir
+# config/config.exs
+config :my_app, Oban,
+{% if variables.database == 'PostgreSQL' %}
+  engine: Oban.Engines.Basic,
+{% elif variables.database == 'MySQL' %}
+  engine: Oban.Engines.Dolphin,
+{% else %}
+  engine: Oban.Engines.Lite,
+{% endif %}
+  repo: MyApp.Repo,
+  queues: [default: 10],
+  plugins: [Oban.Plugins.Pruner]
+
+# config/test.exs
+config :my_app, Oban, testing: :manual
+
+# lib/my_app/application.ex, after MyApp.Repo
+{Oban, Application.fetch_env!(:my_app, Oban)}
+```
+
+     and a migration (`mix ecto.gen.migration add_oban_jobs_table`) whose `up/0` calls
+     `Oban.Migration.up(version: N)` and `down/0` calls `Oban.Migration.down(version: 1)`,
+     with `N` the latest version named in the Oban installation guide for the installed
+     release. Run `mix ecto.migrate`.
+2. **Write the worker** in `lib/my_app/<context>/workers/`:
+
+```elixir
+defmodule MyApp.Accounts.Workers.SendWelcomeEmail do
+  use Oban.Worker, queue: :default, max_attempts: 5, unique: [period: 300]
+
+  alias MyApp.Accounts
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"user_id" => user_id}}) do
+    case Accounts.get_user(user_id) do
+      {:ok, user} -> Accounts.deliver_welcome_email(user)   # returns :ok / {:error, _}
+      {:error, :not_found} -> {:cancel, :user_deleted}       # do not retry
+    end
+  end
+end
+```
+
+3. **Enqueue from the context**, ideally in the same transaction as the write that
+   causes it, so the job exists only if the data does:
+
+```elixir
+Ecto.Multi.new()
+|> Ecto.Multi.insert(:user, User.registration_changeset(%User{}, attrs))
+|> Oban.insert(:welcome, fn %{user: user} ->
+  SendWelcomeEmail.new(%{user_id: user.id})
+end)
+|> Repo.transaction()
+```
+
+   Otherwise `%{user_id: id} |> SendWelcomeEmail.new() |> Oban.insert()`.
+   Cron jobs: add `{Oban.Plugins.Cron, crontab: [{"0 3 * * *", MyWorker}]}` to `plugins`.
+4. **Test** (`use Oban.Testing, repo: MyApp.Repo` in the test module or DataCase):
+
+```elixir
+test "registering enqueues the welcome email" do
+  {:ok, user} = Accounts.register_user(valid_attrs())
+  assert_enqueued worker: SendWelcomeEmail, args: %{user_id: user.id}
+end
+
+test "perform sends the email" do
+  user = user_fixture()
+  assert :ok = perform_job(SendWelcomeEmail, %{user_id: user.id})
+end
+```
+
+5. **Run** `mix format`, `mix compile --warnings-as-errors`, `mix test`.
+
+## Rules
+
+- Args are JSON: string keys in `perform/1`, only IDs and small values (never structs,
+  never secrets); load fresh data inside the job
+- Jobs must be idempotent: a retry after a crash halfway must not send twice or double-charge
+- Return `:ok`, `{:ok, _}`, `{:error, reason}` (retry), `{:cancel, reason}` (stop) or
+  `{:snooze, seconds}`; let unexpected errors raise
+- Separate queues for slow or rate-limited work so they do not starve `default`

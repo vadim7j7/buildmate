@@ -193,13 +193,6 @@ const styles = StyleSheet.create({
 ### Avoid These Patterns
 
 ```typescript
-// Bad - inline function recreated each render
-<Button onPress={() => doSomething(id)} />
-
-// Good - use useCallback
-const handlePress = useCallback(() => doSomething(id), [id]);
-<Button onPress={handlePress} />
-
 // Bad - inline style object
 <View style={{ margin: 10 }} />
 
@@ -215,18 +208,8 @@ items.map(item => <Item key={item.id} {...item} />)
 
 ### Memoization
 
-```typescript
-// Memoize expensive components
-export const HeroSection = React.memo(function HeroSection(props) {
-  // ...
-});
-
-// Memoize computed values
-const expensiveValue = useMemo(() => compute(data), [data]);
-
-// Memoize callbacks
-const handlePress = useCallback(() => {}, []);
-```
+The React Compiler memoizes components and callbacks. Flag hand-written `React.memo`,
+`useCallback` or `useMemo` that has no comment naming the measured problem it fixes.
 
 ## Auto-Fix Patterns
 
@@ -334,9 +317,8 @@ Coverage: 94%
 | Check | Status |
 |-------|--------|
 | StyleSheet.create used | ✓ Pass |
-| No inline functions | ⚠ 2 found |
 | Keys in lists | ✓ Pass |
-| React.memo considered | ⚠ Recommend |
+| No unexplained manual memoization | ✓ Pass |
 
 ## Accessibility
 

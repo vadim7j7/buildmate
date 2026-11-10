@@ -242,9 +242,7 @@ type CreateUserRequest struct {
 func (h *UserHandler) Create(c fiber.Ctx) error {
 	var input CreateUserRequest
 	if err := c.Bind().Body(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return respondBindError(c, err)
 	}
 
 	// fiber.Ctx is a context.Context: pass c to the service layer.
@@ -273,44 +271,67 @@ func (h *UserHandler) Get(c fiber.Ctx) error {
 
 ### Error Handling
 
+Clients get a fixed message and a stable `code`, never `err.Error()` (wrapped
+errors carry SQL, IDs and parser text). Validation failures may list fields.
+
 ```go
 package handler
 
 import (
 	"errors"
+	"log/slog"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 )
+
+// FieldError is one failed validation rule; safe to return to clients.
+type FieldError struct {
+	Field string `json:"field"`
+	Rule  string `json:"rule"`
+}
+
+// respondBindError maps a Bind() error to 400 without echoing parser text.
+func respondBindError(c fiber.Ctx, err error) error {
+	var verrs validator.ValidationErrors
+	if errors.As(err, &verrs) {
+		fields := make([]FieldError, 0, len(verrs))
+		for _, fe := range verrs {
+			fields = append(fields, FieldError{Field: fe.Field(), Rule: fe.Tag()})
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "validation failed", "code": "VALIDATION_FAILED", "fields": fields,
+		})
+	}
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		"error": "invalid request body", "code": "INVALID_BODY",
+	})
+}
 
 func handleError(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, apperror.ErrNotFound):
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "resource not found", "code": "NOT_FOUND"})
 	case errors.Is(err, apperror.ErrValidation):
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "validation failed", "code": "VALIDATION_FAILED"})
 	case errors.Is(err, apperror.ErrUnauthorized):
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "unauthorized",
-		})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized", "code": "UNAUTHORIZED"})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "internal server error",
-		})
+		return ErrorHandler(c, err)
 	}
 }
 
 // ErrorHandler is the app-wide fiber.Config.ErrorHandler.
 func ErrorHandler(c fiber.Ctx, err error) error {
-	code := fiber.StatusInternalServerError
+	// fiber.Error messages are Fiber's own ("Not Found", "Method Not Allowed").
 	var e *fiber.Error
 	if errors.As(err, &e) {
-		code = e.Code
+		return c.Status(e.Code).JSON(fiber.Map{"error": e.Message})
 	}
-	return c.Status(code).JSON(fiber.Map{"error": err.Error()})
+	slog.ErrorContext(c, "unhandled error", "err", err)
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error": "internal server error", "code": "INTERNAL",
+	})
 }
 ```
 

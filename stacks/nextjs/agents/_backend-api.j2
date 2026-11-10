@@ -1,0 +1,12 @@
+{#- Backend stacks installed next to this Next.js app (rails+nextjs, express+nextjs...).
+    When there is one, Next.js is a BFF: data functions and Server Actions call that
+    API on the server instead of a database. Import with context. -#}
+{%- set api_stacks = [] -%}
+{%- for s in stacks -%}
+{%- if s.name != stack.name and (s.agents | selectattr('name', 'equalto', 'backend-developer') | list) -%}
+{%- set _ = api_stacks.append(s) -%}
+{%- endif -%}
+{%- endfor -%}
+{%- set bff = api_stacks | length > 0 -%}
+{%- set api_name = api_stacks[0].display_name if bff else '' -%}
+{%- set api_port = ((api_stacks[0] | dev_server).port if bff else None) -%}

@@ -35,6 +35,8 @@ You are a web scraping specialist building robust, ethical scrapers using **{{ v
 | Browser Automation | {% if variables.language == 'Python' and variables.browser_tool == 'Puppeteer' %}Playwright (Puppeteer has no maintained Python library){% else %}{{ variables.browser_tool }}{% endif %} |
 | Output Format | {{ variables.output_format }} |
 
+**Install dependencies:** {% if variables.language == 'Python' %}`uv sync`{% if variables.browser_tool in ['Playwright', 'Puppeteer'] %}, then `uv run playwright install chromium` (browser binaries){% endif %}{% else %}`npm install`{% if variables.browser_tool == 'Playwright' %}, then `npx playwright install chromium` (browser binaries){% endif %}{% endif %}.
+
 ## Before You Start
 
 {% include 'base/partials/read-patterns.md.j2' %}
@@ -194,7 +196,7 @@ class ProductScraper {
 This project is set up without a browser (`--browser=none`). Before reaching for one:
 
 1. Find the JSON API the page calls (browser DevTools, Network tab) and request it
-   directly with {{ variables.http_client }}; see `.claude/patterns/api-discovery.md`.
+   directly with {{ variables.http_client }}; see `.claude/patterns/{{ 'patterns/api-discovery.md' | installed(stack) }}`.
 2. Look for data embedded in the HTML: `<script type="application/ld+json">`,
    `__NEXT_DATA__`, `window.__INITIAL_STATE__`.
 3. Only if neither works, ask before adding a browser dependency.
@@ -231,14 +233,14 @@ export function extractNextData(html: string): unknown {
 ### Browser-Based Scraper ({{ variables.browser_tool }})
 
 Use the browser only for pages whose data is not in the HTML or a JSON API
-(`.claude/patterns/api-discovery.md`); plain HTTP is faster and harder to detect.
+(`.claude/patterns/{{ 'patterns/api-discovery.md' | installed(stack) }}`); plain HTTP is faster and harder to detect.
 
 {% if variables.language == 'Python' and variables.browser_tool == 'Puppeteer' %}
 > **Puppeteer has no maintained Python library** (pyppeteer is abandoned). Use
 > Playwright for Python, which has the same model (browser, context, page) and also
 > drives Chromium. Re-run the setup with `--browser=playwright` to make it the
 > project's documented tool. The example below is Playwright;
-> `.claude/patterns/puppeteer.md` shows the Node.js API and does not apply here.
+> `.claude/patterns/{{ 'patterns/puppeteer.md' | installed(stack) }}` shows the Node.js API and does not apply here.
 
 {% endif %}
 {% if variables.language == 'Python' and variables.browser_tool in ['Playwright', 'Puppeteer'] %}
@@ -378,7 +380,7 @@ export async function scrapeWithBrowser(url: string, userAgent: string) {
   }
 }
 ```
-See `.claude/patterns/puppeteer.md` for waiting, forms, pagination and interception.
+See `.claude/patterns/{{ 'patterns/puppeteer.md' | installed(stack) }}` for waiting, forms, pagination and interception.
 {% elif variables.browser_tool == 'Selenium' %}
 ```typescript
 import { Builder, By, until } from 'selenium-webdriver';

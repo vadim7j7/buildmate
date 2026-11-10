@@ -415,49 +415,27 @@ function Component() {
 
 ## 7. Performance Anti-Patterns
 
-### Inline Object/Array Props
+### Manual Memoization by Reflex
+
+Next.js 16 supports the React Compiler (`reactCompiler: true` in `next.config.ts`,
+with `babel-plugin-react-compiler` installed; it is **not** on by default). With it,
+components and hooks are memoized automatically, so `useMemo`, `useCallback` and
+`React.memo` are noise.
 
 ```typescript
-// WRONG - new object every render breaks memo
-function Parent() {
-  return <Child style={{ color: 'red' }} />;  // New object every render
-}
+// WRONG (with the compiler) - manual memo everywhere
+const handleClick = useCallback(() => setOpen(true), []);
+const style = useMemo(() => ({ color: 'red' }), []);
 
-const Child = memo(function Child({ style }) {
-  return <div style={style}>Text</div>;  // memo doesn't help!
-});
-
-// CORRECT - stable reference
+// CORRECT - plain code; the compiler handles it
+const handleClick = () => setOpen(true);
 const style = { color: 'red' };
-
-function Parent() {
-  return <Child style={style} />;
-}
-
-// OR useMemo
-function Parent() {
-  const style = useMemo(() => ({ color: 'red' }), []);
-  return <Child style={style} />;
-}
 ```
 
-### Missing useCallback
-
-```typescript
-// WRONG - new function every render
-function Parent() {
-  const handleClick = () => console.log('clicked');
-  return <MemoizedChild onClick={handleClick} />;  // Memo broken!
-}
-
-// CORRECT - stable callback
-function Parent() {
-  const handleClick = useCallback(() => {
-    console.log('clicked');
-  }, []);
-  return <MemoizedChild onClick={handleClick} />;
-}
-```
+Without the compiler, still don't memoize by default. Add `useMemo` / `useCallback` /
+`memo` only with a reason you can name: the React Profiler shows a slow render, or a
+value must keep its identity (an effect dependency, a third-party API that compares
+references). Constant objects can live outside the component.
 
 ### Rendering Large Lists
 
@@ -654,7 +632,7 @@ async function fetchUser(id: string): Promise<User> {
 | Layout waterfall | Use Suspense and parallel fetching |
 | UI library broken styles | Add UI library's provider to layout |
 | Zustand not reactive | Use hook inside component |
-| Memo not working | Stable props with useMemo/useCallback |
+| Slow re-renders | React Compiler, or measure, then memoize |
 | Large list lag | Use virtualization |
 | API errors crash | Try/catch with proper error response |
 | Type assertions | Use type guards instead |

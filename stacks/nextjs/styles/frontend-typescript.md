@@ -424,7 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  // useMemo on value to prevent unnecessary re-renders
+  // Without the React Compiler: memoize the value so consumers don't re-render on every render
   const value = useMemo(
     () => ({ user, isAuthenticated: user !== null, login, logout }),
     [user, login, logout]
@@ -445,8 +445,9 @@ export function useAuth() {
 
 Key rules:
 - `createContext<T | undefined>(undefined)` -- always `undefined` as default
-- `useMemo` on the value object to prevent re-renders
-- `useCallback` on handlers to stabilize function references
+- `useMemo` / `useCallback` here only when the project does **not** run the React
+  Compiler (`reactCompiler: true` in `next.config.ts`); with it, write plain functions
+  and a plain value object and let the compiler memoize
 - Custom hook throws a descriptive error if used outside the Provider
 
 ---

@@ -225,7 +225,7 @@ module Api
       end
 
       def profile_params
-        params.require(:profile).permit(:name, :email, :bio, :company_id)
+        params.expect(profile: [:name, :email, :bio, :company_id])
       end
     end
   end

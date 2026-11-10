@@ -1,0 +1,110 @@
+{%- set rails = 'Rails' in (variables.framework | default('')) -%}
+---
+name: new-rake-task
+description: Generate a namespaced Rake task that delegates to a service, with a spec
+---
+
+# /new-rake-task
+
+## What This Does
+
+Creates a Rake task for one-off or scheduled work (backfills, imports, cleanup)
+that stays thin: parse arguments, call a service, print a summary. The logic
+lives in the service so it can be tested and reused.
+
+## Usage
+
+```
+/new-rake-task users:backfill_roles
+/new-rake-task reports:export[2026-01-01,2026-03-31]
+```
+
+## How It Works
+
+### 1. Find the conventions
+
+```bash
+ls {{ 'lib/tasks' if rails else 'lib/tasks Rakefile' }}
+grep -rn "namespace :" {{ 'lib/tasks' if rails else 'lib/tasks Rakefile' }} | head
+```
+
+{% if rails %}
+Rails loads every `lib/tasks/*.rake` automatically.
+{% else %}
+Make sure the `Rakefile` loads the task files once:
+`Dir.glob("lib/tasks/**/*.rake").each { |f| import f }`.
+{% endif %}
+
+### 2. Write the task
+
+```ruby
+# lib/tasks/users.rake
+namespace :users do
+  desc "Backfill users.role from legacy flags (DRY_RUN=1 to preview)"
+  task :backfill_roles, %i[batch_size] => {{ ':environment' if rails else ':boot' }} do |_task, args|
+    batch_size = Integer(args[:batch_size] || 1000)
+    dry_run = ENV["DRY_RUN"] == "1"
+
+    result = Users::BackfillRoles.new(batch_size:, dry_run:).call
+
+    puts "#{dry_run ? '[dry run] ' : ''}updated=#{result.updated} skipped=#{result.skipped}"
+  end
+end
+```
+{% if not rails %}
+
+`:boot` is the project's task that requires the app and opens the DB connection
+(often `task(:boot) { require_relative "config/boot" }` in the `Rakefile`); use
+whatever the existing tasks depend on.
+{% endif %}
+
+Arguments: `bin/rake "reports:export[2026-01-01,2026-03-31]"` (quote for zsh).
+Use `ENV` for flags (`DRY_RUN=1`) and task args for positional values.
+
+### 3. Write the service and its spec
+
+The service does the work idempotently in batches and returns counts. Spec the
+service (`/new-service`, `/new-spec`); spec the task only for wiring:
+
+```ruby
+# spec/tasks/users_rake_spec.rb
+require "rake"
+
+RSpec.describe "users:backfill_roles" do
+  before(:all) do
+    Rake.application.rake_require("tasks/users", [{{ '"lib"' if rails else 'File.expand_path("../../lib", __dir__)' }}])
+{% if rails %}
+    Rake::Task.define_task(:environment)
+{% else %}
+    Rake::Task.define_task(:boot)
+{% endif %}
+  end
+
+  after { Rake::Task["users:backfill_roles"].reenable }
+
+  it "calls the service with the batch size" do
+    service = instance_double(Users::BackfillRoles, call: double(updated: 2, skipped: 0))
+    allow(Users::BackfillRoles).to receive(:new).with(batch_size: 50, dry_run: false).and_return(service)
+
+    expect { Rake::Task["users:backfill_roles"].invoke("50") }.to output(/updated=2/).to_stdout
+  end
+end
+```
+
+### 4. Run it
+
+```bash
+bundle exec rake -T users            # the desc shows up
+DRY_RUN=1 bundle exec rake "users:backfill_roles[100]"
+```
+
+## Rules
+
+- Always `desc` (tasks without one are hidden from `rake -T`)
+- Namespace by domain (`users:`, `reports:`); task names are verbs
+- Idempotent and safe to re-run; batch large updates; support `DRY_RUN=1` for data changes
+- No business logic in the `.rake` file
+- Exit non-zero on failure (`abort "message"`), so schedulers notice
+{% if rails %}
+- Recurring work belongs in a job scheduled by the queue (e.g. `config/recurring.yml`), not cron + rake
+{% endif %}

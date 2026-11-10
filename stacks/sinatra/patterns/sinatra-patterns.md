@@ -104,6 +104,7 @@ end
 - Use `helpers` for helper modules
 - Use `use` for Rack middleware
 - Centralize error handlers in the main app class
+- Error classes, the JSON error envelope and `json_body`: `.claude/patterns/error-handling.md`; auth: `.claude/patterns/auth.md`
 
 ---
 

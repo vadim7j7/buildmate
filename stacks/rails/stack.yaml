@@ -13,10 +13,10 @@ compatible_with:
 options:
   jobs:
     description: Background job processor
-    default: sidekiq
+    default: solid_queue
     choices:
       sidekiq:
-        description: Redis-backed job processor (most popular)
+        description: Redis-backed job processor (most popular; needs Redis)
         patterns:
           - patterns/sidekiq.md
         variables:
@@ -30,7 +30,7 @@ options:
           background_jobs: GoodJob
           job_adapter: good_job
       solid_queue:
-        description: Database-backed job processor (Rails 8+)
+        description: Database-backed job processor (Rails 8 default, no Redis)
         patterns:
           - patterns/solid_queue.md
         variables:
@@ -119,6 +119,11 @@ skills:
   - new-concern
   - new-serializer
 
+quality_gates:
+  security:
+    command: bundle exec brakeman -q --no-pager
+    description: Brakeman static security scan (whole app; in the Rails 8 default Gemfile)
+
 patterns:
   - patterns/backend-patterns.md
 
@@ -135,6 +140,7 @@ reference_patterns:
   - patterns/logging.md
   - patterns/error-tracking.md
   - patterns/verification.md
+  - patterns/deployment.md
 
 setup:
   install_command: bundle install

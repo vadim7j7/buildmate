@@ -19,17 +19,19 @@ No exceptions. This is the very first line before any blank lines or comments.
 
 ## 2. String Literals
 
-**Single quotes** for all strings. Double quotes only when interpolation is needed.
+Quote style comes from the project's `.rubocop.yml`, not from this guide. Rails 8
+apps ship `rubocop-rails-omakase`, which enforces **double quotes**; older apps
+often configure single quotes. Check `.rubocop.yml` (and the gems it inherits
+from) before writing code, match it, and let `bundle exec rubocop -A` settle any
+doubt. Examples in these docs use either style; they are not a mandate.
 
 ```ruby
-# GOOD
-name = 'Jane Doe'
-status = 'active'
+# rubocop-rails-omakase (Rails 8 default)
+name = "Jane Doe"
 query = "Hello, #{user.name}!"
 
-# BAD
-name = "Jane Doe"
-status = "active"
+# Style/StringLiterals: single_quotes
+name = 'Jane Doe'
 ```
 
 ---
@@ -352,8 +354,8 @@ bundle exec rubocop -A
 bundle exec rubocop app/services/users/sync_service.rb
 ```
 
-Key rubocop rules:
-- `Style/StringLiterals: single_quotes`
+Key rubocop rules (the project's `.rubocop.yml` wins over this list):
+- `Style/StringLiterals`: whatever the config says (omakase: double quotes)
 - `Style/FrozenStringLiteralComment: always`
 - `Style/HashSyntax: ruby19` (with shorthand)
 - `Style/GuardClause: true`

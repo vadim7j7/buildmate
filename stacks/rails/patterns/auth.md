@@ -1,10 +1,87 @@
 # Rails Authentication Patterns
 
-Authentication patterns using Devise and related gems.
+Authentication patterns: Rails 8's built-in generator first, Devise as the alternative.
 
 ---
 
-## 1. Devise Setup
+## 0. Rails 8 Authentication Generator (recommended default)
+
+Start with the built-in generator unless the app already uses Devise. It writes
+plain code you own (no engine), and every later section adapts to it.
+
+```bash
+bin/rails generate authentication
+bin/rails db:migrate
+```
+
+It creates:
+
+| File | What it does |
+|------|--------------|
+| `app/models/user.rb` | `has_secure_password`, `has_many :sessions`, `normalizes :email_address` |
+| `app/models/session.rb` | One row per signed-in device (`ip_address`, `user_agent`) |
+| `app/models/current.rb` | `Current.session`, `Current.user` (per-request attributes) |
+| `app/controllers/concerns/authentication.rb` | `require_authentication` before every action, `allow_unauthenticated_access`, `start_new_session_for`, `terminate_session` |
+| `SessionsController`, `PasswordsController`, `PasswordsMailer` | Sign in/out with `rate_limit`, password reset by signed token |
+
+Key APIs:
+
+```ruby
+# Sign in: constant-time lookup + password check, nil when either is wrong
+user = User.authenticate_by(email_address: params[:email_address], password: params[:password])
+
+# Password reset (has_secure_password, Rails 8): signed, expiring, single-use
+token = user.password_reset_token
+User.find_by_password_reset_token!(token)
+
+# Throttle sign-in attempts in the controller (Rails 7.2+, no Rack::Attack needed)
+rate_limit to: 10, within: 3.minutes, only: :create
+
+# Public actions opt out explicitly; everything else requires a session
+allow_unauthenticated_access only: %i[index show]
+```
+
+Rules:
+
+- The current user is `Current.user` (there is no `current_user` helper unless you
+  add one: `helper_method def current_user = Current.user`).
+- Sign-up, email confirmation and OAuth are **not** generated: build them on top
+  (sections 5-7 show the shapes) or pick Devise.
+- Keep `password_digest` out of every serializer and log (`filter_parameters`).
+
+### API (token) variant
+
+The generator signs a session id into a cookie, which suits a same-site frontend.
+For a mobile/third-party client, keep the same `Session` model and return a token:
+
+```ruby
+# migration: add_column :sessions, :token, :string; add_index :sessions, :token, unique: true
+class Session < ApplicationRecord
+  belongs_to :user
+  has_secure_token :token
+end
+
+# app/controllers/concerns/authentication.rb (API variant)
+def resume_session
+  Current.session ||= authenticate_with_http_token do |token, _options|
+    Session.find_by(token:)
+  end
+end
+
+def request_authentication
+  head :unauthorized
+end
+```
+
+`ApplicationController < ActionController::API` needs
+`include ActionController::HttpAuthentication::Token::ControllerMethods`.
+
+---
+
+## 1. Devise Setup (alternative)
+
+Use Devise when the app already has it, or you need its ready-made confirmable,
+lockable, OmniAuth and JWT extensions.
 
 ### Gemfile
 
@@ -135,7 +212,7 @@ end
 
 ---
 
-## 4. Token-Based Authentication (Without Devise)
+## 4. Token-Based Authentication (Hand-Rolled, Pre-Rails 8)
 
 ### Session Model
 
@@ -341,6 +418,9 @@ end
 ---
 
 ## 8. Rate Limiting
+
+Prefer the controller-level `rate_limit` (section 0) for sign-in and reset. Rack::Attack
+still fits app-wide throttles:
 
 ```ruby
 # frozen_string_literal: true

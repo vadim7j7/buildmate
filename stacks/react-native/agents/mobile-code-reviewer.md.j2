@@ -103,7 +103,7 @@ BLOCKER if:
 - Hardcoded colour values instead of theme constants
 - Hardcoded spacing values instead of spacing constants
 {% elif variables.ui_library == 'NativeWind' %}
-**NativeWind `className` utilities MUST be used for styling** (`.claude/styles/nativewind.md`).
+**NativeWind `className` utilities MUST be used for styling** (`.claude/styles/{{ 'styles/nativewind.md' | installed(stack) }}`).
 `className` on core components is correct; do not ask for `StyleSheet.create`.
 
 BLOCKER if:
@@ -111,14 +111,23 @@ BLOCKER if:
   (inline styles are fine only for runtime-computed values such as animations)
 - Arbitrary colour values (`bg-[#ff0000]`, hex in styles) instead of theme colours
 - Class names built dynamically (`bg-${color}`), which Tailwind cannot compile
-{% else %}
-**{{ variables.ui_library }} components and style props MUST be used for styling**
-(`.claude/styles/{{ 'gluestack' if variables.ui_library == 'Gluestack UI' else 'tamagui' }}.md`).
-Style props on {{ variables.ui_library }} components are correct; do not ask for `StyleSheet.create`.
+{% elif variables.ui_library == 'Gluestack UI' %}
+**gluestack-ui components (copied into `src/components/ui/`) styled with `className`
+MUST be used** (`.claude/styles/{{ 'styles/gluestack.md' | installed(stack) }}`). Do not ask for `StyleSheet.create`.
 
 BLOCKER if:
-- `StyleSheet.create` or a second styling system is mixed into {{ variables.ui_library }} components
-- Raw colour / spacing values instead of theme tokens (`$primary`, `$4`, ...)
+- Imports from the retired v1 packages (`@gluestack-ui/themed`, `@gluestack-style/react`)
+  or `$token` style props such as `bg="$primary500"`
+- `StyleSheet.create` or inline style objects where a class would do
+- Arbitrary colour values instead of the theme's colour classes, or dynamically built class names
+- Variants built by hand instead of `tva` in the component file
+{% else %}
+**Tamagui components and style props MUST be used for styling** (`.claude/styles/{{ 'styles/tamagui.md' | installed(stack) }}`).
+Style props on Tamagui components are correct; do not ask for `StyleSheet.create`.
+
+BLOCKER if:
+- `StyleSheet.create` or a second styling system is mixed into Tamagui components
+- Raw colour / spacing values instead of theme tokens (`$color`, `$background`, `$4`, ...)
 {% endif %}
 
 ### 5. Project Layout
@@ -136,8 +145,11 @@ i18n in `src/i18n/`. WARNING for deep relative imports (`../../`) across these f
 
 - [ ] Components are properly typed with TypeScript interfaces
 - [ ] Components follow single-responsibility principle
-- [ ] `React.memo()` is used for list item components
-- [ ] Event handlers use `useCallback` when passed as props
+- [ ] No manual `React.memo` / `useCallback` / `useMemo` added "just in case": the React
+      Compiler (on in Expo SDK 54+ templates) memoizes; manual memoization needs a measured
+      reason in a comment (SUGGESTION to remove otherwise)
+- [ ] React 19: `ref` passed as a normal prop, no new `forwardRef` (SUGGESTION)
+- [ ] Components stay compiler-friendly: no mutating props/state, no reading refs during render (WARNING)
 
 ### State Management
 
@@ -168,13 +180,13 @@ i18n in `src/i18n/`. WARNING for deep relative imports (`../../`) across these f
 
 - [ ] `FlashList` for lists with 20+ items (BLOCKER if ScrollView+map)
 - [ ] No FlashList v1-only props (`estimatedItemSize`, `MasonryFlashList`, `inverted`) — removed/deprecated in v2 (WARNING)
-- [ ] `React.memo()` on list item components (WARNING)
-- [ ] `useCallback` for event handlers passed to children (WARNING)
+- [ ] No unstable work in list `renderItem` that the profiler shows as slow (WARNING when measured)
 - [ ] `expo-image` instead of `Image` from react-native (SUGGESTION)
 
 ### Platform-Specific
 
 - [ ] `Platform.OS` checks where iOS/Android differ
+- [ ] Tokens, refresh tokens and secrets in `expo-secure-store`, never AsyncStorage, MMKV or a persisted store (BLOCKER)
 - [ ] `SafeAreaView` or `useSafeAreaInsets` for notch handling
 - [ ] `KeyboardAvoidingView` with correct `behavior` per platform
 
@@ -215,6 +227,7 @@ i18n in `src/i18n/`. WARNING for deep relative imports (`../../`) across these f
 - TypeScript: PASS / FAIL / NOT RUN
 - Lint: PASS / FAIL / NOT RUN
 - Tests: PASS / FAIL / NOT RUN
+- Expo Doctor: PASS / FAIL / NOT RUN
 ```
 
 ## Verdict Rules

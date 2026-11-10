@@ -5,12 +5,13 @@ Use {{ variables.orm }}{% if variables.database != "MongoDB" %}, with SQL in sql
 interface the service depends on; handlers never touch the database.
 
 {% if variables.database == 'MongoDB' %}
-- Follow `.claude/patterns/mongodb.md`: driver v2 only (`go.mongodb.org/mongo-driver/v2/...`),
+- Follow `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}`: driver v2 only (`go.mongodb.org/mongo-driver/v2/...`),
   `bson.ObjectID` IDs, `errors.Is(err, mongo.ErrNoDocuments)` mapped to `ErrNotFound`.
 - The SQL repository examples in `backend-patterns.md` do not apply; a repository wraps a
   `*mongo.Collection` instead of a `*sql.DB`.
 - Build filters and updates from typed values; never pass request JSON through as `bson.M`.
-- Create indexes at startup; there are no schema migrations.
+- No schema migrations: indexes, validators and backfills are versioned, idempotent steps
+  run at startup (`/new-migration`, `/db-migrate`).
 
 ```go
 type mongoUserRepo struct {
@@ -37,7 +38,8 @@ func (r *mongoUserRepo) FindAll(ctx context.Context) ([]User, error) {
 - Parameters are `$1, $2, ...`; never build SQL with `fmt.Sprintf` from input.
 - Collect rows with `pgx.CollectRows(rows, pgx.RowToStructByName[User])`; use `pool.BeginTx`
   for multi-statement writes.
-- Schema changes go in versioned migrations (goose, golang-migrate or atlas: whichever the project uses).
+- Schema changes go in goose migrations (`/new-migration`, `/db-migrate`); sqlc is the optional
+  alternative to hand-written queries (`.claude/patterns/{{ 'patterns/sqlc.md' | installed(stack) }}`).
 
 ```go
 type pgUserRepo struct {
@@ -67,7 +69,8 @@ func (r *pgUserRepo) FindAll(ctx context.Context) ([]User, error) {
 {% endif %}
 - Use the `*Context` methods (`QueryContext`, `ExecContext`, `BeginTx`), always `defer rows.Close()`
   and check `rows.Err()`; map `sql.ErrNoRows` to `ErrNotFound`.
-- Never build SQL with `fmt.Sprintf` from input. Schema changes go in versioned migrations.
+- Never build SQL with `fmt.Sprintf` from input. Schema changes go in goose migrations
+  (`/new-migration`, `/db-migrate`); sqlc is optional (`.claude/patterns/{{ 'patterns/sqlc.md' | installed(stack) }}`).
 
 ```go
 type sqlUserRepo struct {

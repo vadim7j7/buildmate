@@ -280,7 +280,7 @@ module Api
       end
 
       def resource_params
-        params.require(:resource).permit(:attr1, :attr2, :attr3)
+        params.expect(resource: [:attr1, :attr2, :attr3])
       end
     end
   end
@@ -292,7 +292,7 @@ end
 - RESTful actions only (index, show, create, update, destroy)
 - `before_action :authenticate_user!` on all actions (unless explicitly public)
 - Scope resources through `current_user` for authorization
-- Use strong params with explicit `permit` list
+- Use strong params with `params.expect(model: [...])` (Rails 8; not `require(...).permit(...)`)
 - Use presenters for all JSON responses
 - Include `pagination_meta` on all list endpoints
 - Use `includes()` to prevent N+1 queries

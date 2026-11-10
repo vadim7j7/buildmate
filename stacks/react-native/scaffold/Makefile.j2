@@ -6,7 +6,7 @@ export EAS_BUILD_NO_EXPO_GO_WARNING := true
 export FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT := 180
 export FASTLANE_XCODEBUILD_SETTINGS_RETRIES := 5
 
-.PHONY: help install start verify lint typecheck test \
+.PHONY: help install start verify lint typecheck test doctor e2e \
         device-ios device-android \
         build-dev build-preview-ios build-preview-android build-prod-ios build-prod-android \
         submit-prod-ios submit-prod-android ship-prod-ios ship-prod-android \
@@ -25,10 +25,16 @@ start: ## Start the Metro dev server
 	npx expo start
 
 # ---- Quality gate (CI) ----
-verify: lint typecheck test ## Lint + typecheck + test
+verify: lint typecheck test doctor ## Lint + typecheck + test + expo-doctor
 lint: ; npm run lint
 typecheck: ; npx tsc --noEmit
 test: ; npm test
+doctor: ; npx expo-doctor
+
+# ---- E2E (Maestro; needs a running simulator/emulator with a dev or preview build) ----
+e2e: ## Run every Maestro flow in .maestro/ (make e2e APP_ID=com.example.app)
+	@test -n "$(APP_ID)" || (echo "set APP_ID=<bundle id / package>" && exit 1)
+	maestro test -e APP_ID=$(APP_ID) .maestro/
 
 # ---- Local device builds ----
 device-ios: ## Build + install on a tethered iPhone

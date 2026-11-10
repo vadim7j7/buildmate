@@ -1,0 +1,131 @@
+{% if variables.db_adapter == 'mongoid' %}
+---
+name: new-migration
+description: Schema changes under Mongoid (fields and indexes in the model; no migrations)
+---
+
+# /new-migration (Mongoid)
+
+This project uses **MongoDB with Mongoid**: there are no migration files. A
+schema change is a model change.
+
+1. Add or change `field` / `index` declarations in the model
+   (see `.claude/patterns/{{ 'patterns/mongoid.md' | installed(stack) }}`).
+2. Create indexes: `Mongoid::Tasks::Database.create_indexes` (wire it to a rake
+   task, e.g. `rake db:mongoid:create_indexes`, if the project has none).
+3. Existing documents that need a value get an idempotent backfill rake task
+   (`Model.where(field: nil).update_all(field: value)`).
+4. Remove a field in two steps: stop using it and deploy, then `unset` it in a
+   backfill and drop the declaration.
+{% else %}
+---
+name: new-migration
+description: Generate a Sequel migration (timestamped, reversible) and run it up and down
+---
+
+# /new-migration
+
+## What This Does
+
+Writes a Sequel migration in `db/migrations/`, runs it, rolls it back and runs it
+again, so every schema change is proven reversible. Model classes are not touched
+(use `/new-model` for a new table plus model).
+
+## Usage
+
+```
+/new-migration add_role_to_users
+/new-migration create_memberships
+/new-migration add_index_to_projects_slug
+```
+
+## How It Works
+
+### 1. Check the setup
+
+```bash
+ls db/migrations | tail -3
+grep -n "migrat" Rakefile
+```
+
+Follow the existing naming (timestamp `YYYYMMDDHHMMSS_` prefix for Sequel's
+`TimestampMigrator`; an integer `001_` prefix means `IntegerMigrator`, keep it).
+
+### 2. Write the migration
+
+Use `change` when Sequel can reverse every call (`create_table`, `add_column`,
+`add_index`, `rename_column`, `alter_table` with those). Use `up`/`down` for
+anything else (data changes, `drop_column`, `set_column_type`).
+
+```ruby
+# db/migrations/20261111120000_add_role_to_users.rb
+# frozen_string_literal: true
+
+Sequel.migration do
+  change do
+    alter_table(:users) do
+      add_column :role, String, null: false, default: "member"
+      add_index :role
+    end
+  end
+end
+```
+
+```ruby
+# db/migrations/20261111120500_create_memberships.rb
+# frozen_string_literal: true
+
+Sequel.migration do
+  change do
+    create_table(:memberships) do
+      primary_key :id
+      foreign_key :user_id, :users, null: false, on_delete: :cascade
+      foreign_key :project_id, :projects, null: false, on_delete: :cascade
+      String :role, null: false, default: "member"
+      DateTime :created_at, null: false, default: Sequel::CURRENT_TIMESTAMP
+      DateTime :updated_at, null: false, default: Sequel::CURRENT_TIMESTAMP
+      index %i[user_id project_id], unique: true
+    end
+  end
+end
+```
+
+```ruby
+# Irreversible pieces: explicit up/down
+Sequel.migration do
+  up do
+    alter_table(:users) { drop_column :legacy_flag }
+  end
+
+  down do
+    alter_table(:users) { add_column :legacy_flag, TrueClass, default: false }
+  end
+end
+```
+
+### 3. Run it up, down, up
+
+```bash
+bundle exec sequel -m db/migrations "$DATABASE_URL"            # migrate to latest
+bundle exec sequel -m db/migrations -M <previous_version> "$DATABASE_URL"   # roll back to the version before
+bundle exec sequel -m db/migrations "$DATABASE_URL"            # re-apply
+```
+
+(Or the project's rake tasks, e.g. `bundle exec rake db:migrate` / `db:rollback`.)
+`<previous_version>` is the timestamp of the migration before yours (`0` if it is the first).
+Then migrate the test database the same way with its `DATABASE_URL`.
+
+### 4. Update the model and specs
+
+New columns that clients may write must be added to the route's permitted keys
+and to model validations; add or update the model spec.
+
+## Rules
+
+- One schema change per migration; never edit a migration that has run elsewhere
+- `null: false` columns on existing tables need a `default:` (or a backfill first)
+- Foreign keys get `on_delete:` chosen on purpose, and an index
+- Large tables on PostgreSQL: `add_index ..., concurrently: true` inside a migration
+  that calls `no_transaction`
+- Removing a column: stop reading it in code and deploy first, drop it in a later migration
+{% endif %}

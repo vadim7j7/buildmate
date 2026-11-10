@@ -39,6 +39,15 @@ You read code; you do not modify it. You report findings ranked by severity.
       before privileged actions. Untrusted web pages must not trigger sensitive operations.
 - [ ] DOM injected by content scripts is sanitised — no unescaped page/user data into
       `innerHTML`. Prefer text nodes / framework rendering / `createShadowRootUi`.
+{% if variables.ui_framework == 'React' %}
+- [ ] No `dangerouslySetInnerHTML` with page, tab or user data.
+{% elif variables.ui_framework == 'Vue' %}
+- [ ] No `v-html` with page, tab or user data.
+{% elif variables.ui_framework == 'Svelte' %}
+- [ ] No `{@html ...}` with page, tab or user data.
+{% else %}
+- [ ] No `innerHTML` / `insertAdjacentHTML` with anything but constants in the surfaces.
+{% endif %}
 - [ ] No secrets (API keys, tokens) hard-coded or stored in plain `storage` accessible to
       content scripts. `externally_connectable` is scoped narrowly if present.
 - [ ] `host_permissions` are not broader than needed; no `<all_urls>` without justification.
@@ -69,10 +78,13 @@ You read code; you do not modify it. You report findings ranked by severity.
 - [ ] Content scripts use `ctx` for timers/listeners and handle invalidation.
 - [ ] No hand-edited `manifest.json` — manifest fields live in `wxt.config.ts`.
 - [ ] Messaging is typed through the shared `ProtocolMap`; storage uses `storage.defineItem`.
+- [ ] UI surfaces follow `.claude/styles/{{ {'React': 'ui-react', 'Vue': 'ui-vue', 'Svelte': 'ui-svelte'}.get(variables.ui_framework, 'ui-vanilla') }}.md`; storage watchers are
+      removed when a surface unmounts.
 
 ### 6. Tests & quality gates
 
 - [ ] New message handlers, storage items, and permission guards have tests.
+- [ ] A new or changed surface is opened by a Playwright E2E spec (Chromium).
 - [ ] Quality gates pass:
 {% for gate_name, gate in stack.quality_gates.items() %}
   - **{{ gate_name | title }}**: `{{ gate.command }}`

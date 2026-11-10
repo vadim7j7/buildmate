@@ -1,0 +1,71 @@
+{%- set db = variables.database -%}
+---
+name: db-migrate
+description: {% if db == 'MongoDB' %}Apply MongoDB index changes and data migration scripts safely{% elif db == 'None' %}Not applicable, this project has no database{% else %}Run Alembic migrations safely with rollback verification{% endif %}
+
+---
+
+# /db-migrate
+
+{% if db == 'MongoDB' %}
+## What This Does
+
+Applies pending MongoDB changes: indexes (created at app startup from
+`src/app/db/indexes.py`) and data scripts in `scripts/migrations/`.
+
+## Usage
+
+```
+/db-migrate                          # ensure indexes, list scripts not yet run
+/db-migrate scripts/migrations/<f>   # run one data script (dry run first)
+```
+
+## How It Works
+
+1. **Indexes.** Start the app (or call the index setup function) and confirm with
+   `await db.<collection>.index_information()` that the new indexes exist.
+2. **Data script.** Dry run, check the counts, then run it for real:
+
+   ```bash
+   uv run python scripts/migrations/<file>.py --dry-run
+   uv run python scripts/migrations/<file>.py
+   ```
+
+3. **Verify idempotency.** A second run must change 0 documents.
+4. **Report** matched/changed counts and the indexes created.
+
+## Safety Rules
+
+- Back up (or snapshot) the collection before a destructive script in production.
+- A unique index build fails on duplicates and is slow on big collections:
+  check for duplicates first.
+{% elif db == 'None' %}
+This project has no database, so there are no migrations to run.
+{% else %}
+## What This Does
+
+Runs pending Alembic migrations on {{ variables.database }} and verifies they roll back.
+
+## Usage
+
+```
+/db-migrate              # upgrade to head
+/db-migrate --rollback   # downgrade one step
+/db-migrate --status     # current revision and history
+```
+
+## How It Works
+
+1. **Status.** `uv run alembic current` and `uv run alembic history`;
+   `uv run alembic heads` must show one head (`alembic merge` if not).
+2. **Upgrade.** `uv run alembic upgrade head`
+3. **Verify rollback.** `uv run alembic downgrade -1 && uv run alembic upgrade head`
+4. **Report** the revision before and after.
+
+## Safety Rules
+
+- Every migration must be reversible; a failed downgrade is a BLOCKER.
+- Never drop or rename a column in one step in production: expand (add), migrate
+  code and data, contract (drop) in a later release.
+- Test on a copy of the database when possible.
+{% endif %}

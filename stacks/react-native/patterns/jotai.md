@@ -1,72 +1,75 @@
 # Jotai State Management Patterns (React Native)
 
-## Basic Atoms
+Atoms hold **UI state only**. Tokens and secrets live in `expo-secure-store`
+(`@/services/auth`, see `.claude/patterns/security.md`); the user profile and every
+server or DB record live in TanStack Query. Never put a token in `atomWithStorage`:
+it writes to AsyncStorage, which is unencrypted. `atomWithStorage` is for
+non-sensitive preferences only.
+
+## Session Atoms (status only)
 
 ```typescript
-// src/atoms/auth.ts
+// src/atoms/session.ts
 import { atom } from 'jotai';
+import { getAccessToken, storeTokens, clearTokens } from '@/services/auth';
+import { queryClient } from '@/queries/queryClient';
+
+type SessionStatus = 'unknown' | 'signedIn' | 'signedOut';
+
+export const sessionStatusAtom = atom<SessionStatus>('unknown');
+
+// Write-only action atoms
+export const restoreSessionAtom = atom(null, async (_get, set) => {
+  const token = await getAccessToken();                    // SecureStore
+  set(sessionStatusAtom, token ? 'signedIn' : 'signedOut');
+});
+
+export const signInAtom = atom(
+  null,
+  async (_get, set, tokens: { accessToken: string; refreshToken: string }) => {
+    await storeTokens(tokens.accessToken, tokens.refreshToken);
+    set(sessionStatusAtom, 'signedIn');
+  }
+);
+
+export const signOutAtom = atom(null, async (_get, set) => {
+  await clearTokens();
+  queryClient.clear();                                     // drop the previous user's data
+  set(sessionStatusAtom, 'signedOut');
+});
+```
+
+The profile is a TanStack Query hook (`useCurrentUser`, enabled when
+`useAtomValue(sessionStatusAtom) === 'signedIn'`), not an atom.
+
+## UI Atoms
+
+```typescript
+// src/atoms/transactionFilter.ts
+import { atom } from 'jotai';
+
+export const filterCategoryAtom = atom<string | null>(null);
+export const sortOrderAtom = atom<'asc' | 'desc'>('desc');
+
+// Derived (read-only)
+export const hasActiveFilterAtom = atom((get) => get(filterCategoryAtom) !== null);
+
+// Write-only reset for sign-out
+export const resetTransactionFilterAtom = atom(null, (_get, set) => {
+  set(filterCategoryAtom, null);
+  set(sortOrderAtom, 'desc');
+});
+```
+
+## Persisted Preferences (non-sensitive only)
+
+```typescript
+// src/atoms/preferences.ts
 import { atomWithStorage, createJSONStorage } from 'jotai/utils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const storage = createJSONStorage(() => AsyncStorage);
-
-// Persisted atoms
-export const userAtom = atomWithStorage<User | null>('user', null, storage);
-export const tokenAtom = atomWithStorage<string | null>('token', null, storage);
-
-// Derived atoms (computed)
-export const isAuthenticatedAtom = atom((get) => {
-  const user = get(userAtom);
-  const token = get(tokenAtom);
-  return !!user && !!token;
-});
-```
-
-## Write-Only Atoms (Actions)
-
-```typescript
-// src/atoms/auth.ts
-export const loginAtom = atom(
-  null, // no read value
-  async (get, set, { user, token }: { user: User; token: string }) => {
-    set(userAtom, user);
-    set(tokenAtom, token);
-  }
-);
-
-export const logoutAtom = atom(null, async (get, set) => {
-  set(userAtom, null);
-  set(tokenAtom, null);
-});
-
-export const updateUserAtom = atom(
-  null,
-  (get, set, updates: Partial<User>) => {
-    const currentUser = get(userAtom);
-    if (currentUser) {
-      set(userAtom, { ...currentUser, ...updates });
-    }
-  }
-);
-```
-
-## Async Atoms
-
-```typescript
-// src/atoms/user.ts
-import { atom } from 'jotai';
-import { atomWithQuery } from 'jotai-tanstack-query';
-
-// Async atom with TanStack Query integration
-export const userProfileAtom = atomWithQuery((get) => ({
-  queryKey: ['userProfile', get(tokenAtom)],
-  queryFn: async ({ queryKey: [, token] }) => {
-    if (!token) return null;
-    const response = await api.getProfile(token);
-    return response.data;
-  },
-  enabled: !!get(tokenAtom),
-}));
+const storage = createJSONStorage<'system' | 'light' | 'dark'>(() => AsyncStorage);
+export const themeAtom = atomWithStorage('theme', 'system', storage);
 ```
 
 ## Provider Setup
@@ -88,54 +91,33 @@ export default function RootLayout() {
 
 ```typescript
 // src/app/(tabs)/profile.tsx
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { userAtom, logoutAtom, isAuthenticatedAtom } from '@/atoms/auth';
+import { useSetAtom } from 'jotai';
+import { signOutAtom } from '@/atoms/session';
 
 export default function ProfileScreen() {
-  // Read-only
-  const user = useAtomValue(userAtom);
-  const isAuthenticated = useAtomValue(isAuthenticatedAtom);
+  const { t } = useTranslation();
+  const { data: user } = useCurrentUser();     // server data: Query
+  const signOut = useSetAtom(signOutAtom);
 
-  // Write-only
-  const logout = useSetAtom(logoutAtom);
-
-  const handleLogout = async () => {
-    await logout();
+  const handleSignOut = async () => {
+    await signOut();
     router.replace('/login');
   };
 
   return (
     <View>
       <Text>{user?.name}</Text>
-      <Text>{isAuthenticated ? 'Logged in' : 'Guest'}</Text>
-      <Button onPress={handleLogout} title="Logout" />
+      <Button onPress={handleSignOut} title={t('auth.signOut')} />
     </View>
   );
 }
 ```
 
-## Atom Families (Dynamic Atoms)
-
-```typescript
-// src/atoms/items.ts
-import { atomFamily } from 'jotai/utils';
-
-// Create atoms dynamically based on ID
-export const itemAtomFamily = atomFamily((id: string) =>
-  atom<Item | null>(null)
-);
-
-// Usage
-const itemAtom = itemAtomFamily('item-123');
-const [item, setItem] = useAtom(itemAtom);
-```
-
 ## Key Patterns
 
-1. **Use atomWithStorage** for persistent state
-2. **Create derived atoms** for computed values
-3. **Use write-only atoms** for actions
-4. **Use useAtomValue** for read-only access
-5. **Use useSetAtom** for write-only access
-6. **Use atomFamily** for dynamic/parameterized atoms
-7. **Integrate with TanStack Query** via jotai-tanstack-query
+1. **UI state only**: no tokens, no profile, no server records in atoms
+2. **Tokens in expo-secure-store**; atoms keep only the session status
+3. **One atom per value**, derived atoms for computed values
+4. **Write-only atoms** for actions (sign-in, sign-out, reset)
+5. **`useAtomValue` / `useSetAtom`** to read or write only what a component needs
+6. **`atomWithStorage` only for non-sensitive preferences**

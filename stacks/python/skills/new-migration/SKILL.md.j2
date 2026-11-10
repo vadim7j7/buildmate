@@ -1,0 +1,95 @@
+{%- set db = variables.database -%}
+---
+name: new-migration
+description: {% if db == 'MongoDB' %}Write a MongoDB data migration script or index change{% elif db == 'None' %}Not applicable, this project has no database{% else %}Generate an Alembic migration{% endif %}
+
+---
+
+# /new-migration
+
+{% if db == 'MongoDB' %}
+## What This Does
+
+MongoDB has no schema migrations ({{ variables.migrations }}). This skill covers
+the two things that replace them:
+
+- **Index changes**: add or change indexes in `src/app/db/indexes.py`, which runs
+  `create_index` at startup (idempotent). Dropping an index is an explicit,
+  one-off `drop_index` in a script.
+- **Data migrations**: a change to existing documents (rename a field, backfill a
+  value, split a collection) is a script in `scripts/migrations/`.
+
+## Usage
+
+```
+/new-migration "backfill role on users"
+/new-migration --index "users by email, unique"
+```
+
+## How It Works
+
+1. **Read** `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}` (index creation, async CRUD).
+
+2. **Index change.** Add it to `src/app/db/indexes.py`. A new unique index on a
+   collection with data: first check for duplicates with an aggregation
+   (`$group` by the key, `count > 1`), or index creation fails at startup.
+
+3. **Data migration.** Create `scripts/migrations/<YYYYMMDD>_<slug>.py`:
+   - Idempotent: filter only the documents still in the old shape
+     (`{"role": {"$exists": False}}`), so a re-run is a no-op
+   - Batched: `update_many` with a filter, or `bulk_write` in chunks of ~1000
+     for per-document values; never load the whole collection into memory
+   - Logs how many documents matched and changed; has a `--dry-run` that only counts
+   - Code reads both shapes until the script has run everywhere (deploy code
+     first, then run the script, then drop the old-shape handling)
+
+4. **Test** the script against the test database: old-shape documents in,
+   new shape out, a second run changes nothing.
+
+5. **Run quality checks.**
+
+   ```bash
+   uv run ruff format <files>
+   uv run ruff check <files>
+   ```
+{% elif db == 'None' %}
+This project has no database, so there is nothing to migrate. If the task really
+needs persistence, stop and ask which storage to add before writing code.
+{% else %}
+## What This Does
+
+Generates an Alembic migration ({{ variables.migrations }}) for
+{{ variables.database }}, by autogenerate or as an empty template.
+
+## Usage
+
+```
+/new-migration "add role column to users"      # autogenerate
+/new-migration --empty "backfill user roles"   # empty template
+```
+
+## How It Works
+
+1. **Read** `.claude/patterns/{{ 'patterns/backend-patterns.md' | installed(stack) }}` (Migration Pattern).
+
+2. **Generate.**
+
+   ```bash
+   uv run alembic revision --autogenerate -m "<description>"
+   uv run alembic revision -m "<description>"      # --empty
+   ```
+
+3. **Review the file** in `alembic/versions/` (autogenerate misses things):
+   - `upgrade()` has exactly the intended changes; `downgrade()` reverses them
+   - Explicit index and constraint names
+   - A new NOT NULL column on a table with rows has a `server_default`, or is added
+     nullable, backfilled, then made NOT NULL in a later migration
+   - Renames show up as drop + add: rewrite them as `op.alter_column(..., new_column_name=...)`
+
+4. **Run quality checks.**
+
+   ```bash
+   uv run ruff format alembic/versions/<file>.py
+   uv run ruff check alembic/versions/<file>.py
+   ```
+{% endif %}

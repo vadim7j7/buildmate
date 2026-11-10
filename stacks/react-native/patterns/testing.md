@@ -3,6 +3,12 @@
 Testing patterns and conventions for React Native + Expo applications using
 Jest and React Native Testing Library. All agents must follow these patterns.
 
+> **RNTL v14+** (needed by `expo-router/testing-library`): `render`, `renderHook`,
+> `fireEvent` and `act` return Promises -- `await` them, even where an older example
+> below doesn't. Matchers are built in (`toBeOnTheScreen`, no `extend-expect` import).
+> State-library examples use Zustand; with another library follow its pattern file.
+> E2E flows are Maestro YAML in `.maestro/` (`make e2e APP_ID=...`), not Detox.
+
 ---
 
 ## 1. Test File Organization
@@ -37,8 +43,7 @@ src/
     │   └── navigation.test.tsx
     ├── integration/
     │   └── checkout-flow.test.tsx
-    └── e2e/
-        └── auth.e2e.ts
+.maestro/                     # Maestro E2E flows (YAML), outside Jest
 ```
 
 ---
@@ -611,15 +616,15 @@ function ItemDetail() {
 }
 
 describe('Navigation', () => {
-  it('navigates from Home to the item detail route', () => {
-    renderRouter(
+  it('navigates from Home to the item detail route', async () => {
+    await renderRouter(
       { index: Home, 'items/[id]': ItemDetail },
       { initialUrl: '/' }
     );
 
     expect(screen.getByText('Home Screen')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Item 1'));
+    await fireEvent.press(screen.getByText('Item 1'));
 
     expect(screen).toHavePathname('/items/1');
     expect(screen.getByText('Item ID: 1')).toBeTruthy();
@@ -737,7 +742,7 @@ export async function fillForm(fields: Record<string, string>) {
 | Queries (React Query) | renderHook + MSW | `src/queries/*.test.ts` |
 | Database | Jest | `src/db/queries/*.test.ts` |
 | Navigation | `expo-router/testing-library` (`renderRouter`) | `src/__tests__/app/navigation.test.tsx` |
-| E2E | Detox/Maestro | `e2e/*.e2e.ts` |
+| E2E | Maestro | `.maestro/*.yaml` |
 
 ### Common Queries
 

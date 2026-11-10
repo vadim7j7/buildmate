@@ -43,14 +43,15 @@ Review each changed file against the checklist below.
 - [ ] Blueprints for route organization
 - [ ] Configuration via environment variables / config classes
 - [ ] Extensions initialized in `extensions.py` (db, migrate, etc.)
-- [ ] Error handlers registered on the app
+- [ ] Errors are `application/problem+json` via the registered handlers (`abort()` / domain errors, no hand-built `{"error": ...}` bodies)
+- [ ] Celery tasks take ids, run in the app context (`FlaskTask`) and are enqueued after the commit
 - [ ] Request validation before processing
 - [ ] Business logic in services, not in route handlers
 - [ ] Proper use of `current_app`, `g`, and `request` context
 
 ### Performance
 
-- [ ] **N+1 Prevention**: Queries use `joinedload()` or `subqueryload()`
+- [ ] **N+1 Prevention**: Queries use `selectinload()` (collections) or `joinedload()` (many-to-one)
 - [ ] **Database Indices**: Foreign keys and frequently queried columns indexed
 - [ ] **Pagination**: List endpoints paginate results
 - [ ] **Connection Management**: `db.session` properly scoped

@@ -16,7 +16,7 @@ a pattern.
 ```
 /test                           # Run the full test suite
 /test TransactionCard           # Run tests matching "TransactionCard"
-/test __tests__/stores/         # Run all store tests
+/test __tests__/app/            # Run all screen tests
 /test --coverage                # Run with coverage reporting
 /test --watch                   # Run in watch mode (interactive)
 ```
@@ -72,7 +72,7 @@ Return a structured summary:
 
 ### Test Suites
 - PASS __tests__/components/TransactionCard.test.tsx (5 tests)
-- PASS __tests__/stores/useTransactionStore.test.ts (4 tests)
+- PASS __tests__/queries/useTransactions.test.ts (4 tests)
 - FAIL __tests__/screens/TransactionsScreen.test.tsx (2 passed, 1 failed)
 
 ### Failures (if any)
@@ -89,12 +89,16 @@ If running as part of a sequential pipeline, write results to
 
 When writing new tests or fixing failing tests, enforce these rules:
 
-1. **Isolate UI state** between tests (reset stores / fresh store or instance in `beforeEach`, as `.claude/patterns/<state library>.md` shows)
-2. **Fresh QueryClient** per test -- never share cached data
-3. **Mock database queries** -- never hit the real database
-4. **Mock expo-router** -- navigation must be mocked
-5. **Mock i18next** -- use `t: (key) => key` for predictable output
-6. **Use waitFor** for all async assertions
+1. **Await RNTL calls** -- v14+: `await render(...)`, `await fireEvent.press(...)`, `await renderHook(...)`
+2. **Isolate UI state** between tests (fresh store / instance or `reset()` in `beforeEach`)
+3. **Fresh QueryClient** per test -- never share cached data
+4. **Mock database queries** -- never hit the real database
+5. **Screens through `renderRouter`** (`expo-router/testing-library`) with a mock route map;
+   mock `expo-router` only in a component test that just calls `router.push`
+6. **Mock i18next** -- use `t: (key) => key` for predictable output
+7. **`findBy*` / `waitFor`** for async assertions; assert text, roles and callbacks, not style objects
+8. **E2E flows** (sign-in, deep links, permissions) are Maestro flows in `.maestro/`
+   (`make e2e APP_ID=...`), not Jest
 
 See `references/rn-jest-patterns.md` for complete code examples.
 
@@ -103,4 +107,4 @@ See `references/rn-jest-patterns.md` for complete code examples.
 - If no test configuration is found, report the error and suggest adding Jest config
 - If tests fail, report failures clearly but do NOT attempt to fix production code
 - If the test runner crashes, report the full error output
-- If store state leaks between tests, report it as a test infrastructure issue
+- If state leaks between tests, report it as a test infrastructure issue

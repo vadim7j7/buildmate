@@ -25,9 +25,9 @@ All Flask applications use the factory pattern for testability and flexibility.
 import os
 
 from flask import Flask
-from pydantic import ValidationError
 
 from app.config import CONFIGS
+from app.errors import register_error_handlers
 from app.extensions import cors, db, migrate
 
 
@@ -43,6 +43,9 @@ def create_app(config_name: str | None = None) -> Flask:
     """
     app = Flask(__name__)
     app.config.from_object(CONFIGS[config_name or os.environ.get("APP_ENV", "development")])
+    # Any FLASK_<KEY> env var overrides config (values parsed as JSON when they can be):
+    # FLASK_SQLALCHEMY_ECHO=true, FLASK_CELERY__broker_url=redis://...
+    app.config.from_prefixed_env()
     for key in ("SECRET_KEY", "SQLALCHEMY_DATABASE_URI"):
         if not app.config.get(key):
             raise RuntimeError(f"{key} is not configured")
@@ -58,7 +61,7 @@ def create_app(config_name: str | None = None) -> Flask:
         return {"status": "ok"}
 
     register_blueprints(app)
-    register_error_handlers(app)
+    register_error_handlers(app)  # problem+json, see errors.md
 
     return app
 
@@ -70,23 +73,6 @@ def register_blueprints(app: Flask) -> None:
 
     app.register_blueprint(projects_bp, url_prefix="/api/projects")
     app.register_blueprint(users_bp, url_prefix="/api/users")
-
-
-def register_error_handlers(app: Flask) -> None:
-    """Register global error handlers."""
-
-    @app.errorhandler(ValidationError)
-    def validation_error(error: ValidationError) -> tuple[dict[str, object], int]:
-        return {"errors": error.errors(include_url=False)}, 422
-
-    @app.errorhandler(404)
-    def not_found(error: Exception) -> tuple[dict[str, str], int]:
-        return {"error": "Not found"}, 404
-
-    @app.errorhandler(500)
-    def internal_error(error: Exception) -> tuple[dict[str, str], int]:
-        db.session.rollback()
-        return {"error": "Internal server error"}, 500
 ```
 
 ### App Factory Rules
@@ -95,7 +81,8 @@ def register_error_handlers(app: Flask) -> None:
 - Initialize extensions with `ext.init_app(app)`, not in constructors
 - Keep the `/health` route (the dev-server verification calls it)
 - Register blueprints in a dedicated function
-- Register error handlers globally
+- Register error handlers globally; every error is `application/problem+json`
+  (`.claude/patterns/errors.md`)
 - Load config from the `CONFIGS` mapping of config classes
 
 ---
@@ -107,7 +94,7 @@ Views are plain (sync) functions.
 
 ```python
 # src/app/blueprints/projects.py
-from flask import Blueprint, Response, g, jsonify, request
+from flask import Blueprint, Response, abort, g, jsonify, request
 
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from app.services.project_service import ProjectService
@@ -133,29 +120,29 @@ def create_project() -> tuple[Response, int]:
 
 
 @bp.get("/<int:project_id>")
-def get_project(project_id: int) -> Response | tuple[dict[str, str], int]:
+def get_project(project_id: int) -> Response:
     """Get a single project by ID."""
     project = ProjectService().get_by_id(project_id)
     if project is None:
-        return {"error": "Project not found"}, 404
+        abort(404, description=f"Project {project_id} not found")
     return jsonify(ProjectRead.model_validate(project).model_dump(mode="json"))
 
 
 @bp.patch("/<int:project_id>")
-def update_project(project_id: int) -> Response | tuple[dict[str, str], int]:
+def update_project(project_id: int) -> Response:
     """Update a project by ID (partial update)."""
     data = ProjectUpdate.model_validate(request.get_json())
     project = ProjectService().update(project_id, data)
     if project is None:
-        return {"error": "Project not found"}, 404
+        abort(404, description=f"Project {project_id} not found")
     return jsonify(ProjectRead.model_validate(project).model_dump(mode="json"))
 
 
 @bp.delete("/<int:project_id>")
-def delete_project(project_id: int) -> tuple[str, int] | tuple[dict[str, str], int]:
+def delete_project(project_id: int) -> tuple[str, int]:
     """Delete a project by ID."""
     if not ProjectService().delete(project_id):
-        return {"error": "Project not found"}, 404
+        abort(404, description=f"Project {project_id} not found")
     return "", 204
 ```
 
@@ -287,6 +274,9 @@ CONFIGS: dict[str, type[Config]] = {
 
 - Use class inheritance for environment-specific config, selected via `CONFIGS`
 - Read secrets from environment variables; no insecure fallback outside dev/test
+- `app.config.from_prefixed_env()` (in `create_app`, after `from_object`) lets any
+  `FLASK_<KEY>` variable override a value per deploy without a code change;
+  nested keys use `__` (`FLASK_CELERY__broker_url`)
 - Never read `os.environ["X"]` at class level (it fails on import in every environment)
 - Never hardcode credentials
 

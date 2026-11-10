@@ -15,58 +15,22 @@ npx expo install tamagui @tamagui/config @tamagui/babel-plugin
 ### Configuration
 
 ```typescript
-// tamagui.config.ts
+// tamagui.config.ts -- Config v4 (`@tamagui/config/v4`); v3's `config` export is legacy
 import { createTamagui } from 'tamagui';
-import { config } from '@tamagui/config/v3';
+import { defaultConfig } from '@tamagui/config/v4';
 
 const appConfig = createTamagui({
-  ...config,
+  ...defaultConfig,
+  // For a full brand theme suite use `createThemes` from '@tamagui/config/v4'
   themes: {
-    ...config.themes,
-    // Custom themes
-    brand: {
-      background: '#ffffff',
-      backgroundHover: '#f5f5f5',
-      backgroundPress: '#ebebeb',
-      color: '#1a1a1a',
-      colorHover: '#333333',
-      primary: '#3b82f6',
-      secondary: '#6366f1',
-    },
-    brand_dark: {
-      background: '#1a1a1a',
-      backgroundHover: '#2a2a2a',
-      backgroundPress: '#3a3a3a',
-      color: '#ffffff',
-      colorHover: '#ebebeb',
-      primary: '#60a5fa',
-      secondary: '#818cf8',
-    },
+    ...defaultConfig.themes,
+    light: { ...defaultConfig.themes.light, primary: '#3b82f6' },
+    dark: { ...defaultConfig.themes.dark, primary: '#60a5fa' },
   },
   tokens: {
-    ...config.tokens,
-    // Custom tokens
-    color: {
-      ...config.tokens.color,
-      brandPrimary: '#3b82f6',
-      brandSecondary: '#6366f1',
-    },
-    space: {
-      ...config.tokens.space,
-      xs: 4,
-      sm: 8,
-      md: 16,
-      lg: 24,
-      xl: 32,
-    },
-    radius: {
-      ...config.tokens.radius,
-      sm: 4,
-      md: 8,
-      lg: 12,
-      xl: 16,
-      full: 9999,
-    },
+    ...defaultConfig.tokens,
+    space: { ...defaultConfig.tokens.space, xs: 4, sm: 8, md: 16, lg: 24, xl: 32 },
+    radius: { ...defaultConfig.tokens.radius, sm: 4, md: 8, lg: 12, xl: 16, full: 9999 },
   },
 });
 
@@ -238,7 +202,7 @@ export function CardHeader({ title, subtitle }: { title: string; subtitle?: stri
     <YStack paddingBottom="$sm" borderBottomWidth={1} borderColor="$borderColor">
       <H3>{title}</H3>
       {subtitle && (
-        <Paragraph theme="alt2" size="$3">
+        <Paragraph color="$color10" size="$3">
           {subtitle}
         </Paragraph>
       )}
@@ -264,7 +228,6 @@ export function CardFooter({ children }: { children: React.ReactNode }) {
 ```typescript
 // src/components/Input.tsx
 import { Input as TamaguiInput, Label, YStack, Paragraph, styled } from 'tamagui';
-import { forwardRef } from 'react';
 
 const StyledInput = styled(TamaguiInput, {
   name: 'Input',
@@ -299,14 +262,14 @@ const StyledInput = styled(TamaguiInput, {
   },
 });
 
+// React 19: `ref` is a normal prop (part of the styled component's props) -- no forwardRef
 interface InputProps extends React.ComponentProps<typeof StyledInput> {
   label?: string;
   error?: string;
   helperText?: string;
 }
 
-export const Input = forwardRef<any, InputProps>(
-  ({ label, error, helperText, ...props }, ref) => {
+export function Input({ label, error, helperText, ref, ...props }: InputProps) {
     return (
       <YStack gap="$xs">
         {label && (
@@ -324,14 +287,13 @@ export const Input = forwardRef<any, InputProps>(
         )}
 
         {helperText && !error && (
-          <Paragraph size="$2" theme="alt2">
+          <Paragraph size="$2" color="$color10">
             {helperText}
           </Paragraph>
         )}
       </YStack>
     );
-  }
-);
+}
 ```
 
 ---
@@ -429,7 +391,7 @@ function App() {
   const colorScheme = useColorScheme();
 
   return (
-    <Theme name={colorScheme === 'dark' ? 'brand_dark' : 'brand'}>
+    <Theme name={colorScheme === 'dark' ? 'dark' : 'light'}>
       <YStack flex={1} backgroundColor="$background">
         <Paragraph color="$color">Themed content</Paragraph>
       </YStack>
@@ -438,9 +400,9 @@ function App() {
 }
 
 // Nested themes
-<Theme name="brand">
+<Theme name="light">
   <Card>
-    <Theme name="brand_dark">
+    <Theme name="dark">
       <YStack padding="$md" backgroundColor="$background">
         <Paragraph>Dark section</Paragraph>
       </YStack>
@@ -468,7 +430,7 @@ export function AnimatedCard({ title, description }) {
     >
       <YStack gap="$sm">
         <Paragraph fontWeight="600">{title}</Paragraph>
-        <Paragraph theme="alt2">{description}</Paragraph>
+        <Paragraph color="$color10">{description}</Paragraph>
       </YStack>
     </Card>
   );

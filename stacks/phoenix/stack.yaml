@@ -27,6 +27,10 @@ agents:
       - new-live
       - new-controller
       - new-channel
+      - new-schema
+      - new-migration
+      - new-component
+      - new-job
       - new-module
       - new-genserver
 
@@ -43,6 +47,7 @@ agents:
       - Glob
     skills:
       - test
+      - new-test
 
   - name: backend-reviewer
     template: agents/backend-reviewer.md.j2
@@ -61,10 +66,23 @@ skills:
   - new-channel
   - new-module
   - new-genserver
+  - new-schema
+  - new-migration
+  - new-component
+  - new-job
   - test
+  - new-test
 
 patterns:
   - patterns/phoenix-patterns.md
+
+# Plus elixir's testing.md and pitfalls.md (inherited)
+reference_patterns:
+  - patterns/auth.md
+  - patterns/phoenix-testing.md
+  - patterns/pubsub.md
+  - patterns/security.md
+  - patterns/pagination.md
 
 setup:
   install_command: mix deps.get && mix compile

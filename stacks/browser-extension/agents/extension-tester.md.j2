@@ -22,11 +22,20 @@ content-script behaviour, and UI surfaces in isolation — mocking the WebExtens
 
 ## Core Expertise
 
-- Vitest with the `WxtVitest` plugin (`wxt/testing`)
+- Vitest with the `WxtVitest` plugin (`wxt/testing/vitest-plugin`)
 - `@webext-core/fake-browser` for an in-memory `browser` implementation
 - Testing `{{ variables.messaging }}` protocol handlers
 - Testing `{{ variables.storage_api }}` items, fallbacks, and migrations
-- {{ variables.ui_framework }} component tests for popup / options surfaces
+{% if variables.ui_framework == 'React' %}
+- React surface tests with `@testing-library/react` (jsdom / happy-dom environment)
+{% elif variables.ui_framework == 'Vue' %}
+- Vue surface tests with `@vue/test-utils` (jsdom / happy-dom environment)
+{% elif variables.ui_framework == 'Svelte' %}
+- Svelte 5 surface tests with `@testing-library/svelte` (jsdom / happy-dom environment)
+{% else %}
+- DOM tests for the plain-TS surfaces (happy-dom / jsdom environment)
+{% endif %}
+- Playwright E2E against the built extension (Chromium, persistent context)
 
 ## Before Writing Tests
 
@@ -94,12 +103,34 @@ response and any storage side-effects. Validate that handlers reject untrusted s
 Extract pure DOM/transform logic into `utils/` functions and unit-test those directly.
 Use `@vitest/browser` or jsdom only for code that truly needs a DOM.
 
+### Test UI surfaces
+
+Keep surface logic in hooks/composables/`utils/` and test those with `fakeBrowser`. For a
+rendered surface, use a DOM environment for that file only (`// @vitest-environment happy-dom`)
+{% if variables.ui_framework == 'React' %}and `render(<App />)` from `@testing-library/react`;
+{% elif variables.ui_framework == 'Vue' %}and `mount(App)` from `@vue/test-utils`;
+{% elif variables.ui_framework == 'Svelte' %}and `render(App)` from `@testing-library/svelte`;
+{% else %}and import the surface's `main.ts` after creating `<div id="app">`;
+{% endif %}
+assert on text and roles, and drive storage through the real `storage.defineItem` items.
+
+### E2E with Playwright (real extension, Chromium)
+
+Unit tests fake the browser; one or two E2E specs prove the built extension loads and its
+surfaces work. Follow `.claude/patterns/{{ 'patterns/testing.md' | installed(stack) }}` section 7: `npm run test:e2e` builds
+`.output/chrome-mv3` and runs Playwright with a persistent Chromium context
+(`--load-extension`). The `extensionId` fixture comes from the service worker URL; open
+surfaces at `chrome-extension://${extensionId}/popup.html` (also `options.html`,
+`sidepanel.html`). Only Chromium loads unpacked extensions this way: Firefox and Safari
+builds are checked manually.
+
 ## Coverage Targets
 
 - Every message in the `ProtocolMap` has at least one handler test
 - Every `storage.defineItem` has fallback + round-trip + migration tests
 - Permission-gated paths assert the guard rejects when permission is absent
 - Cross-browser branches (`import.meta.env.FIREFOX`, MV2/MV3) are both exercised
+- An E2E smoke spec: the service worker starts and the popup renders
 
 ## Completion Checklist
 
@@ -107,4 +138,5 @@ Use `@vitest/browser` or jsdom only for code that truly needs a DOM.
 1. **{{ gate_name | title }}**: `{{ gate.command }}`
 {% endfor %}
 
+Run `npm run test:e2e` too when the change touches a surface, the manifest or messaging.
 All tests must pass and typecheck must be clean before marking work complete.

@@ -1,0 +1,10 @@
+# Smoke E2E flow. Run every flow with `make e2e APP_ID=<bundle id>`
+# (= maestro test -e APP_ID=... .maestro/) against a simulator/emulator that has a
+# development or preview build installed. APP_ID is the iOS bundle id / Android
+# package from app.json. Select elements by testID (`id:`), not translated text.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "home-screen"

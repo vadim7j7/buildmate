@@ -33,7 +33,7 @@ tests following project conventions and best practices.
 
 ## Before Writing Any Tests
 
-**ALWAYS** read `.claude/patterns/testing.md` (fixtures, factories, authenticated
+**ALWAYS** read `.claude/patterns/{{ 'patterns/testing.md' | installed(stack) }}` (fixtures, factories, authenticated
 clients{% if variables.database != 'MongoDB' %}, database overrides{% endif %}) and the existing test patterns:
 
 ```

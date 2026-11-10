@@ -39,8 +39,10 @@ mobile code that runs on both iOS and Android.
 - StyleSheet.create with theme constants
 {% elif variables.ui_library == 'NativeWind' %}
 - NativeWind (`className` utility classes) with the Tailwind theme
+{% elif variables.ui_library == 'Gluestack UI' %}
+- gluestack-ui copy-paste components (`src/components/ui/`) styled with `className`
 {% else %}
-- {{ variables.ui_library }} components with theme tokens
+- Tamagui components with theme tokens (Config v4)
 {% endif %}
 
 ## Before Writing Any Code
@@ -231,7 +233,8 @@ export default function ItemsScreen() {
 ```typescript
 // src/app/(tabs)/items.tsx
 import { Platform } from 'react-native';
-import { Box, Text } from '@gluestack-ui/themed';
+import { Box } from '@/components/ui/box';
+import { Text } from '@/components/ui/text';
 import { Stack, Link, router } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
@@ -245,14 +248,14 @@ export default function ItemsScreen() {
   const { data: items, isLoading, refetch } = useItems();
 
   return (
-    <Box flex={1} bg="$backgroundLight0">
+    <Box className="flex-1 bg-background">
       <Stack.Screen
         options={{
           title: t('items.title'),
           ...(Platform.OS === 'ios' && {
             headerRight: () => (
               <Link href="/items/new">
-                <Text color="$primary500" fontWeight="$semibold">{t('common.add')}</Text>
+                <Text className="font-semibold text-primary">{t('common.add')}</Text>
               </Link>
             ),
           }),
@@ -450,17 +453,31 @@ export async function createFeature(data: NewFeature) {
 - Import constants: `import { colors, spacing, typography, borderRadius, shadows } from '@/constants'`
 - Spacing scale: `xs=4, sm=8, md=16, lg=24, xl=32, xxl=48`
 {% elif variables.ui_library == 'NativeWind' %}
-- Style with `className` utility classes (`.claude/styles/nativewind.md`) -- no `StyleSheet.create`
+- Style with `className` utility classes (`.claude/styles/{{ 'styles/nativewind.md' | installed(stack) }}`) -- no `StyleSheet.create`
   and no inline style objects except for values computed at runtime (e.g. animations)
 - Colours, spacing and fonts come from the Tailwind theme -- no arbitrary hex values
 - Keep class names whole static strings (Tailwind can't see `bg-${color}`); for conditional styles switch between full class names
+{% elif variables.ui_library == 'Gluestack UI' %}
+- Build UI from gluestack-ui components copied into `src/components/ui/` by
+  `npx gluestack-ui@latest add <name>` (`.claude/styles/{{ 'styles/gluestack.md' | installed(stack) }}`); never import the
+  retired `@gluestack-ui/themed`
+- Style with `className` and the theme's semantic colour classes (`bg-primary`,
+  `text-muted-foreground`); variants via `tva`; no `StyleSheet.create`, no hex values
 {% else %}
-- Build UI from {{ variables.ui_library }} components with style props (`.claude/styles/{{ 'gluestack' if variables.ui_library == 'Gluestack UI' else 'tamagui' }}.md`)
+- Build UI from Tamagui components with style props (`.claude/styles/{{ 'styles/tamagui.md' | installed(stack) }}`)
   -- no `StyleSheet.create` alongside them
-- Colours, spacing and fonts are theme tokens (`$primary`, `$4`, ...) -- no raw values
+- Colours, spacing and fonts are theme tokens (`$color`, `$background`, `$4`, ...) -- no raw values
 {% endif %}
 - Use `Platform.OS` for platform-specific styles
 - Use `useSafeAreaInsets()` for notch and island handling
+
+## Security Rules
+
+- Auth tokens, refresh tokens and any secret go in `expo-secure-store`
+  (Keychain / Keystore), never in AsyncStorage, MMKV or a persisted
+  {{ variables.state_library if variables.state_library != 'None' else 'store' }}{{ ' store' if variables.state_library != 'None' else '' }}
+- `EXPO_PUBLIC_*` env vars are bundled into the app: never put API secrets there
+- Details: `.claude/patterns/{{ 'patterns/security.md' | installed(stack) }}`
 
 ## Navigation Rules
 
@@ -489,8 +506,8 @@ This project is scaffolded with real build infrastructure — use it, don't rein
   (e.g. `make build-preview-ios`, `make ship-prod-android`, `make update-prod`, `make verify`).
 - **`fastlane/`** — Maestro capture scripts + Fastlane lanes push **localized metadata +
   framed screenshots only** (no binary) to App Store Connect / Google Play, looping the same
-  locale set as i18n. See `.claude/patterns/fastlane-screenshots.md` and `.claude/patterns/eas-build.md`.
-- Drizzle migrations are applied **on startup** (`.claude/patterns/drizzle-sqlite.md`); after editing
+  locale set as i18n. See `.claude/patterns/{{ 'patterns/fastlane-screenshots.md' | installed(stack) }}` and `.claude/patterns/{{ 'patterns/eas-build.md' | installed(stack) }}`.
+- Drizzle migrations are applied **on startup** (`.claude/patterns/{{ 'patterns/drizzle-sqlite.md' | installed(stack) }}`); after editing
   `src/db/schema.ts`, run `npx drizzle-kit generate`. The generated `.sql` files only bundle
   because `babel.config.js` has `["inline-import", { extensions: [".sql"] }]`
   (`npm i -D babel-plugin-inline-import`) and `metro.config.js` pushes `"sql"` onto
@@ -499,9 +516,12 @@ This project is scaffolded with real build infrastructure — use it, don't rein
 ## Performance Rules
 
 - Use `FlashList` for any list with more than ~20 items
-- Use `React.memo()` for list item components
-- Use `useCallback` for event handlers passed to list items
-- Use `useMemo` for expensive computations in render
+- The React Compiler (enabled in Expo SDK 54+ templates, `experiments.reactCompiler`
+  in `app.json`) memoizes components and values. Don't add `React.memo`, `useCallback`
+  or `useMemo` by default; add one only for a measured problem (React DevTools profiler,
+  FlashList blank cells) and say why in a comment. Keep components compiler-friendly:
+  no mutating props or state, no reading `ref.current` during render
+- React 19: `ref` is a normal prop -- don't write new `forwardRef` wrappers
 - Use `expo-image` instead of `<Image>` from react-native
 - FlashList v2: never pass `estimatedItemSize` (removed in v2 — items are measured); use
   `getItemType` for mixed rows, the `masonry` prop instead of `MasonryFlashList`, and

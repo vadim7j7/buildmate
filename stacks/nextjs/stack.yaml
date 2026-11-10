@@ -33,7 +33,7 @@ options:
         styles:
           - styles/mantine.md
         variables:
-          ui_library: Mantine v7+
+          ui_library: Mantine v9
       tailwind:
         description: Utility-first CSS framework
         styles:
@@ -187,6 +187,13 @@ skills:
   - clone-page
   - analyze-site
 
+# Merged with the javascript parent's gates (typecheck, lint, tests). `build` is
+# last on purpose: slow, but the only gate that catches RSC/client boundary errors.
+quality_gates:
+  build:
+    command: npm run build
+    description: Production build (catches Server/Client Component boundary errors)
+
 # Always read: the core framework pattern (+ the state option's pattern, + the
 # javascript parent's typescript-patterns.md).
 patterns:
@@ -195,6 +202,7 @@ patterns:
 # Read only when the task touches the topic.
 reference_patterns:
   - patterns/auth.md
+  - patterns/cache-components.md
   - patterns/pagination.md
   - patterns/i18n.md
   - patterns/logging.md

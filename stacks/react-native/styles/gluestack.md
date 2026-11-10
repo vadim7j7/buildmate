@@ -1,87 +1,39 @@
-# Gluestack UI Style Guide
+# gluestack-ui Style Guide
 
-Universal component library for React Native.
+gluestack-ui (v3 and later; the docs are on v5) is **not a package you import
+components from**. The CLI copies each component's source into the project, and the
+components are styled with Tailwind classes through NativeWind (or UniWind). You own
+and edit that code.
+
+The v1 packages (`@gluestack-ui/themed`, `@gluestack-style/react`,
+`@gluestack-ui/config`, `bg="$primary500"` style props) are retired: never add them.
 
 ---
 
 ## Setup
 
-### Installation
-
 ```bash
-npx gluestack-ui init
-npx expo install @gluestack-ui/themed @gluestack-style/react
+npx gluestack-ui@latest init                 # picks the styling engine, adds GluestackUIProvider,
+                                             # edits metro/babel config, global.css and the entry file
+npx gluestack-ui@latest add button input box # one component at a time
+npx gluestack-ui@latest add --all            # or everything
 ```
 
-### Configuration
-
-```typescript
-// gluestack.config.ts
-import { createConfig } from '@gluestack-ui/themed';
-import { config as defaultConfig } from '@gluestack-ui/config';
-
-export const config = createConfig({
-  ...defaultConfig,
-  tokens: {
-    ...defaultConfig.tokens,
-    colors: {
-      ...defaultConfig.tokens.colors,
-      // Custom brand colors
-      primary50: '#eff6ff',
-      primary100: '#dbeafe',
-      primary200: '#bfdbfe',
-      primary300: '#93c5fd',
-      primary400: '#60a5fa',
-      primary500: '#3b82f6',
-      primary600: '#2563eb',
-      primary700: '#1d4ed8',
-      primary800: '#1e40af',
-      primary900: '#1e3a8a',
-    },
-    space: {
-      ...defaultConfig.tokens.space,
-      xs: 4,
-      sm: 8,
-      md: 16,
-      lg: 24,
-      xl: 32,
-      '2xl': 40,
-    },
-    radii: {
-      ...defaultConfig.tokens.radii,
-      sm: 4,
-      md: 8,
-      lg: 12,
-      xl: 16,
-      full: 9999,
-    },
-  },
-  aliases: {
-    ...defaultConfig.aliases,
-    // Custom aliases
-    bg: 'backgroundColor',
-    p: 'padding',
-    m: 'margin',
-    w: 'width',
-    h: 'height',
-  },
-});
-
-type ConfigType = typeof config;
-
-declare module '@gluestack-ui/themed' {
-  interface ICustomConfig extends ConfigType {}
-}
-```
+The CLI writes to `components/ui/` by default. This project keeps app code in `src/`,
+so pass `--path src/components/ui` (and record it in `gluestack-ui.config.json`
+under `app.components`). Components are then imported as `@/components/ui/<name>`.
+`init` rewrites `babel.config.js` and `metro.config.js`: keep the Drizzle lines
+(`inline-import` for `.sql`, `sourceExts.push("sql")`) when it does.
 
 ```typescript
 // src/app/_layout.tsx
-import { GluestackUIProvider } from '@gluestack-ui/themed';
-import { config } from '../gluestack.config';
+import '@/global.css';
+import { Stack } from 'expo-router';
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 
 export default function RootLayout() {
   return (
-    <GluestackUIProvider config={config}>
+    <GluestackUIProvider mode="system">  {/* 'light' | 'dark' | 'system' */}
       <Stack />
     </GluestackUIProvider>
   );
@@ -90,467 +42,159 @@ export default function RootLayout() {
 
 ---
 
-## Component Patterns
+## Theme
 
-### Button Component
+Tokens are CSS variables defined per mode in
+`src/components/ui/gluestack-ui-provider/config.ts` (bare RGB triplets, so opacity
+modifiers work) and mapped to Tailwind colours in `global.css`:
 
 ```typescript
-// src/components/Button.tsx
-import {
-  Button as GluestackButton,
-  ButtonText,
-  ButtonSpinner,
-  ButtonIcon,
-} from '@gluestack-ui/themed';
-import { ComponentProps, ReactNode } from 'react';
+// src/components/ui/gluestack-ui-provider/config.ts
+import { vars } from 'nativewind';
 
-interface ButtonProps extends ComponentProps<typeof GluestackButton> {
-  title: string;
-  isLoading?: boolean;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
-}
-
-export function Button({
-  title,
-  isLoading,
-  leftIcon,
-  rightIcon,
-  variant = 'solid',
-  size = 'md',
-  action = 'primary',
-  ...props
-}: ButtonProps) {
-  return (
-    <GluestackButton
-      variant={variant}
-      size={size}
-      action={action}
-      isDisabled={isLoading || props.isDisabled}
-      {...props}
-    >
-      {isLoading && <ButtonSpinner mr="$2" />}
-      {leftIcon && <ButtonIcon as={leftIcon} mr="$2" />}
-      <ButtonText>{title}</ButtonText>
-      {rightIcon && <ButtonIcon as={rightIcon} ml="$2" />}
-    </GluestackButton>
-  );
-}
-
-// Usage
-<Button title="Sign In" action="primary" />
-<Button title="Cancel" variant="outline" action="secondary" />
-<Button title="Delete" action="negative" />
-<Button title="Loading..." isLoading />
+export const config = {
+  light: vars({ '--primary': '59 130 246', '--primary-foreground': '255 255 255' /* ... */ }),
+  dark: vars({ '--primary': '147 197 253', '--primary-foreground': '15 23 42' /* ... */ }),
+};
 ```
 
-### Card Component
+Use the semantic colour classes the theme defines: `bg-background`, `text-foreground`,
+`bg-card`, `bg-primary` / `text-primary-foreground`, `bg-secondary`, `bg-muted` /
+`text-muted-foreground`, `bg-destructive`, `border-border`, `border-input`, plus opacity
+(`bg-primary/10`). Projects generated with v3 use numbered scales (`bg-primary-500`):
+follow whatever the generated `config.ts` defines. Brand changes go in `config.ts`,
+never as hex values in components.
+
+---
+
+## Using Components
 
 ```typescript
-// src/components/Card.tsx
-import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Pressable,
-} from '@gluestack-ui/themed';
-import { ReactNode } from 'react';
+// src/components/forms/SaveButton.tsx
+import { Button, ButtonText, ButtonSpinner } from '@/components/ui/button';
 
-interface CardProps {
-  children: ReactNode;
-  onPress?: () => void;
-  variant?: 'elevated' | 'outlined' | 'filled';
+interface SaveButtonProps {
+  label: string;
+  isSaving: boolean;
+  onPress: () => void;
 }
 
-export function Card({ children, onPress, variant = 'elevated' }: CardProps) {
-  const variantStyles = {
-    elevated: {
-      bg: '$white',
-      shadowColor: '$gray400',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    outlined: {
-      bg: '$white',
-      borderWidth: 1,
-      borderColor: '$gray200',
-    },
-    filled: {
-      bg: '$gray50',
-    },
-  };
-
-  const Wrapper = onPress ? Pressable : Box;
-
+export function SaveButton({ label, isSaving, onPress }: SaveButtonProps) {
   return (
-    <Wrapper
-      onPress={onPress}
-      p="$4"
-      borderRadius="$lg"
-      {...variantStyles[variant]}
-      sx={{
-        ':active': onPress ? { opacity: 0.8 } : undefined,
-      }}
-    >
-      {children}
-    </Wrapper>
+    <Button action="primary" size="md" isDisabled={isSaving} onPress={onPress}>
+      {isSaving && <ButtonSpinner className="mr-2" />}
+      <ButtonText>{label}</ButtonText>
+    </Button>
   );
 }
+```
 
-export function CardHeader({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
+- Variant props (`action`, `variant`, `size`) come from the component's `tva` definition.
+- Extra styling is `className`; it is merged with the variant classes.
+- Layout primitives: `Box`, `VStack` / `HStack` (`space="md"`), `Center`, `Text`,
+  `Heading`, all from `@/components/ui/<name>`.
+
+### A Card Built from Primitives
+
+```typescript
+// src/components/lists/TransactionCard.tsx
+import { Pressable } from '@/components/ui/pressable';
+import { HStack } from '@/components/ui/hstack';
+import { VStack } from '@/components/ui/vstack';
+import { Text } from '@/components/ui/text';
+import type { Transaction } from '@/db/schema';
+
+interface TransactionCardProps {
+  transaction: Transaction;
+  onPress?: (id: string) => void;
+}
+
+export function TransactionCard({ transaction, onPress }: TransactionCardProps) {
+  const isExpense = transaction.amount < 0;
   return (
-    <VStack space="xs" mb="$3" pb="$3" borderBottomWidth={1} borderColor="$gray100">
-      <Heading size="md">{title}</Heading>
-      {subtitle && (
-        <Text size="sm" color="$gray500">
-          {subtitle}
+    <Pressable
+      onPress={() => onPress?.(transaction.id)}
+      className="mx-4 rounded-lg bg-card p-4 data-[active=true]:opacity-80"
+    >
+      <HStack space="md" className="items-center">
+        <VStack className="flex-1">
+          <Text className="text-foreground" numberOfLines={1}>{transaction.description}</Text>
+          <Text size="sm" className="capitalize text-muted-foreground">{transaction.category}</Text>
+        </VStack>
+        <Text bold className={isExpense ? 'text-destructive' : 'text-primary'}>
+          {transaction.amount.toFixed(2)}
         </Text>
-      )}
-    </VStack>
-  );
-}
-
-export function CardContent({ children }: { children: ReactNode }) {
-  return <VStack space="sm">{children}</VStack>;
-}
-
-export function CardFooter({ children }: { children: ReactNode }) {
-  return (
-    <HStack space="sm" mt="$4" justifyContent="flex-end">
-      {children}
-    </HStack>
+      </HStack>
+    </Pressable>
   );
 }
 ```
 
-### Input Component
+State styling uses the `data-*` attributes the components set (`data-[active=true]`,
+`data-[disabled=true]`, `data-[focus=true]`, `data-[invalid=true]`).
+
+### Form Field
 
 ```typescript
-// src/components/Input.tsx
-import {
-  FormControl,
-  FormControlLabel,
-  FormControlLabelText,
-  FormControlHelper,
-  FormControlHelperText,
-  FormControlError,
-  FormControlErrorIcon,
-  FormControlErrorText,
-  Input as GluestackInput,
-  InputField,
-  InputSlot,
-  InputIcon,
-} from '@gluestack-ui/themed';
-import { AlertCircle } from 'lucide-react-native';
-import { ComponentProps, forwardRef, ReactNode } from 'react';
+import { FormControl, FormControlLabel, FormControlLabelText, FormControlError,
+  FormControlErrorText } from '@/components/ui/form-control';
+import { Input, InputField } from '@/components/ui/input';
 
-interface InputProps extends ComponentProps<typeof InputField> {
-  label?: string;
-  error?: string;
-  helperText?: string;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
-  isRequired?: boolean;
-}
-
-export const Input = forwardRef<any, InputProps>(
-  (
-    { label, error, helperText, leftIcon, rightIcon, isRequired, ...props },
-    ref
-  ) => {
-    return (
-      <FormControl isInvalid={!!error} isRequired={isRequired}>
-        {label && (
-          <FormControlLabel>
-            <FormControlLabelText>{label}</FormControlLabelText>
-          </FormControlLabel>
-        )}
-
-        <GluestackInput
-          variant="outline"
-          size="md"
-          isInvalid={!!error}
-        >
-          {leftIcon && (
-            <InputSlot pl="$3">
-              <InputIcon as={leftIcon} color="$gray400" />
-            </InputSlot>
-          )}
-
-          <InputField ref={ref} {...props} />
-
-          {rightIcon && (
-            <InputSlot pr="$3">
-              <InputIcon as={rightIcon} color="$gray400" />
-            </InputSlot>
-          )}
-        </GluestackInput>
-
-        {error && (
-          <FormControlError>
-            <FormControlErrorIcon as={AlertCircle} />
-            <FormControlErrorText>{error}</FormControlErrorText>
-          </FormControlError>
-        )}
-
-        {helperText && !error && (
-          <FormControlHelper>
-            <FormControlHelperText>{helperText}</FormControlHelperText>
-          </FormControlHelper>
-        )}
-      </FormControl>
-    );
-  }
-);
+<FormControl isInvalid={!!errors.name} isRequired>
+  <FormControlLabel>
+    <FormControlLabelText>{t('budgets.name')}</FormControlLabelText>
+  </FormControlLabel>
+  <Input variant="outline" size="md">
+    <InputField value={name} onChangeText={setName} testID="budget-name-input" />
+  </Input>
+  <FormControlError>
+    <FormControlErrorText>{errors.name}</FormControlErrorText>
+  </FormControlError>
+</FormControl>
 ```
 
 ---
 
-## Layout Components
+## Writing Your Own Variants
 
-### Screen Layout
-
-```typescript
-// src/components/ScreenLayout.tsx
-import { Box, ScrollView, VStack } from '@gluestack-ui/themed';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyboardAvoidingView, Platform } from 'react-native';
-import { ReactNode } from 'react';
-
-interface ScreenLayoutProps {
-  children: ReactNode;
-  scrollable?: boolean;
-  padded?: boolean;
-}
-
-export function ScreenLayout({
-  children,
-  scrollable = true,
-  padded = true,
-}: ScreenLayoutProps) {
-  const insets = useSafeAreaInsets();
-
-  const content = (
-    <VStack
-      flex={1}
-      bg="$white"
-      px={padded ? '$4' : '$0'}
-      pt={insets.top}
-      pb={insets.bottom}
-    >
-      {children}
-    </VStack>
-  );
-
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {scrollable ? (
-        <ScrollView
-          flex={1}
-          bg="$white"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1 }}
-        >
-          {content}
-        </ScrollView>
-      ) : (
-        content
-      )}
-    </KeyboardAvoidingView>
-  );
-}
-```
-
-### Stack Layouts
+New project components follow the generated files: a `tva` style definition plus a
+component that forwards `className`. Import `tva` from the same module the generated
+components in `src/components/ui/` import it from (the path differs between versions).
 
 ```typescript
-// Using Gluestack's built-in stacks
-import { HStack, VStack, Box } from '@gluestack-ui/themed';
+// src/components/ui/badge-pill/index.tsx
+import { Text } from 'react-native';
+import { tva, type VariantProps } from '<same import as src/components/ui/box/index.tsx>';
 
-// Horizontal stack
-<HStack space="md" alignItems="center" justifyContent="space-between">
-  <Button title="Cancel" variant="outline" />
-  <Button title="Save" action="primary" />
-</HStack>
-
-// Vertical stack
-<VStack space="sm" p="$4">
-  <Input label="Email" placeholder="Enter email" />
-  <Input label="Password" placeholder="Enter password" type="password" />
-  <Button title="Sign In" />
-</VStack>
-
-// Grid-like layout
-<HStack flexWrap="wrap" space="sm">
-  {items.map((item) => (
-    <Box key={item.id} w="48%">
-      <Card>{item.content}</Card>
-    </Box>
-  ))}
-</HStack>
-```
-
----
-
-## Theming
-
-### Color Modes
-
-```typescript
-// src/hooks/useColorMode.ts
-import { useColorMode as useGluestackColorMode } from '@gluestack-ui/themed';
-
-export function useColorMode() {
-  const { colorMode, toggleColorMode, setColorMode } = useGluestackColorMode();
-  return { colorMode, toggleColorMode, setColorMode };
-}
-
-// Usage
-function ThemeToggle() {
-  const { colorMode, toggleColorMode } = useColorMode();
-
-  return (
-    <Button
-      title={colorMode === 'dark' ? 'Light Mode' : 'Dark Mode'}
-      onPress={toggleColorMode}
-    />
-  );
-}
-```
-
-### Theme-aware Styling
-
-```typescript
-// src/components/ThemedCard.tsx
-import { Box, useColorMode } from '@gluestack-ui/themed';
-
-export function ThemedCard({ children }) {
-  const { colorMode } = useColorMode();
-
-  return (
-    <Box
-      bg={colorMode === 'dark' ? '$gray800' : '$white'}
-      p="$4"
-      borderRadius="$lg"
-      borderWidth={1}
-      borderColor={colorMode === 'dark' ? '$gray700' : '$gray200'}
-    >
-      {children}
-    </Box>
-  );
-}
-```
-
----
-
-## Forms
-
-### Form Pattern
-
-```typescript
-// src/components/LoginForm.tsx
-import { VStack } from '@gluestack-ui/themed';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Input } from './Input';
-import { Button } from './Button';
-
-const loginSchema = z.object({
-  email: z.string().email('Invalid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+const pillStyle = tva({
+  base: 'self-start rounded-full px-2 py-0.5 text-xs font-medium',
+  variants: {
+    tone: {
+      neutral: 'bg-muted text-foreground',
+      success: 'bg-primary/10 text-primary',
+      danger: 'bg-destructive/10 text-destructive',
+    },
+  },
+  defaultVariants: { tone: 'neutral' },
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type PillProps = React.ComponentProps<typeof Text> & VariantProps<typeof pillStyle>;
 
-export function LoginForm({ onSubmit }: { onSubmit: (data: LoginFormData) => void }) {
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  return (
-    <VStack space="md">
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <Input
-            label="Email"
-            placeholder="Enter your email"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            onChangeText={onChange}
-            onBlur={onBlur}
-            value={value}
-            error={errors.email?.message}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="password"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <Input
-            label="Password"
-            placeholder="Enter your password"
-            type="password"
-            onChangeText={onChange}
-            onBlur={onBlur}
-            value={value}
-            error={errors.password?.message}
-          />
-        )}
-      />
-
-      <Button
-        title="Sign In"
-        onPress={handleSubmit(onSubmit)}
-        isLoading={isSubmitting}
-      />
-    </VStack>
-  );
+export function Pill({ tone, className, ...props }: PillProps) {
+  return <Text className={pillStyle({ tone, class: className })} {...props} />;
 }
 ```
 
+React 19: `ref` is a normal prop, so components take it in their props; no `forwardRef`.
+
 ---
 
-## Best Practices
+## Rules
 
-1. **Use semantic tokens** - Reference tokens like `$primary500` instead of raw colors
-2. **Compose components** - Build complex components from primitives
-3. **Form integration** - Use react-hook-form with Controller
-4. **Accessibility** - Use semantic components with proper labels
-5. **Theme consistency** - Stick to the design system tokens
-6. **Performance** - Use memoization for complex renders
-7. **Type safety** - Leverage TypeScript for props
-
-```typescript
-// Example: Accessible button group
-import { ButtonGroup, Button, ButtonText } from '@gluestack-ui/themed';
-
-<ButtonGroup isAttached>
-  <Button variant="outline" action="secondary">
-    <ButtonText>Option 1</ButtonText>
-  </Button>
-  <Button variant="solid" action="primary">
-    <ButtonText>Option 2</ButtonText>
-  </Button>
-  <Button variant="outline" action="secondary">
-    <ButtonText>Option 3</ButtonText>
-  </Button>
-</ButtonGroup>
-```
+1. Add components with the CLI, then edit the copied source; don't wrap them in
+   another layer just to restyle them.
+2. Style with `className` and theme colour classes; no `StyleSheet.create`, no hex values.
+3. Class names are whole static strings (`isExpense ? 'text-destructive' : 'text-primary'`),
+   never built with template strings (`text-${tone}`), which Tailwind can't see.
+4. Variants live in `tva`, not in ad-hoc conditionals spread across screens.
+5. Inline `style` only for runtime-computed values (animations, measured sizes).

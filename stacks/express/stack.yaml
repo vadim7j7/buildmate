@@ -26,10 +26,12 @@ agents:
       - new-router
       - new-middleware
       - new-controller
+      - new-model
+      - db-migrate
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
-    description: Jest testing specialist
+    description: Vitest + Supertest testing specialist
     model: sonnet
     tools:
       - Read
@@ -40,6 +42,7 @@ agents:
       - Glob
     skills:
       - test
+      - new-test
 
   - name: backend-reviewer
     template: agents/backend-reviewer.md.j2
@@ -55,13 +58,26 @@ skills:
   - new-router
   - new-middleware
   - new-controller
+  - new-model
+  - db-migrate
+  - new-test
 
+# Always read: the core framework pattern (+ the javascript parent's typescript-patterns.md).
 patterns:
   - patterns/express-patterns.md
 
+# Read only when the task touches the topic. Prefixed names: a frontend installed
+# next to Express (express+nextjs) ships its own security/auth/testing files.
+reference_patterns:
+  - patterns/express-security.md
+  - patterns/express-auth.md
+  - patterns/express-logging.md
+  - patterns/express-pagination.md
+  - patterns/express-testing.md
+
 variables:
   framework: Express 5+
-  test_framework: Jest
+  test_framework: Vitest + Supertest
   orm: Prisma
   validation: Zod
   dev_port: 4000

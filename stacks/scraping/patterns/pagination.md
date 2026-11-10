@@ -233,8 +233,13 @@ async def scrape_load_more(
         if not button:
             break
 
+        before = await page.locator(item_selector).count()
         await button.click()
-        await page.wait_for_load_state("networkidle")
+        # Wait until new items render (not "networkidle": trackers keep it busy)
+        await page.wait_for_function(
+            "([sel, n]) => document.querySelectorAll(sel).length > n",
+            arg=[item_selector, before],
+        )
         clicks += 1
 
     elements = await page.query_selector_all(item_selector)

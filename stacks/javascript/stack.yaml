@@ -49,6 +49,11 @@ quality_gates:
 patterns:
   - patterns/typescript-patterns.md
 
+# Read when the task touches the topic. Named js-testing.md (not testing.md) so it
+# doesn't overwrite a backend's testing.md when a child stack is combined with one.
+reference_patterns:
+  - patterns/js-testing.md
+
 styles:
   - styles/typescript.md
 

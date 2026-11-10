@@ -8,20 +8,37 @@ Real-time communication patterns using Action Cable.
 
 ### Cable Configuration
 
-```ruby
-# config/cable.yml
+Rails 8 ships **Solid Cable** (a database-backed pub/sub adapter) as the production
+default; it polls a `cable` database, so no Redis is needed. Use the Redis adapter
+when Redis is already in the stack or message volume is high.
+
+```yaml
+# config/cable.yml (Rails 8 default)
 development:
-  adapter: redis
-  url: redis://localhost:6379/1
+  adapter: async
 
 test:
   adapter: test
 
 production:
+  adapter: solid_cable
+  connects_to:
+    database:
+      writing: cable
+  polling_interval: 0.1.seconds
+  message_retention: 1.day
+```
+
+```yaml
+# config/cable.yml (Redis alternative)
+production:
   adapter: redis
-  url: <%= ENV['REDIS_URL'] %>
+  url: <%= ENV["REDIS_URL"] %>
   channel_prefix: myapp_production
 ```
+
+Older apps add Solid Cable with `bundle add solid_cable && bin/rails solid_cable:install`
+(schema in `db/cable_schema.rb`, a `cable:` entry in `config/database.yml`).
 
 ### Application Cable
 
@@ -145,6 +162,10 @@ end
 
 ### Presence Channel
 
+This example keeps presence in Redis (redis-rb client; `Redis.current` is gone in
+redis-rb 5, so inject a client such as `REDIS = Redis.new(url: ENV["REDIS_URL"])`).
+Without Redis, store presence in `Rails.cache` with a short `expires_in` or in a table.
+
 ```ruby
 # frozen_string_literal: true
 
@@ -168,19 +189,19 @@ class PresenceChannel < ApplicationCable::Channel
   private
 
   def update_presence(status)
-    Redis.current.hset(
+    REDIS.hset(
       'user_presence',
       current_user.id,
       { status: status, last_seen: Time.current }.to_json
     )
 
     if status == :offline
-      Redis.current.hdel('user_presence', current_user.id)
+      REDIS.hdel('user_presence', current_user.id)
     end
   end
 
   def broadcast_presence_list
-    presence = Redis.current.hgetall('user_presence').transform_values { |v| JSON.parse(v) }
+    presence = REDIS.hgetall('user_presence').transform_values { |v| JSON.parse(v) }
     ActionCable.server.broadcast('presence', { type: 'presence_update', data: presence })
   end
 end
@@ -279,12 +300,12 @@ class RateLimitedChannel < ApplicationCable::Channel
   end
 
   def message_count
-    Redis.current.get(rate_limit_key).to_i
+    REDIS.get(rate_limit_key).to_i
   end
 
   def increment_message_count
     key = rate_limit_key
-    Redis.current.multi do |multi|
+    REDIS.multi do |multi|
       multi.incr(key)
       multi.expire(key, RATE_WINDOW)
     end

@@ -3,50 +3,49 @@
 This file covers how to use TailwindCSS effectively in a Rails monolith with
 ViewComponents and Hotwire.
 
-## Setup (cssbundling-rails)
+## Setup (tailwindcss-rails 4.x, Tailwind v4)
 
 ```bash
-bin/rails css:install:tailwind
+bundle add tailwindcss-rails
+bin/rails tailwindcss:install
 ```
 
-This adds:
-- `app/assets/stylesheets/application.tailwind.css`
-- `tailwind.config.js`
-- `Procfile.dev` entry: `css: yarn build:css --watch`
-- `package.json` script: `"build:css": "tailwindcss -i ..."`
+This uses the standalone Tailwind binary (`tailwindcss-ruby`): **no Node, no
+`package.json`, no `tailwind.config.js`**. It adds:
+- `app/assets/tailwind/application.css` (the input file, starts with `@import "tailwindcss";`)
+- `app/assets/builds/tailwind.css` (build output, git-ignored, served by Propshaft)
+- `Procfile.dev` entry: `css: bin/rails tailwindcss:watch`
 
-## Tailwind Config (`tailwind.config.js`)
+Build once with `bin/rails tailwindcss:build`; `assets:precompile` runs it in
+production. An app still on v3 (`tailwind.config.js`, `application.tailwind.css`)
+migrates with `bin/rails tailwindcss:upgrade`; check the diff before committing.
 
-```js
-module.exports = {
-  content: [
-    "./app/views/**/*.{erb,haml,html,slim}",
-    "./app/components/**/*.{rb,erb,haml,html,slim}",
-    "./app/helpers/**/*.rb",
-    "./app/javascript/**/*.js",
-    "./app/javascript/**/*.{js,jsx,ts,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        brand: {
-          50: '#eff6ff',
-          500: '#3b82f6',
-          900: '#1e3a8a',
-        },
-      },
-    },
-  },
-  plugins: [
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/typography'),
-  ],
+## Configuration Lives in CSS
+
+```css
+/* app/assets/tailwind/application.css */
+@import "tailwindcss";
+
+/* First-party plugins ship inside the standalone binary */
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+/* Design tokens: each variable becomes utilities (bg-brand-500, text-brand-900) */
+@theme {
+  --color-brand-50: #eff6ff;
+  --color-brand-500: #3b82f6;
+  --color-brand-900: #1e3a8a;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Only for files automatic detection misses (e.g. templates inside a gem) */
+@source "../../../vendor/engines/admin/app";
 ```
 
-**Critical**: include both `app/views/**` AND `app/components/**` AND
-`app/helpers/**.rb` in `content` — Tailwind purges classes not seen in scanned
-files, and helpers/components can hold class strings the JIT compiler must see.
+**Source detection**: v4 scans the project automatically (it skips files in
+`.gitignore` and binary files), so `app/views`, `app/components`, `app/helpers`
+and `app/javascript` are covered without listing them. Add `@source` only for
+paths outside the app or ignored by git.
 
 ## Class Composition Patterns
 
@@ -180,13 +179,11 @@ Mobile-first: base classes apply to all sizes; prefix with `sm:`, `md:`, `lg:`,
 
 ## Dark Mode
 
-Add to `tailwind.config.js`:
+v4 follows `prefers-color-scheme` by default. For a manual toggle, redefine the
+variant in `application.css`:
 
-```js
-module.exports = {
-  darkMode: 'class',
-  // ...
-}
+```css
+@custom-variant dark (&:where(.dark, .dark *));
 ```
 
 Then use `dark:` variant:
@@ -200,7 +197,7 @@ Toggle via a Stimulus controller that adds/removes `class="dark"` on `<html>`.
 ## Forms Plugin
 
 `@tailwindcss/forms` resets browser form styling so Tailwind classes work
-predictably:
+predictably (enable it with `@plugin "@tailwindcss/forms";`):
 
 ```html
 <input type="text" class="rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
@@ -238,30 +235,30 @@ predictably:
 1. **Group classes** — layout → spacing → sizing → typography → color → border → effect → state
 2. **Extract repeated patterns** — into a helper or ViewComponent after 3+ uses
 3. **Mobile-first responsive** — base classes are mobile, override with breakpoint prefixes
-4. **Use design tokens** — define brand colors / spacing in `tailwind.config.js`, not as raw hex throughout
+4. **Use design tokens** — define brand colors / spacing in `@theme` in `app/assets/tailwind/application.css`, not as raw hex throughout
 5. **Don't fight Tailwind with `@apply`** — extract to a component instead
-6. **Always include `app/components/**` AND `app/helpers/**.rb`** in `tailwind.config.js` `content`
+6. **No `tailwind.config.js`** — configuration is CSS-first (`@theme`, `@plugin`, `@source`, `@custom-variant`); don't add Node tooling for Tailwind
 7. **Always provide `alt` text and labels** — utility classes don't fix accessibility issues
 
 ## Common Pitfalls
 
 | Symptom | Likely cause |
 |---------|--------------|
-| Class doesn't apply in production | File not in `tailwind.config.js` `content` paths |
-| Class string built dynamically doesn't apply | JIT can't see strings constructed at runtime — list possible classes statically |
+| Class doesn't apply | File is git-ignored or outside the app: add an `@source` line; or `tailwindcss:watch` isn't running (use `bin/dev`) |
+| Class string built dynamically doesn't apply | Tailwind can't see strings constructed at runtime — list possible classes statically |
 | Dark mode flash on load | Toggle script runs after CSS — set the class before page render via inline `<script>` |
-| Forms look unstyled | `@tailwindcss/forms` plugin not installed |
-| Classes shift after Turbo navigation | Different page has different content scanned — both pages need to scan all template paths |
+| Forms look unstyled | Missing `@plugin "@tailwindcss/forms";` |
+| Old v3 classes look wrong (`shadow-sm`, `rounded`, `ring`) | v4 renamed the scale (`shadow-xs`, `rounded-sm`, `ring-3`): run `bin/rails tailwindcss:upgrade` |
 
 ### Dynamic class construction caveat
 
 ```ruby
-# BAD - JIT can't see "bg-blue-600" because it's built at runtime
+# BAD - Tailwind can't see "bg-blue-600" because it's built at runtime
 def container_class(color)
   "bg-#{color}-600"
 end
 
-# GOOD - all possible class strings are visible to JIT
+# GOOD - all possible class strings are visible to Tailwind
 def container_class(color)
   case color
   when :blue   then 'bg-blue-600'
@@ -271,6 +268,6 @@ def container_class(color)
 end
 ```
 
-The JIT compiler scans source files; strings interpolated at runtime aren't
-visible during the build. Always use literal class strings (or a `safelist`
-in the config for truly dynamic classes).
+The Tailwind compiler scans source files; strings interpolated at runtime aren't
+visible during the build. Always use literal class strings (or
+`@source inline("bg-red-600 bg-green-600");` for truly dynamic classes).

@@ -171,18 +171,24 @@ Custom error handler for the Fiber app.
 
 ```go
 func ErrorHandler(c fiber.Ctx, err error) error {
-	code := fiber.StatusInternalServerError
-
+	// fiber.Error messages are Fiber's own ("Not Found", "Method Not Allowed").
 	var e *fiber.Error
 	if errors.As(err, &e) {
-		code = e.Code
+		return c.Status(e.Code).JSON(fiber.Map{"error": e.Message})
 	}
 
-	return c.Status(code).JSON(fiber.Map{
-		"error": err.Error(),
+	// Anything else may carry SQL, IDs or parser text: log it, send a fixed message.
+	slog.ErrorContext(c, "unhandled error", "err", err)
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error": "internal server error",
+		"code":  "INTERNAL",
 	})
 }
 ```
+
+### Rules
+- Never send `err.Error()` of a non-`fiber.Error` to clients
+- Map domain errors (`ErrNotFound`, `ErrValidation`) in `handleError` to fixed messages and codes
 
 ---
 
@@ -228,9 +234,7 @@ type CreateUserRequest struct {
 func (h *UserHandler) Create(c fiber.Ctx) error {
 	var input CreateUserRequest
 	if err := c.Bind().Body(&input); err != nil { // parse + validate
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": formatValidationErrors(err),
-		})
+		return respondBindError(c, err) // fields: [{field, rule}], no raw error text
 	}
 
 	// proceed with service call...
@@ -240,4 +244,4 @@ func (h *UserHandler) Create(c fiber.Ctx) error {
 ### Rules
 - Use `validate` struct tags (not `binding` like Gin)
 - Register the validator once in `fiber.Config.StructValidator`
-- Return formatted validation errors
+- Return validation failures as `fields: [{field, rule}]` built from `validator.ValidationErrors`, never the raw error string

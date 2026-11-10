@@ -56,7 +56,7 @@ Before generating, read:
 import 'server-only';
 import { request } from './request';
 
-type <Resource> = {
+export type <Resource> = {
   id: string;
   // typed fields
 };

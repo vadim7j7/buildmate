@@ -34,49 +34,28 @@ const styles = StyleSheet.create({
 });
 ```
 
-### Anonymous Functions in Lists
+### Manual Memoization Everywhere
+
+The React Compiler (on in Expo SDK 54+ templates) memoizes components and callbacks.
+Wrapping every list row in `memo` and every handler in `useCallback` is noise and can
+hide stale-closure bugs (wrong dependency arrays).
 
 ```typescript
-// WRONG - new function every render
-<FlashList
-  data={items}
-  renderItem={({ item }) => (
-    <Pressable onPress={() => handlePress(item.id)}>
-      <Text>{item.name}</Text>
-    </Pressable>
-  )}
-/>
-
-// CORRECT - memoized component with stable handler
-const ItemRow = memo(function ItemRow({
-  item,
-  onPress,
-}: {
-  item: Item;
-  onPress: (id: string) => void;
-}) {
-  const handlePress = useCallback(() => onPress(item.id), [item.id, onPress]);
-
-  return (
-    <Pressable onPress={handlePress}>
-      <Text>{item.name}</Text>
-    </Pressable>
-  );
+// WRONG - hand-memoized by habit
+const ItemRow = memo(function ItemRow({ item, onPress }: ItemRowProps) {
+  const handlePress = useCallback(() => onPress(item.id), [onPress]); // stale item.id
+  return <Pressable onPress={handlePress}><Text>{item.name}</Text></Pressable>;
 });
 
-function List() {
-  const handlePress = useCallback((id: string) => {
-    router.push(`/items/${id}`);
-  }, []);
-
-  return (
-    <FlashList
-      data={items}
-      renderItem={({ item }) => <ItemRow item={item} onPress={handlePress} />}
-    />
-  );
+// CORRECT - plain code; the compiler memoizes it
+function ItemRow({ item, onPress }: ItemRowProps) {
+  return <Pressable onPress={() => onPress(item.id)}><Text>{item.name}</Text></Pressable>;
 }
 ```
+
+Memoize by hand only after measuring a problem, with a comment saying why. Code that
+breaks the Rules of React (mutating props/state during render, reading `ref.current` in
+render) makes the compiler skip the component: fix that instead.
 
 ### FlashList v1 props on FlashList v2
 
@@ -681,7 +660,7 @@ Alert.alert(t('common.error'), t('errors.generic'));
 | Problem | Solution |
 |---------|----------|
 | Inline styles | StyleSheet.create |
-| Anonymous handlers | useCallback + memo |
+| Manual memo everywhere | Let the React Compiler memoize; measure first |
 | Slow lists | FlashList v2 (no size estimates; `getItemType` for mixed rows) |
 | Poor image perf | expo-image with caching |
 | Memory leaks | Cleanup effects, AbortController |
@@ -689,5 +668,5 @@ Alert.alert(t('common.error'), t('errors.generic'));
 | Back navigation | usePreventRemove |
 | Keyboard covers input | KeyboardAvoidingView |
 | Notch overlap | SafeAreaView from safe-area-context |
-| Server data in Zustand | Use React Query for server data |
+| Server data in a UI store | Use React Query for server data |
 | Hardcoded strings | Always use i18n |

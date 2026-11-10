@@ -164,14 +164,14 @@ class TestLoadFlaskStack:
         assert "review" in config.skills
         assert "new-model" in config.skills
 
-    def test_flask_inherits_python_setup(self):
-        """Flask should inherit setup from python (no own setup defined)."""
+    def test_flask_has_own_setup(self):
+        """Flask defines its own setup to run Flask-Migrate after install."""
         import yaml
 
         stack_yaml = Path(__file__).parent.parent / "stacks" / "flask" / "stack.yaml"
         with open(stack_yaml) as f:
             raw = yaml.safe_load(f)
-        assert "setup" not in raw
+        assert "flask db upgrade" in " ".join(raw["setup"].get("post_install", []))
 
         # Parent python defines setup
         config_yaml = Path(__file__).parent.parent / "stacks" / "python" / "stack.yaml"

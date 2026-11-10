@@ -1,9 +1,10 @@
 # Form Patterns
 
-Forms in a Rails monolith use `form_with` (Turbo-aware by default), render
-errors with `role="alert"` for accessibility, and rely on the controller
-returning **422 Unprocessable Entity** on validation failure so Turbo re-renders
-the form with errors.
+Forms in a Rails monolith use `form_with`, render errors with `role="alert"` for
+accessibility, and rely on the controller returning **422 Unprocessable Entity**
+on validation failure (Turbo needs it to re-render the form; without Turbo it is
+still the correct status). Sections about Turbo Frames apply only when the app
+uses Turbo; class names are Tailwind examples, swap in the project's CSS framework.
 
 ## Basic Form (model-backed)
 
@@ -104,7 +105,7 @@ end
 
 ```ruby
 def profile_params
-  params.require(:profile).permit(:name, links_attributes: %i[id url label _destroy])
+  params.expect(profile: [:name, links_attributes: [%i[id url label _destroy]]])
 end
 ```
 
@@ -138,7 +139,7 @@ end
 
 ```ruby
 def profile_params
-  params.require(:profile).permit(:name, :avatar)
+  params.expect(profile: [:name, :avatar])
 end
 ```
 
@@ -213,7 +214,7 @@ class OnboardingController < ApplicationController
   private
 
   def form_params
-    params.require(:onboarding_form).permit(:first_name, :last_name, :company_name, :role)
+    params.expect(onboarding_form: [:first_name, :last_name, :company_name, :role])
   end
 end
 ```
@@ -261,5 +262,5 @@ end
 | Form silently does nothing on validation failure | Missing `status: :unprocessable_entity` |
 | Errors don't render | `@profile.errors.any?` is false because `valid?` wasn't called or `save` returned `true` |
 | File upload missing in params | Form is missing `multipart: true` |
-| `param is missing` error | Form name doesn't match `params.require(...)` argument |
+| `param is missing` error | Form scope doesn't match the `params.expect(key: [...])` key (`expect` answers 400) |
 | CSRF token errors | Disabled `protect_from_forgery` or removed CSRF meta tag |

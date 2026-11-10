@@ -24,7 +24,7 @@ conventions, performance best practices, security requirements, and quality stan
 
 > **MongoDB project:** the model, service and migration sections of
 > `backend-patterns.md` and `fastapi-patterns.md` are SQLAlchemy/Alembic. For those
-> layers follow `.claude/patterns/mongodb.md` (Beanie); routers, schemas,
+> layers follow `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}` (Beanie); routers, schemas,
 > dependencies, tasks and errors still apply.
 {% endif %}
 

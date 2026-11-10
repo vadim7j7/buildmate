@@ -25,7 +25,7 @@ built with **{{ variables.ui_framework }}**.
 
 - {{ variables.framework }} — file-based `entrypoints/` and auto-generated manifest
 - {{ variables.language }}
-- {{ variables.ui_framework }} for popup / options / side-panel surfaces
+- {{ 'Plain TypeScript + DOM' if variables.ui_framework == 'Vanilla TS' else variables.ui_framework }} for popup / options / side-panel surfaces
 - {{ variables.browser_api }} — the unified, promise-based WebExtension API
 - {{ variables.storage_api }} for typed, reactive persistence
 - {{ variables.messaging }} for typed cross-context messaging
@@ -52,9 +52,33 @@ from them — **never hand-write `manifest.json`**. Declare manifest fields in `
 | --- | --- | --- |
 | Background (service worker) | `entrypoints/background.ts` | `defineBackground(() => {})` |
 | Content script | `entrypoints/*.content.ts` | `defineContentScript({ matches, main(ctx) })` |
-| Popup | `entrypoints/popup/index.html` | framework app mounted in `main.{{ variables.ui_ext }}` |
-| Options | `entrypoints/options/index.html` | framework app |
-| Side panel | `entrypoints/sidepanel/index.html` | framework app |
+| Popup | `entrypoints/popup/index.html` | {{ 'plain TS in `main.ts`' if variables.ui_framework == 'Vanilla TS' else variables.ui_framework ~ ' app mounted in `main.' ~ variables.ui_ext ~ '`' }} |
+| Options | `entrypoints/options/index.html` | same as popup |
+| Side panel | `entrypoints/sidepanel/index.html` | same as popup (Chrome `side_panel`, Firefox `sidebar_action`) |
+
+### UI surfaces ({{ variables.ui_framework }})
+
+{% if variables.ui_framework == 'React' %}
+Each HTML surface mounts one React root from `main.tsx` (`createRoot(...).render(<App />)`).
+Storage and messaging go through hooks (`hooks/useStorageItem.ts`) that unwatch on
+unmount. Never `dangerouslySetInnerHTML` with page or user data. Rules:
+`.claude/styles/{{ 'styles/ui-react.md' | installed(stack) }}`.
+{% elif variables.ui_framework == 'Vue' %}
+Each HTML surface mounts one Vue app from `main.ts` (`createApp(App).mount('#app')`), with
+SFCs in `<script setup lang="ts">`. Storage and messaging go through composables
+(`composables/useStorageItem.ts`) that unwatch in `onUnmounted`. Never `v-html` with page
+or user data. Rules: `.claude/styles/{{ 'styles/ui-vue.md' | installed(stack) }}`.
+{% elif variables.ui_framework == 'Svelte' %}
+Each HTML surface mounts one Svelte 5 app from `main.ts` (`mount(App, { target })`), using
+runes (`$state`, `$derived`, `$effect`, `$props`). Storage goes through a rune helper in
+`lib/*.svelte.ts` whose `$effect` returns the unwatch. Never `{@html}` with page or user
+data. Rules: `.claude/styles/{{ 'styles/ui-svelte.md' | installed(stack) }}`.
+{% else %}
+Surfaces are plain TypeScript: build DOM nodes, set `textContent`, re-render from
+`storage.watch` callbacks. Never `innerHTML` with anything but constants. Rules:
+`.claude/styles/{{ 'styles/ui-vanilla.md' | installed(stack) }}`.
+{% endif %}
+New popup / options / side panel / new-tab pages: `/new-ui-surface`.
 
 ### Always use the unified `browser` API
 
@@ -193,7 +217,7 @@ This project is scaffolded with real tooling — use it, don't reinvent it:
 - **`wxt.config.ts`** — single source of truth for manifest, permissions, modules.
 - **`package.json` scripts** — `npm run dev` (HMR), `npm run build`, `npm run zip`
   (store-ready zips, incl. Firefox sources), `npm run compile` (typecheck).
-- See `.claude/patterns/cross-browser.md` and `.claude/patterns/publishing.md` for store submission.
+- See `.claude/patterns/{{ 'patterns/cross-browser.md' | installed(stack) }}` and `.claude/patterns/{{ 'patterns/publishing.md' | installed(stack) }}` for store submission.
 
 ## Completion Checklist
 

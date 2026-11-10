@@ -69,6 +69,19 @@ skills:
 patterns:
   - patterns/flask-patterns.md
 
+# Installed too, read only when the task touches the topic
+reference_patterns:
+  - patterns/errors.md
+  - patterns/auth.md
+  - patterns/celery.md
+
+# Overrides the python parent's setup to apply migrations after install
+setup:
+  install_command: uv sync
+  post_install:
+    - uv run flask db upgrade
+  dev_server_check: uv run python --version
+
 # Flask is synchronous: override the python parent's async ORM/migrations/drivers.
 options:
   db:

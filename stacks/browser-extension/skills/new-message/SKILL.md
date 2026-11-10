@@ -108,7 +108,7 @@ For no-arg messages, pass `undefined` as the data argument.
 ### 5. Verify
 
 ```bash
-npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
+npm run compile   # wxt prepare + type check
 npx vitest run
 ```
 

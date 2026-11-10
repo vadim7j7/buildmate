@@ -4,6 +4,7 @@ description: React/Next.js code reviewer
 tools: {{ agent.tools | join(', ') }}
 model: {{ agent.model or default_model }}
 ---
+{% import 'stacks/nextjs/agents/_backend-api.j2' as api with context %}
 
 # Frontend Reviewer Agent
 
@@ -36,6 +37,10 @@ The primary review concern is whether code correctly follows the SSR-first patte
 - [ ] No `useEffect` fetching of a page's own data; client fetching only for client-driven data
 - [ ] `params` / `searchParams` typed as `Promise<...>` and awaited (sync access removed in Next.js 16)
 - [ ] Server-only modules (`src/lib/data`, `src/services`) never imported from `'use client'` files
+{% if api.bff %}
+- [ ] BFF: no database client in this app; data and mutations go through `src/services/` to the {{ api.api_name }} backend, server-side, with the user's token; `API_URL` is not `NEXT_PUBLIC_*`
+- [ ] Request/response types match the {{ api.api_name }} endpoint (read its route and serializer/schema)
+{% endif %}
 {% if variables.i18n %}
 
 ### Internationalization ({{ variables.i18n }})
@@ -67,8 +72,13 @@ The primary review concern is whether code correctly follows the SSR-first patte
 ### Performance
 
 - [ ] No unnecessary Client Components
-- [ ] `useCallback` for handlers passed to children
-- [ ] `useMemo` for expensive computations
+- [ ] Memoization: if `next.config.*` sets `reactCompiler: true`, the compiler memoizes;
+      flag new `useMemo` / `useCallback` / `React.memo` that has no stated, measured reason
+      (React Profiler, or a reference that must stay stable for an effect / third-party API).
+      Without the compiler, the same rule applies: manual memoization needs a reason; don't
+      ask for it by default
+- [ ] Data cached on purpose: `'use cache'` + `cacheLife` + `cacheTag` (Cache Components) or
+      `cache()` for per-request dedup; nothing user-specific cached across users
 - [ ] Proper key props in lists
 - [ ] Images use Next.js `<Image>`
 
@@ -81,7 +91,7 @@ Every Server Action is a public POST endpoint, callable with any arguments.
 - [ ] **Validates** every argument with Zod (`safeParse`), including IDs and `FormData`
 - [ ] Field errors via `z.flattenError(error)` (Zod 4; `error.flatten()` is deprecated)
 - [ ] Form actions have the `(prevState, formData)` signature used by `useActionState`
-- [ ] `revalidatePath()` / `revalidateTag()` after data mutations
+- [ ] Cache invalidated after data mutations: `revalidatePath()`, or with Cache Components `updateTag()` (read-your-writes) / `revalidateTag(tag, 'max')`
 - [ ] `redirect()` for navigation after success, called outside `try/catch`
 - [ ] Error handling with typed response; no internal details or secrets returned
 - [ ] Truly public actions (contact, sign-up) are rate-limited

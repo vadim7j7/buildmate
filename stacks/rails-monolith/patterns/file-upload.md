@@ -158,7 +158,7 @@ module Api
       private
 
       def blob_params
-        params.require(:blob).permit(:filename, :byte_size, :checksum, :content_type)
+        params.expect(blob: [:filename, :byte_size, :checksum, :content_type])
       end
     end
   end

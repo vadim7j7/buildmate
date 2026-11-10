@@ -11,10 +11,10 @@ compatible_with:
 options:
   jobs:
     description: Background job processor
-    default: sidekiq
+    default: solid_queue
     choices:
       sidekiq:
-        description: Redis-backed job processor (most popular)
+        description: Redis-backed job processor (most popular; needs Redis)
         patterns:
           - patterns/sidekiq.md
         variables:
@@ -28,7 +28,7 @@ options:
           background_jobs: GoodJob
           job_adapter: good_job
       solid_queue:
-        description: Database-backed job processor (Rails 8+ default)
+        description: Database-backed job processor (Rails 8 default, no Redis)
         patterns:
           - patterns/solid_queue.md
         variables:
@@ -215,6 +215,7 @@ agents:
     skills:
       - new-spec
       - test
+      - new-system-spec
 
   - name: view-reviewer
     template: agents/view-reviewer.md.j2
@@ -244,6 +245,12 @@ skills:
   - new-partial
   - new-helper
   - new-mailer-template
+  - new-system-spec
+
+quality_gates:
+  security:
+    command: bundle exec brakeman -q --no-pager
+    description: Brakeman static security scan (whole app; in the Rails 8 default Gemfile)
 
 patterns:
   - patterns/backend-patterns.md
@@ -261,11 +268,10 @@ styles:
   - styles/erb-style.md
 
 setup:
-  install_command: bundle install && yarn install
+  install_command: bundle install
   post_install:
-    - bundle exec rails db:setup
-    - bundle exec rails assets:precompile
-  dev_server_check: ruby -v && bundle -v && node -v
+    - bin/rails db:prepare
+  dev_server_check: ruby -v && bundle -v
 
 variables:
   framework: Rails 8+ (Monolith)
@@ -281,7 +287,8 @@ variables:
   ui_library: TailwindCSS
   ui_kind: tailwind
   preview_tool: Lookbook
-  background_jobs: Sidekiq
+  background_jobs: SolidQueue
+  job_adapter: solid_queue
 
 verification:
   enabled: true

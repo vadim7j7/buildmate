@@ -11,7 +11,8 @@ For Stimulus, see `patterns/stimulus-patterns.md`.
 ## Turbo Drive (default behavior)
 
 Every link click and form submit is intercepted by Turbo, fetched via XHR, and
-the page is morphed in. **You don't have to do anything to use it** — it's on
+the new `<body>` is swapped in (morphed only when page refreshes are set to
+morph, see below). **You don't have to do anything to use it** — it's on
 by default in `turbo-rails`.
 
 To opt out for a specific link or form:
@@ -182,6 +183,15 @@ context into the partial via locals.
 ---
 
 ## Page Refresh & Morphing (Turbo 8+)
+
+Turn morphing on in the layout `<head>` (otherwise a refresh replaces the body):
+
+```erb
+<%= turbo_refreshes_with method: :morph, scroll: :preserve %>
+```
+
+Mark elements that must survive a refresh (open menus, media players) with
+`data-turbo-permanent` and a stable `id`.
 
 ```ruby
 respond_to do |format|

@@ -1,0 +1,121 @@
+{% if variables.database == 'MongoDB' %}
+---
+name: new-model
+description: Generate a Beanie document model with indexes
+---
+
+# /new-model
+
+## What This Does
+
+Generates a Beanie `Document` ({{ variables.orm }}) with its collection name,
+indexes and timestamps, and registers it in `init_beanie`. MongoDB has no schema
+migration: indexes are declared on the model and created by `init_beanie`.
+
+## Usage
+
+```
+/new-model project         # Creates models/project.py (collection "projects")
+/new-model blog_post       # Creates models/blog_post.py (collection "blog_posts")
+```
+
+## How It Works
+
+1. **Read** `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}` (Beanie Document Model, Database Setup,
+   Links) and an existing document in `src/app/models/`.
+
+2. **Generate** `src/app/models/<resource>.py`:
+   - `class Project(Document)` with a docstring and typed fields
+   - `Indexed(...)` on single fields used in filters (`unique=True` where needed);
+     compound/sort indexes in `Settings.indexes`
+   - `class Settings: name = "projects"`
+   - `created_at` with `default_factory=lambda: datetime.now(UTC)`; `updated_at`
+     set in a `@before_event(Insert, Replace, Save)` hook or in the service
+   - 1:1 / 1:few data as embedded `BaseModel`s; other collections as `Link["Other"]`
+   - Ids in signatures are `PydanticObjectId`
+
+3. **Register** the model in the `document_models=[...]` list passed to
+   `init_beanie` (lifespan). An unregistered document fails at first query.
+
+4. **Existing data?** A new required field on a collection that already has
+   documents needs a default, or a data script (`/new-migration`).
+
+5. **Run quality checks.**
+
+   ```bash
+   uv run ruff format src/app/models/<resource>.py
+   uv run ruff check src/app/models/<resource>.py
+   uv run mypy src/app/models/<resource>.py
+   ```
+
+## Generated Files
+
+```
+src/app/models/<resource>.py
+src/app/db/mongodb.py   (document_models updated)
+```
+{% else %}
+---
+name: new-model
+description: Generate a SQLAlchemy 2.0 model with Mapped annotations
+---
+
+# /new-model
+
+## What This Does
+
+Generates a SQLAlchemy 2.0 model module using `Mapped[]` type annotations, proper
+table naming, and standard timestamp columns. Optionally generates an Alembic migration.
+
+## Usage
+
+```
+/new-model project                 # Creates models/project.py
+/new-model user                    # Creates models/user.py
+/new-model blog_post               # Creates models/blog_post.py
+/new-model task --with-migration   # Creates model + Alembic migration
+```
+
+## How It Works
+
+1. **Read reference patterns.** Load the model pattern from:
+   - `skills/new-model/references/model-examples.md`
+   - `patterns/backend-patterns.md`
+   - `styles/backend-python.md`
+
+2. **Determine model name.** Parse the argument to determine the class name and
+   table name:
+   - `project` becomes `Project` class, `projects` table
+   - `blog_post` becomes `BlogPost` class, `blog_posts` table
+
+3. **Generate the model file.** Create the model with:
+   - `Base` import from `app.database`
+   - `Mapped[]` type annotations for all columns
+   - `mapped_column()` for column definitions
+   - `__tablename__` explicit table name
+   - Standard `id`, `created_at`, `updated_at` columns
+   - Docstring on the class
+
+4. **Generate migration (if `--with-migration`).** Run:
+
+   ```bash
+   uv run alembic revision --autogenerate -m "create <table_name> table"
+   ```
+
+5. **Run quality checks.**
+
+   ```bash
+   uv run ruff format src/app/models/<resource>.py
+   uv run ruff check src/app/models/<resource>.py
+   uv run mypy src/app/models/<resource>.py
+   ```
+
+6. **Report results.** Show the generated files.
+
+## Generated Files
+
+```
+src/app/models/<resource>.py
+alembic/versions/<timestamp>_create_<table>.py  (if --with-migration)
+```
+{% endif %}

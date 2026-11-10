@@ -5,6 +5,12 @@ and communicate by message passing. Use **typed** messaging via
 [`@webext-core/messaging`](https://webext-core.aklinker1.io/) so the protocol is checked
 at compile time.
 
+The project pins **v4** (`^4.0.0`). v4 uses the native `chrome` / `browser` global (no
+`webextension-polyfill`, matching WXT 0.20+) and ships ESM only; the API below is the same
+as in v2/v3. Changes worth knowing when upgrading old code: since v3 a receiver ignores
+message types it has no handler for (instead of throwing), and since v2 window /
+custom-event messaging is no longer received in the context that sent it.
+
 ## 1. Define one protocol
 
 ```typescript
@@ -53,7 +59,8 @@ const { id } = await sendMessage('saveItem', { title: document.title, url: locat
 ```
 
 By default messages route to the background. To message a specific tab's content script,
-pass the tab id as the third argument: `sendMessage('highlight', payload, tabId)`.
+pass the tab id as the third argument: `sendMessage('highlight', payload, tabId)` (all
+frames), or `{ tabId, frameId }` for one frame.
 
 ## 4. Long-lived connections (ports)
 
@@ -109,7 +116,9 @@ Prefer the typed API; the raw form loses type safety and the `return true` async
 
 `sendMessage` rejects if no receiver is registered ("Receiving end does not exist") —
 e.g. messaging a tab with no content script, or the worker not yet started. Wrap calls in
-try/catch and handle the absent-receiver case.
+try/catch and handle the absent-receiver case. A receiver that is running but has no
+handler for that message type ignores it (v3+) instead of throwing, so make sure every
+`ProtocolMap` type has a handler in the context it is sent to.
 
 ## Checklist
 

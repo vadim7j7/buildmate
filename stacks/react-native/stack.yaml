@@ -177,6 +177,9 @@ quality_gates:
   tests:
     command: npm test
     description: Jest test suite
+  doctor:
+    command: npx expo-doctor
+    description: Expo Doctor -- SDK-compatible dependency versions and config checks (exits 1 on failed checks)
 
 working_dir: "."
 
@@ -218,7 +221,7 @@ variables:
   linter: ESLint (eslint-config-expo, flat config)
   package_manager: npm
   language: TypeScript (strict mode)
-  test_framework: Jest + React Native Testing Library
+  test_framework: Jest + React Native Testing Library v14 (async API) + Maestro E2E
   server_state: React Query (TanStack Query v5)
   database: Drizzle ORM (SQLite)
   navigation: expo-router

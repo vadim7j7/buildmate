@@ -102,7 +102,7 @@ current user so an ID from the client cannot reach someone else's data.
 ```typescript
 // src/services/project-service.ts
 import { prisma } from '@/lib/db';
-import type { Project } from '@prisma/client';
+import type { Project } from '@/generated/prisma/client';
 import type { CreateProjectInput, ListProjectsQuery } from '@/schemas/project';
 
 export class ProjectService {
@@ -249,19 +249,25 @@ Keep the app (for Supertest) separate from the server entry that listens.
 ```typescript
 // src/app.ts
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import { projectRouter } from '@/routes/projects';
 import { errorHandler } from '@/middleware/error-handler';
+import { httpLogger } from '@/lib/logger';
+import { env } from '@/lib/env';
 
 const app = express();
 
-// Global middleware
-app.use(cors());
-app.use(express.json());
+// Global middleware (see express-security.md / express-logging.md)
+app.disable('x-powered-by');
+app.use(httpLogger);
+app.use(helmet());
+app.use(cors({ origin: env.CORS_ORIGINS, credentials: true })); // never `cors()` (any origin) with cookies
+app.use(express.json({ limit: '100kb' }));
 
-// Health check
+// Health check (503 while shutting down, see section 8)
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  res.status(app.locals.shuttingDown ? 503 : 200).json({ status: 'ok' });
 });
 
 // Routes
@@ -273,15 +279,99 @@ app.use(errorHandler);
 export { app };
 ```
 
+## 7. Database Client (Prisma 7)
+
+Prisma 7 generates the client into the project (`output` is required) and connects
+through a driver adapter. One client per process:
+
+```prisma
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+```
+
+```typescript
+// prisma.config.ts (the connection URL lives here, not in schema.prisma)
+import 'dotenv/config';
+import { defineConfig, env } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: { path: 'prisma/migrations' },
+  datasource: { url: env('DATABASE_URL') },
+});
+```
+
+```typescript
+// src/lib/db.ts
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@/generated/prisma/client';
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+export const prisma = new PrismaClient({ adapter });
+```
+
+Models and migrations: `/new-model`, `/db-migrate`. An existing project on Prisma 6
+(`prisma-client-js`, `url = env(...)` in the schema, imports from `@prisma/client`)
+keeps its setup until it is upgraded on purpose.
+
+---
+
+## 8. Server Entry and Graceful Shutdown
+
+On `SIGTERM` (deploys, scaling, Ctrl+C) stop accepting connections, let in-flight
+requests finish, close the DB pool, then exit; force-exit if that takes too long.
+
 ```typescript
 // src/server.ts
 import { app } from '@/app';
+import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 // The dev server is started with PORT=4000 (frontends own 3000).
 const port = Number(process.env.PORT ?? 4000);
 
-app.listen(port, (error) => {
+const server = app.listen(port, (error) => {
   if (error) throw error; // Express 5 passes listen errors (e.g. EADDRINUSE) here
-  console.log(`API listening on http://localhost:${port}`);
+  logger.info({ port }, 'API listening');
+});
+
+let shuttingDown = false;
+
+function shutdown(signal: NodeJS.Signals): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  app.locals.shuttingDown = true; // /health answers 503 so the load balancer drains us
+  logger.info({ signal }, 'Shutting down');
+
+  const force = setTimeout(() => {
+    logger.error('Shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 10_000);
+  force.unref();
+
+  server.close(async (error) => {
+    await prisma.$disconnect();
+    clearTimeout(force);
+    process.exit(error ? 1 : 0);
+  });
+  server.closeIdleConnections(); // keep-alive sockets would otherwise hold close() open
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+process.on('unhandledRejection', (reason) => {
+  logger.fatal({ err: reason }, 'Unhandled rejection');
+  shutdown('SIGTERM');
 });
 ```
+
+Topical patterns (read when relevant): `express-security.md` (helmet, CORS, rate
+limiting), `express-auth.md`, `express-logging.md` (pino), `express-pagination.md`,
+`express-testing.md` (Supertest + Vitest).

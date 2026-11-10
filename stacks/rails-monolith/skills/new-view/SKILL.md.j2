@@ -1,0 +1,184 @@
+{%- import 'stacks/rails-monolith/agents/_view-vars.j2' as v with context -%}
+{%- if v.ui == 'tailwind' -%}
+{%- set c = {'page_header': 'mb-6 flex items-center justify-between', 'h1': 'text-2xl font-bold', 'h1_mb': 'text-2xl font-bold mb-6', 'grid': 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3', 'actions': 'mt-4 flex gap-2', 'btn_secondary': 'px-3 py-1 border rounded', 'btn_danger': 'px-3 py-1 border rounded text-red-600', 'nav_bar': 'bg-white border-b', 'nav_inner': 'max-w-7xl mx-auto px-4 py-3 flex items-center justify-between', 'brand': 'font-bold text-lg', 'nav': 'flex items-center gap-4', 'form_actions': 'flex justify-end gap-2', 'errors_title': 'font-semibold text-red-800'} -%}
+{%- elif v.ui == 'bootstrap' -%}
+{%- set c = {'page_header': 'd-flex align-items-center justify-content-between mb-4', 'h1': 'h3 mb-0', 'h1_mb': 'h3 mb-4', 'grid': 'row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3 list-unstyled', 'actions': 'd-flex gap-2 mt-3', 'btn_secondary': 'btn btn-outline-secondary btn-sm', 'btn_danger': 'btn btn-outline-danger btn-sm', 'nav_bar': 'navbar border-bottom', 'nav_inner': 'container d-flex align-items-center justify-content-between', 'brand': 'navbar-brand', 'nav': 'd-flex align-items-center gap-3', 'form_actions': 'd-flex justify-content-end gap-2', 'errors_title': 'h6'} -%}
+{%- else -%}
+{%- set c = {'page_header': 'page-header', 'h1': 'page-header__title', 'h1_mb': 'page-title', 'grid': 'card-grid', 'actions': 'actions', 'btn_secondary': 'button', 'btn_danger': 'button button--danger', 'nav_bar': 'site-header', 'nav_inner': 'site-header__inner', 'brand': 'site-header__brand', 'nav': 'site-header__nav', 'form_actions': 'form__actions', 'errors_title': 'form__errors-title'} -%}
+{%- endif -%}
+{%- if v.turbo -%}
+{%- set confirm = "data: { turbo_confirm: t('common.confirm_destroy') }" -%}
+{%- set confirm_signout = "data: { turbo_confirm: t('common.confirm_sign_out') }" -%}
+{%- else -%}
+{%- set confirm = "form: { onsubmit: \"return confirm('#{j t('common.confirm_destroy')}')\" }" -%}
+{%- set confirm_signout = "form: { onsubmit: \"return confirm('#{j t('common.confirm_sign_out')}')\" }" -%}
+{%- endif -%}
+{%- if v.vc -%}{%- set card = "render(ProfileCardComponent.new(profile:))" -%}{%- set card_lg = "render(ProfileCardComponent.new(profile: @profile, size: :lg))" -%}
+{%- elif v.phlex -%}{%- set card = "render Components::ProfileCard.new(profile:)" -%}{%- set card_lg = "render Components::ProfileCard.new(profile: @profile, size: :lg)" -%}
+{%- else -%}{%- set card = 'render "profiles/card", profile:' -%}{%- set card_lg = 'render "profiles/card", profile: @profile, size: :lg' -%}
+{%- endif %}
+---
+name: new-view
+description: Generate a new ERB view for an existing controller action with route check
+---
+
+# /new-view
+
+## What This Does
+
+Creates a new ERB view file for an existing controller action. Sets up the basic
+layout, links to the controller's instance variables, and includes flash/error
+boilerplate consistent with the project.
+
+Use this when the controller already exists and you just need to add or replace
+a view file.
+
+## Usage
+
+```
+/new-view profiles index           # app/views/profiles/index.html.erb
+/new-view admin/companies show     # app/views/admin/companies/show.html.erb
+/new-view dashboard home           # app/views/dashboard/home.html.erb
+```
+
+## How It Works
+
+### 1. Read Patterns
+
+- `.claude/patterns/{{ 'patterns/rails-monolith-patterns.md' | installed(stack) }}`
+- `.claude/patterns/{{ 'patterns/forms-patterns.md' | installed(stack) }}` (if generating new/edit)
+- `.claude/styles/{{ 'styles/erb-style.md' | installed(stack) }}`
+
+### 2. Verify the Controller and Action Exist
+
+```bash
+bin/rails routes | grep <resource>
+```
+
+If the route doesn't exist, suggest the route entry and stop.
+
+### 3. Generate the View
+
+#### `index.html.erb`
+
+```erb
+<% content_for :title, t('profiles.index.title') %>
+
+<header class="{{ c.page_header }}">
+  <h1 class="{{ c.h1 }}"><%= t('profiles.index.title') %></h1>
+  <%= link_to t('profiles.index.new'), new_profile_path,
+              class: "{{ v.css.button }}" %>
+</header>
+
+<% if @profiles.any? %>
+  <ul class="{{ c.grid }}">
+    <% @profiles.each do |profile| %>
+      <li>
+        <%= {{ card }} %>
+      </li>
+    <% end %>
+  </ul>
+
+  <%== pagy_nav(@pagy) if defined?(@pagy) %>
+<% else %>
+  <p class="{{ v.css.muted }}"><%= t('profiles.index.empty') %></p>
+<% end %>
+```
+
+#### `show.html.erb`
+
+```erb
+<% content_for :title, @profile.name %>
+
+{% if v.turbo %}
+<%= turbo_frame_tag "profile_#{@profile.id}" do %>
+{% else %}
+<section id="profile_<%= @profile.id %>">
+{% endif %}
+  <%= {{ card_lg }} %>
+
+  <div class="{{ c.actions }}">
+    <%= link_to t('common.edit'), edit_profile_path(@profile),
+                class: "{{ c.btn_secondary }}" %>
+    <%= button_to t('common.destroy'), profile_path(@profile),
+                  method: :delete,
+                  {{ confirm }},
+                  class: "{{ c.btn_danger }}" %>
+  </div>
+{% if v.turbo %}
+<% end %>
+{% else %}
+</section>
+{% endif %}
+```
+
+#### `new.html.erb` / `edit.html.erb`
+
+```erb
+<% content_for :title, t('profiles.new.title') %>
+
+<h1 class="{{ c.h1_mb }}"><%= t('profiles.new.title') %></h1>
+
+<%= render "form", profile: @profile %>
+```
+
+(Pair this with the `_form.html.erb` partial — see `/new-partial`{% if v.vc %} or `/new-form-component`{% endif %}.)
+
+### 4. Suggest i18n Keys
+
+Print the i18n keys to add to `config/locales/en.yml`:
+
+```yaml
+en:
+  profiles:
+    index:
+      title: "Profiles"
+      new: "New profile"
+      empty: "No profiles yet."
+    new:
+      title: "New profile"
+    create:
+      success: "Profile created."
+    update:
+      success: "Profile updated."
+    destroy:
+      success: "Profile deleted."
+```
+
+### 5. Verify
+
+```bash
+# Render the page through a system spec or manually
+bundle exec rails server
+# Visit http://localhost:3000/profiles
+```
+
+## Rules
+
+- Use `t('...')` for ALL user-visible strings — never hardcode English
+{% if v.vc %}- Use ViewComponents for repeated UI; partials only for layout-y composition
+{% elif v.phlex %}- Use Phlex components for repeated UI; partials only for layout-y composition
+{% else %}- Extract repeated UI into partials with strict locals (`/new-partial`)
+{% endif %}
+- Use `content_for :title, ...` to set `<title>` from the layout
+- Use `link_to` for navigation, `button_to` for state-changing actions
+{% if v.turbo %}- Wrap edit-able sections in `turbo_frame_tag` if inline editing is desired
+- Use `data: { turbo_confirm: t('...') }` for destructive confirmations
+{% else %}- No Turbo here: confirm destructive actions with `form: { onsubmit: "return confirm(...)" }`{% if v.stim %} or a Stimulus controller{% endif %} (`data-turbo-confirm` does nothing without Turbo)
+{% endif %}- Use semantic HTML: `<header>`, `<article>`, `<nav>`, `<section>`, `<main>`
+- Always provide `alt` on images and labels on form fields
+
+## Output
+
+```
+Created:
+  app/views/profiles/index.html.erb
+
+Suggested i18n keys (config/locales/en.yml):
+  en.profiles.index.title
+  en.profiles.index.new
+  en.profiles.index.empty
+
+Verified:
+  bin/rails routes | grep profiles  -- OK
+```

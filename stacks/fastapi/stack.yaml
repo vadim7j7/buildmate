@@ -72,6 +72,7 @@ patterns:
 # Installed too, but read only when the task touches the topic (the developer
 # would otherwise read ~6k lines before writing any code)
 reference_patterns:
+  - patterns/app-setup.md
   - patterns/testing.md
   - patterns/security.md
   - patterns/pitfalls.md

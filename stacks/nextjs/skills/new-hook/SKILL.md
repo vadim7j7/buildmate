@@ -109,11 +109,12 @@ npm test -- --testPathPattern=<hookName>
 - Use TypeScript for all hooks
 - Export as named export (not default)
 - Include JSDoc with `@example`
-- Use `useCallback` for returned functions
+- Returned functions: plain functions when the React Compiler is on (`reactCompiler: true`);
+  without it, `useCallback` them (callers often put them in effect dependencies)
 - Use `useRef` for values that shouldn't trigger re-renders
 - Clean up subscriptions/listeners in `useEffect` cleanup
 - Handle SSR (check for `window`/`document` existence)
-- Avoid returning new object/array references on every render
+- Without the compiler, avoid returning new object/array references on every render
 
 ## Generated Files
 

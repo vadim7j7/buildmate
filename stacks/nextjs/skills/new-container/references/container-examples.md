@@ -294,7 +294,8 @@ Containers are tested with props in and Server Actions mocked — no fetch mocks
 
 ```typescript
 // src/components/projects/ProjectRowActions.test.tsx
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import messages from '@/messages/en.json';
 import { ProjectRowActions } from './ProjectRowActions';
@@ -316,9 +317,10 @@ describe('ProjectRowActions', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('calls the deleteProject action with the project id', async () => {
+    const user = userEvent.setup();
     renderWithIntl(<ProjectRowActions projectId="p1" status="active" />);
 
-    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+    await user.click(screen.getByRole('button', { name: /delete/i }));
 
     await waitFor(() => expect(deleteProject).toHaveBeenCalledWith('p1'));
   });

@@ -29,6 +29,7 @@ performance, and adherence to Ruby conventions.
 - [ ] No mass assignment vulnerabilities
 - [ ] Sensitive data not logged
 - [ ] Input validated before processing
+- [ ] New or bumped gems: no known advisories (`bundle exec bundle-audit check --update`, or `bundle audit` if the project has bundler-audit)
 
 ### Performance
 
@@ -40,7 +41,7 @@ performance, and adherence to Ruby conventions.
 ### Code Quality
 
 - [ ] `frozen_string_literal: true` on all files
-- [ ] Single quotes (double only for interpolation)
+- [ ] String quotes match the project's `.rubocop.yml` (rubocop passes)
 - [ ] Hash shorthand syntax used
 - [ ] Guard clauses instead of nested conditionals
 - [ ] YARD documentation on public methods

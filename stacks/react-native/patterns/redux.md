@@ -1,117 +1,115 @@
 # Redux Toolkit State Management Patterns (React Native)
 
+Redux holds **UI state only**. Tokens and secrets live in `expo-secure-store`
+(`@/services/auth`, see `.claude/patterns/security.md`); the user profile and every
+server or DB record live in TanStack Query. The `session` slice keeps only the
+session *status*. Don't use redux-persist for auth: AsyncStorage is unencrypted, and
+a persisted copy of server data goes stale. Persist only non-sensitive preferences.
+
 ## Store Setup
 
 ```typescript
 // src/store/index.ts
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { persistStore, persistReducer } from 'redux-persist';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import authReducer from './slices/authSlice';
-import uiReducer from './slices/uiSlice';
+import sessionReducer from './slices/sessionSlice';
+import transactionFilterReducer from './slices/transactionFilterSlice';
 
-const persistConfig = {
-  key: 'root',
-  storage: AsyncStorage,
-  whitelist: ['auth'], // Only persist auth
-};
-
-const rootReducer = combineReducers({
-  auth: authReducer,
-  ui: uiReducer,
+// Exported so tests can build a fresh store from the same reducers
+export const rootReducer = combineReducers({
+  session: sessionReducer,
+  transactionFilter: transactionFilterReducer,
 });
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+export function makeStore(preloadedState?: Partial<RootState>) {
+  return configureStore({ reducer: rootReducer, preloadedState });
+}
 
-export const store = configureStore({
-  reducer: persistedReducer,
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: {
-        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
-      },
-    }),
-});
-
-export const persistor = persistStore(store);
-export type RootState = ReturnType<typeof store.getState>;
+export const store = makeStore();
+export type RootState = ReturnType<typeof rootReducer>;
 export type AppDispatch = typeof store.dispatch;
 ```
 
-## Slice Definition
+## Session Slice (status only)
 
 ```typescript
-// src/store/slices/authSlice.ts
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+// src/store/slices/sessionSlice.ts
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { getAccessToken, storeTokens, clearTokens } from '@/services/auth';
+import { queryClient } from '@/queries/queryClient';
 
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
-  error: string | null;
-}
+type SessionStatus = 'unknown' | 'signedIn' | 'signedOut';
 
-const initialState: AuthState = {
-  user: null,
-  token: null,
-  status: 'idle',
-  error: null,
-};
+export const restoreSession = createAsyncThunk('session/restore', async () =>
+  Boolean(await getAccessToken())                      // SecureStore
+);
 
-export const loginAsync = createAsyncThunk(
-  'auth/login',
-  async (credentials: { email: string; password: string }) => {
-    const response = await api.login(credentials);
-    return response.data;
+export const signIn = createAsyncThunk(
+  'session/signIn',
+  async (tokens: { accessToken: string; refreshToken: string }) => {
+    await storeTokens(tokens.accessToken, tokens.refreshToken); // SecureStore, not the state
   }
 );
 
-const authSlice = createSlice({
-  name: 'auth',
-  initialState,
-  reducers: {
-    logout: (state) => {
-      state.user = null;
-      state.token = null;
-      state.status = 'idle';
-    },
-    updateUser: (state, action: PayloadAction<Partial<User>>) => {
-      if (state.user) {
-        state.user = { ...state.user, ...action.payload };
-      }
-    },
-  },
+export const signOut = createAsyncThunk('session/signOut', async () => {
+  await clearTokens();
+  queryClient.clear();                                 // drop the previous user's data
+});
+
+const sessionSlice = createSlice({
+  name: 'session',
+  initialState: { status: 'unknown' as SessionStatus },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(loginAsync.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
+      .addCase(restoreSession.fulfilled, (state, action) => {
+        state.status = action.payload ? 'signedIn' : 'signedOut';
       })
-      .addCase(loginAsync.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-      })
-      .addCase(loginAsync.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.error.message ?? 'Login failed';
-      });
+      .addCase(signIn.fulfilled, (state) => { state.status = 'signedIn'; })
+      .addCase(signOut.fulfilled, (state) => { state.status = 'signedOut'; });
   },
 });
 
-export const { logout, updateUser } = authSlice.actions;
-export default authSlice.reducer;
+export default sessionSlice.reducer;
+```
+
+## UI Slice
+
+```typescript
+// src/store/slices/transactionFilterSlice.ts
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+
+const initialState = {
+  category: null as string | null,
+  sortOrder: 'desc' as 'asc' | 'desc',
+};
+
+const transactionFilterSlice = createSlice({
+  name: 'transactionFilter',
+  initialState,
+  reducers: {
+    setCategory: (state, action: PayloadAction<string | null>) => {
+      state.category = action.payload;
+    },
+    toggleSortOrder: (state) => {
+      state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
+    },
+    reset: () => initialState,
+  },
+});
+
+export const { setCategory, toggleSortOrder, reset } = transactionFilterSlice.actions;
+export default transactionFilterSlice.reducer;
 ```
 
 ## Typed Hooks
 
 ```typescript
 // src/store/hooks.ts
-import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from './index';
 
-export const useAppDispatch = () => useDispatch<AppDispatch>();
-export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
+export const useAppSelector = useSelector.withTypes<RootState>();
 ```
 
 ## Provider Setup
@@ -119,15 +117,12 @@ export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 ```typescript
 // src/app/_layout.tsx
 import { Provider } from 'react-redux';
-import { PersistGate } from 'redux-persist/integration/react';
-import { store, persistor } from '@/store';
+import { store } from '@/store';
 
 export default function RootLayout() {
   return (
     <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
-        <Stack />
-      </PersistGate>
+      <Stack />
     </Provider>
   );
 }
@@ -137,33 +132,34 @@ export default function RootLayout() {
 
 ```typescript
 // src/app/(tabs)/profile.tsx
-import { useAppSelector, useAppDispatch } from '@/store/hooks';
-import { logout, updateUser } from '@/store/slices/authSlice';
-
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const user = useAppSelector((state) => state.auth.user);
-  const isLoading = useAppSelector((state) => state.auth.status === 'loading');
+  const { data: user } = useCurrentUser();   // profile: TanStack Query, not Redux
 
-  const handleLogout = () => {
-    dispatch(logout());
+  const handleSignOut = async () => {
+    await dispatch(signOut());
     router.replace('/login');
   };
 
   return (
     <View>
       <Text>{user?.name}</Text>
-      <Button onPress={handleLogout} title="Logout" disabled={isLoading} />
+      <Button onPress={handleSignOut} title={t('auth.signOut')} />
     </View>
   );
 }
 ```
 
+The root layout dispatches `restoreSession()` once and guards routes with
+`<Stack.Protected guard={status === 'signedIn'}>`, where
+`status = useAppSelector((s) => s.session.status)`.
+
 ## Key Patterns
 
-1. **Use createSlice** for reducers with immer built-in
-2. **Use createAsyncThunk** for async operations
-3. **Create typed hooks** (useAppDispatch, useAppSelector)
-4. **Persist with redux-persist** + AsyncStorage
-5. **Whitelist specific slices** for persistence
-6. **Handle loading/error states** in extraReducers
+1. **UI state only**: no tokens, no user profile, no server records in slices
+2. **Tokens in expo-secure-store**, written from thunks; slices keep the status
+3. **`createSlice`** (Immer) and a `reset` reducer per UI slice
+4. **Typed hooks** via `useDispatch.withTypes` / `useSelector.withTypes`
+5. **`makeStore()` + exported `rootReducer`** so each test gets a fresh store
+6. **Narrow selectors**; derive with `createSelector` instead of returning new objects

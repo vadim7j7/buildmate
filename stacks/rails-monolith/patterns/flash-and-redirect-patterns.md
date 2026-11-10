@@ -1,8 +1,9 @@
 # Flash and Redirect Patterns
 
-Flash messages communicate the outcome of an action across a redirect. In a
-Turbo-aware monolith, flash works for HTML redirects AND can be re-rendered via
-Turbo Streams without a navigation.
+Flash messages communicate the outcome of an action across a redirect. Redirect
+flash works in every app; with Turbo, flash can also be re-rendered via Turbo
+Streams without a navigation (the "Flash via Turbo Stream" section; skip it when
+the app doesn't use Turbo).
 
 ## Setting Flash on Redirect
 

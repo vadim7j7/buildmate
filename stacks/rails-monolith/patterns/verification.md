@@ -154,7 +154,7 @@ end
 private
 
 def user_params
-  params.require(:user).permit(:email, :name)
+  params.expect(user: [:email, :name])
 end
 ```
 

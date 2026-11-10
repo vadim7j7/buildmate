@@ -78,10 +78,10 @@ module Api
       end
 
       def profile_params
-        params.require(:profile).permit(
+        params.expect(profile: [
           :name, :email, :bio, :company_id, :active,
           skill_ids: []
-        )
+        ])
       end
     end
   end
@@ -215,7 +215,7 @@ module Api
       end
 
       def company_params
-        params.require(:company).permit(:name, :domain, :industry, :size)
+        params.expect(company: [:name, :domain, :industry, :size])
       end
 
       def authorize_admin!
@@ -287,9 +287,9 @@ module Api
       end
 
       def experience_params
-        params.require(:experience).permit(
+        params.expect(experience: [
           :title, :company_id, :description, :start_date, :end_date, :current
-        )
+        ])
       end
     end
   end

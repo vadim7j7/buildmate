@@ -1,0 +1,85 @@
+---
+name: new-migration
+description: Create an Ecto migration ({{ variables.database }}) that is reversible and deploy-safe
+---
+
+# /new-migration
+
+## What This Does
+
+Generates an Ecto migration in `priv/repo/migrations/`, writes a reversible `change/0`
+(or `up/0` + `down/0`), runs it, and rolls it back once to prove it reverses.
+
+## Usage
+
+```
+/new-migration create_posts
+/new-migration add_status_to_orders
+/new-migration add_index_on_posts_user_id
+```
+
+New table with a schema and context? Prefer `/new-schema` or `mix phx.gen.context`,
+which write the migration too.
+
+## How It Works
+
+1. **Read** the latest migrations in `priv/repo/migrations/` and match their style
+   (`:binary_id` keys? `timestamps(type: :utc_datetime)`?).
+2. **Generate**: `mix ecto.gen.migration <name>` (snake_case).
+3. **Write it**:
+
+```elixir
+defmodule MyApp.Repo.Migrations.CreatePosts do
+  use Ecto.Migration
+
+  def change do
+    create table(:posts) do
+      add :title, :string, null: false
+      add :body, :text
+      add :status, :string, null: false, default: "draft"
+      add :user_id, references(:users, on_delete: :delete_all), null: false
+
+      timestamps(type: :utc_datetime)
+    end
+
+    create index(:posts, [:user_id])
+    create unique_index(:posts, [:user_id, :title])
+  end
+end
+```
+
+{% if variables.database == 'PostgreSQL' %}
+   Indexes on large existing tables: build them concurrently, outside the migration
+   transaction and lock:
+
+```elixir
+@disable_ddl_transaction true
+@disable_migration_lock true
+
+def change do
+  create index(:orders, [:status], concurrently: true)
+end
+```
+{% elif variables.database == 'MySQL' %}
+   MySQL DDL is not transactional: a migration that fails halfway leaves the schema
+   partly changed. Keep one structural change per migration. Unique index names must
+   match the `unique_constraint/3` name in the changeset.
+{% else %}
+   SQLite cannot `modify/3` or drop most constraints in place: create a new table, copy
+   the rows, drop the old one and rename it, in `up/0` and `down/0`. Foreign keys are
+   enforced only with `foreign_keys: :on` in the Repo config.
+{% endif %}
+4. **Run and reverse**: `mix ecto.migrate`, `mix ecto.rollback`, `mix ecto.migrate`.
+   `change/0` must be reversible: `execute/1` and `modify/3` without the `:from` option
+   are not, so use `execute(up_sql, down_sql)` or `modify(..., from: old_type)`.
+5. **Update the schema and changeset** to match (fields, `unique_constraint/3` with the
+   index name), then run `mix test`.
+
+## Rules
+
+- Never edit a migration that ran outside your machine; write a new one
+- Deploy-safe: add columns nullable or with a default; remove or rename a column only
+  after the code that reads it is deployed without it (two releases)
+- Index every foreign key; `null: false` wherever the schema requires the field
+- No `Repo` or schema modules in migrations (they change later); data backfills use
+  `execute/1` SQL or `repo().update_all/2` with schemaless queries, in batches for big tables

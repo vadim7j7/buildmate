@@ -165,7 +165,7 @@ in-progress feature file and continue it instead of starting over.
 - Look at the existing code with Grep and Glob
 - Read the relevant pattern and style files:
 {% for stack in stacks %}
-  - {{ stack.display_name }}:{% for pattern in stack.patterns %} `.claude/patterns/{{ pattern | basename }}`{% if not loop.last %},{% endif %}{% endfor %}{% for style in stack.styles %}, `.claude/styles/{{ style | basename }}`{% endfor %}
+  - {{ stack.display_name }}:{% for pattern in stack.patterns %} `.claude/patterns/{{ pattern | installed(stack) }}`{% if not loop.last %},{% endif %}{% endfor %}{% for style in stack.styles %}, `.claude/styles/{{ style | installed(stack) }}`{% endfor %}
 
 {% endfor %}
 

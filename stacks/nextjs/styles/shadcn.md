@@ -2,7 +2,10 @@
 
 ## Overview
 
-Use shadcn/ui components built on Radix primitives + Tailwind CSS. Components are copied into your project at `components/ui/`.
+Use shadcn/ui components built on Radix primitives + Tailwind CSS **v4**. Components
+are copied into your project at `components/ui/`. Tailwind v4 is CSS-first: there is
+no `tailwind.config.js`; tokens live in `globals.css` (see the Theme section and
+`styles/tailwind.md` if installed).
 
 ## Installation
 
@@ -12,6 +15,11 @@ Initialize once, then add components via the `shadcn` CLI (the old `shadcn-ui` p
 npx shadcn@latest init
 npx shadcn@latest add button card input
 ```
+
+`init` writes `components.json` (with `"tailwind": { "config": "", "css": "src/app/globals.css", ... }`:
+an empty `config` means Tailwind v4), the `cn()` helper in `lib/utils.ts`, and the theme
+variables in `globals.css`. Animations come from `tw-animate-css` (`tailwindcss-animate`
+is the v3 plugin; don't add it).
 
 ## Component Usage
 
@@ -120,21 +128,19 @@ import {
 
 ### Toast Notifications
 
+The old `toast` / `useToast` component is deprecated; use Sonner
+(`npx shadcn@latest add sonner`):
+
 ```tsx
-import { useToast } from "@/components/ui/use-toast"
+// app/layout.tsx: render once
+import { Toaster } from "@/components/ui/sonner"
+// ... <body>{children}<Toaster /></body>
 
-const { toast } = useToast()
+// anywhere in a Client Component
+import { toast } from "sonner"
 
-toast({
-  title: "Success",
-  description: "Your changes have been saved.",
-})
-
-toast({
-  variant: "destructive",
-  title: "Error",
-  description: "Something went wrong.",
-})
+toast.success("Your changes have been saved.")
+toast.error("Something went wrong.")
 ```
 
 ## Customization
@@ -163,20 +169,43 @@ const buttonVariants = cva(
 
 ## Theme
 
-Colors are defined in `globals.css` using CSS variables:
+Colors are CSS variables in `globals.css` (OKLCH), mapped to Tailwind utilities with
+`@theme inline`, so `bg-primary`, `text-muted-foreground` etc. follow light/dark:
 
 ```css
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
   /* ... */
 }
 
 .dark {
-  --primary: 210 40% 98%;
-  --primary-foreground: 222.2 47.4% 11.2%;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --radius-lg: var(--radius);
 }
 ```
+
+Add a new token in all three places (`:root`, `.dark`, `@theme inline`). Old
+HSL-triplet themes (`--primary: 222.2 47.4% 11.2%` + `hsl(var(--primary))`) are the
+Tailwind v3 setup; don't copy them into a v4 project.
 
 ## Best Practices
 

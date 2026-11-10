@@ -1,0 +1,125 @@
+{% if variables.db_adapter == 'mongoid' %}
+---
+name: new-migration
+description: Change a Mongoid model's schema (fields, indexes) and its data, the MongoDB stand-in for a migration
+---
+
+# /new-migration (Mongoid)
+
+## What This Does
+
+This project uses **MongoDB with Mongoid**, which has no migrations. A schema
+change is a model change: add/remove `field` and `index` declarations, then sync
+indexes and, if existing documents need values, write a backfill task.
+
+## Usage
+
+```
+/new-migration AddRoleToProfiles          # field :role on Profile
+/new-migration AddIndexToProfilesEmail    # index on Profile#email
+/new-migration RemoveBioFromProfiles      # two-step field removal
+```
+
+## How It Works
+
+1. **Read** `.claude/patterns/{{ 'patterns/mongoid.md' | installed(stack) }}` and the model.
+
+2. **Edit the model.**
+
+   ```ruby
+   field :role, type: String, default: "member"
+   index({ email: 1 }, { unique: true, background: true })
+   ```
+
+3. **Sync indexes.** `bundle exec rails db:mongoid:create_indexes`
+
+4. **Backfill when needed.** A `default:` only applies when the document is
+   loaded; queries on the field (`where(role: "member")`) miss old documents,
+   so backfill with an idempotent rake task in `lib/tasks/`
+   (`Profile.where(role: nil).update_all(role: "member")`).
+
+5. **Remove fields in two steps.** First stop reading/writing the field and
+   deploy; then `Profile.all.unset(:bio)` in a rake task and drop the `field`.
+   Drop unused indexes with `bundle exec rails db:mongoid:remove_undefined_indexes`.
+
+6. **Spec it.** Model spec for the new field/validation; a spec for the
+   backfill task when it has logic.
+
+## Rules
+
+- No `rails generate migration`, no `db/migrate/`.
+- Unique indexes need clean data first: dedupe before `create_indexes`.
+{% else %}
+---
+name: new-migration
+description: Generate a database migration with safety patterns and rollback verification
+---
+
+# /new-migration
+
+## What This Does
+
+Generates a new database migration following Rails conventions and safety best
+practices. Supports common operations like adding columns, creating tables, adding
+indices, and working with JSONB columns.
+
+## Usage
+
+```
+/new-migration AddRoleToProfiles              # Add a column
+/new-migration CreateExperiences              # Create a new table
+/new-migration AddIndexToProfilesEmail        # Add an index
+/new-migration AddMetadataToCompanies         # Add JSONB column
+/new-migration RemoveBioFromProfiles          # Remove a column
+```
+
+## How It Works
+
+1. **Read reference patterns.** Load migration patterns from:
+   - `skills/new-migration/references/migration-examples.md`
+   - `.claude/patterns/{{ 'patterns/backend-patterns.md' | installed(stack) }}`
+
+2. **Generate the migration file.**
+
+   ```bash
+   bundle exec rails generate migration <MigrationName>
+   ```
+
+3. **Edit the migration.** Based on the naming convention and user instructions,
+   add the appropriate schema changes:
+   - `AddXToY` - `add_column` with type, default, null constraint
+   - `RemoveXFromY` - `remove_column` (reversible)
+   - `CreateX` - `create_table` with columns and indices
+   - `AddIndexToX` - `add_index` with uniqueness/conditional options
+
+4. **Apply safety patterns.**
+   - Add `null: false` with defaults for new required columns
+   - Add indices for foreign keys and frequently queried columns
+   - Use `algorithm: :concurrently` for large table indices
+   - Include `disable_ddl_transaction!` when using concurrent indices
+
+5. **Run and verify.**
+
+   ```bash
+   rails db:migrate
+   rails db:rollback STEP=1
+   rails db:migrate
+   ```
+
+6. **Report results.**
+
+   ```markdown
+   ## Migration Results
+
+   **File:** db/migrate/YYYYMMDDHHMMSS_migration_name.rb
+   **Forward:** Applied successfully
+   **Rollback:** Verified reversible
+   **Schema:** Updated correctly
+   ```
+
+## Generated Files
+
+```
+db/migrate/YYYYMMDDHHMMSS_<migration_name>.rb
+```
+{% endif %}

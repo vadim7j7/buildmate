@@ -275,8 +275,8 @@ export async function deleteTransaction(id: string) {
 ## Pattern 5: Reusable Component
 
 A reusable component using theme constants, spacing scale, and platform shadows.
-Shown with plain `StyleSheet`; with NativeWind, Tamagui or Gluestack keep the props,
-`React.memo` and i18n parts and write the styling as `.claude/styles/<library>.md` shows.
+Shown with plain `StyleSheet`; with NativeWind, Tamagui or gluestack-ui keep the props
+and i18n parts and write the styling as `.claude/styles/<library>.md` shows.
 
 ```typescript
 // src/components/ui/TransactionCard.tsx
@@ -290,10 +290,8 @@ interface TransactionCardProps {
   onPress?: () => void;
 }
 
-export const TransactionCard = React.memo(function TransactionCard({
-  transaction,
-  onPress,
-}: TransactionCardProps) {
+// No React.memo: the React Compiler memoizes it (memoize by hand only with a measured reason)
+export function TransactionCard({ transaction, onPress }: TransactionCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -323,7 +321,7 @@ export const TransactionCard = React.memo(function TransactionCard({
       </View>
     </Pressable>
   );
-});
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -370,10 +368,10 @@ const styles = StyleSheet.create({
 
 ### Key Points
 
-- `React.memo()` wraps list item components for performance
+- No manual `React.memo` / `useCallback` / `useMemo`: the React Compiler handles it
 - Styles through the project's styling library — plain StyleSheet: `StyleSheet.create`
-  (never inline objects); NativeWind: `className`; Tamagui / Gluestack: component style
-  props with theme tokens
+  (never inline objects); NativeWind and gluestack-ui: `className`; Tamagui: component
+  style props with theme tokens
 - Theme values from the theme (StyleSheet: `@/constants` colors, spacing, typography, borderRadius, shadows)
 - Spacing uses the scale: `xs=4, sm=8, md=16, lg=24, xl=32, xxl=48`
 - Platform shadows via `shadows` constants (differ for iOS vs Android)
@@ -538,19 +536,13 @@ Root layout with providers, tab layout with icons, and route groups.
 ```typescript
 // src/app/_layout.tsx
 import { Stack } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import i18n from '@/locales/i18n';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,
-      retry: 2,
-    },
-  },
-});
+import i18n from '@/i18n';
+// One shared client in its own module, so sign-out can call queryClient.clear():
+// export const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 2 } } });
+import { queryClient } from '@/queries/queryClient';
 
 export default function RootLayout() {
   return (

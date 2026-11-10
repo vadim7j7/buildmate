@@ -54,27 +54,28 @@ User.where("name LIKE ?", "%#{User.sanitize_sql_like(params[:q])}%")
 
 ## 2. Mass Assignment Protection
 
-Use strong parameters. Never permit all attributes.
+Use strong parameters with `params.expect` (Rails 8). It returns 400 Bad Request on a missing key or a tampered shape (where `require.permit` raised 500 or let a string through). Never permit all attributes.
 
 ```ruby
 # CORRECT - explicit permit list
 def user_params
-  params.require(:user).permit(:name, :email, :avatar)
+  params.expect(user: [:name, :email, :avatar])
 end
 
 # CORRECT - nested attributes
 def order_params
-  params.require(:order).permit(
+  # Arrays of hashes use double brackets with params.expect
+  params.expect(order: [
     :status,
-    line_items_attributes: [:id, :product_id, :quantity, :_destroy]
-  )
+    line_items_attributes: [[:id, :product_id, :quantity, :_destroy]]
+  ])
 end
 
 # WRONG - permit all
-params.require(:user).permit!
+params.permit!
 
 # WRONG - permitting sensitive fields
-params.require(:user).permit(:name, :email, :admin, :role)
+params.expect(user: [:name, :email, :admin, :role])
 ```
 
 ### Attribute Protection in Models
@@ -515,3 +516,5 @@ Before deploying any feature, verify:
 - [ ] Secrets in credentials, not code
 - [ ] Rate limiting on sensitive endpoints
 - [ ] Security headers configured
+- [ ] `bundle exec brakeman -q --no-pager` reports no new warnings (quality gate)
+- [ ] `bundle exec bundle-audit check --update` clean for the Gemfile.lock (add `bundler-audit` to the dev group if missing)

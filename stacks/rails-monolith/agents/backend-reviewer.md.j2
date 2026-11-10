@@ -30,10 +30,11 @@ View-layer reviews (templates, {{ 'components, ' if (v.vc or v.phlex) else '' }}
 ### Security
 
 - [ ] Strong parameters used (no `params.permit!`)
-- [ ] `authenticate_user!` on protected routes
+- [ ] Protected routes require auth (Rails 8 generator: `require_authentication` is on by default, so check every `allow_unauthenticated_access`; Devise: `authenticate_user!`)
 - [ ] No raw SQL queries with user input
 - [ ] No mass assignment vulnerabilities
 - [ ] CSRF protection (`protect_from_forgery` not disabled in HTML controllers)
+- [ ] Brakeman clean (`bundle exec brakeman -q --no-pager`); new or bumped gems have no advisories (`bundle exec bundle-audit check --update`)
 - [ ] Authorization checks (Pundit/CanCanCan or manual `head :forbidden`)
 - [ ] Sensitive data not logged (passwords, tokens)
 
@@ -56,7 +57,7 @@ View-layer reviews (templates, {{ 'components, ' if (v.vc or v.phlex) else '' }}
 ### Code Quality
 
 - [ ] `frozen_string_literal: true` on all files
-- [ ] Single quotes (double only for interpolation)
+- [ ] String quotes match the project's `.rubocop.yml` (rubocop passes)
 - [ ] Hash shorthand syntax used
 - [ ] Guard clauses instead of nested conditionals
 - [ ] YARD docs on public methods
@@ -68,7 +69,7 @@ View-layer reviews (templates, {{ 'components, ' if (v.vc or v.phlex) else '' }}
 - [ ] Controllers are RESTful (index, show, new, create, edit, update, destroy)
 - [ ] `respond_to` blocks include HTML and JSON where both are needed
 - [ ] Models have proper associations / validations / scopes
-- [ ] Jobs are namespaced, set `queue_as`, and handle failures with ActiveJob `retry_on` / `discard_on`{{ '' if (variables.job_adapter | default('sidekiq')) == 'sidekiq' else ' (no `sidekiq_options`: it raises `NoMethodError` on ' ~ variables.background_jobs ~ ')' }}
+- [ ] Jobs are namespaced, set `queue_as`, and handle failures with ActiveJob `retry_on` / `discard_on`{{ '' if (variables.job_adapter | default('solid_queue')) == 'sidekiq' else ' (no `sidekiq_options`: it raises `NoMethodError` on ' ~ variables.background_jobs ~ ')' }}
 - [ ] Migrations are reversible
 
 ### Testing

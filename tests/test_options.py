@@ -45,7 +45,7 @@ class TestStackOptions:
         """Rails stack should have jobs option."""
         options = get_stack_options("rails")
         assert "jobs" in options
-        assert options["jobs"].default == "sidekiq"
+        assert options["jobs"].default == "solid_queue"  # Rails 8 default
         assert "sidekiq" in options["jobs"].choices
         assert "good_job" in options["jobs"].choices
         assert "solid_queue" in options["jobs"].choices
@@ -336,12 +336,13 @@ class TestDefaultOptions:
 
         assert "zustand.md" in output.patterns
 
-    def test_rails_defaults_to_sidekiq(self):
-        """Rails without options should use sidekiq (default)."""
+    def test_rails_defaults_to_solid_queue(self):
+        """Rails without options uses Solid Queue, the Rails 8 default."""
         composed = compose_stacks(["rails"])
         output = render_all(composed)
 
-        assert "sidekiq.md" in output.patterns
+        assert "solid_queue.md" in output.patterns
+        assert "sidekiq.md" not in output.patterns
 
     def test_react_native_defaults_to_zustand(self):
         """React-native without options should use zustand (default)."""

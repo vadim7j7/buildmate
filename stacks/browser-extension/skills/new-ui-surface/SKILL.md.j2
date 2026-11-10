@@ -1,0 +1,150 @@
+{#- Rendered per the `ui` (and `css`) option. -#}
+{%- set ui = variables.ui_framework -%}
+{%- set main = 'main.tsx' if ui == 'React' else 'main.ts' -%}
+{%- set app = 'plain TypeScript page' if ui == 'Vanilla TS' else ui ~ ' app' -%}
+{%- set style_file = {'React': 'ui-react', 'Vue': 'ui-vue', 'Svelte': 'ui-svelte'}.get(ui, 'ui-vanilla') -%}
+---
+name: new-ui-surface
+description: Add an options page, side panel, popup or new-tab page as a {{ app }} in a WXT entrypoint wired to typed storage and messaging
+---
+
+# /new-ui-surface -- Add a UI Surface ({{ ui }})
+
+## What This Does
+
+Creates an HTML entrypoint in `entrypoints/` with a {{ app }} mounted into it, reading
+state through `utils/storage.ts` and calling the background through `utils/messaging.ts`.
+WXT turns the folder into the manifest entry; nothing is hand-written in `manifest.json`.
+Follow `.claude/styles/{{ style_file }}.md` and `.claude/patterns/{{ 'patterns/ui-surfaces.md' | installed(stack) }}`.
+
+## Usage
+
+```
+/new-ui-surface options          # entrypoints/options/   -> options_ui
+/new-ui-surface sidepanel        # entrypoints/sidepanel/ -> side_panel (Chrome) / sidebar_action (Firefox)
+/new-ui-surface popup            # entrypoints/popup/     -> action.default_popup
+/new-ui-surface newtab           # entrypoints/newtab/    -> chrome_url_overrides.newtab
+```
+
+## Steps
+
+### 1. Files
+
+```
+entrypoints/<surface>/
+  index.html       # <div id="app"> + <script type="module" src="./{{ main }}">
+  {{ main }}{{ ' ' * (17 - main | length) }}# mounts the app
+{% if ui == 'React' %}
+  App.tsx
+{% elif ui == 'Vue' %}
+  App.vue
+{% elif ui == 'Svelte' %}
+  App.svelte
+{% endif %}
+  style.css
+```
+
+Manifest options go in `<meta>` tags of `index.html`, e.g.
+`<meta name="manifest.open_in_tab" content="true" />` (options as a full tab) or
+`<meta name="manifest.open_at_install" content="true" />` (side panel).
+
+### 2. Mount
+
+{% if ui == 'React' %}
+```tsx
+// entrypoints/options/main.tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './style.css';
+
+createRoot(document.getElementById('app')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+```
+{% elif ui == 'Vue' %}
+```typescript
+// entrypoints/options/main.ts
+import { createApp } from 'vue';
+import App from './App.vue';
+import './style.css';
+
+createApp(App).mount('#app');
+```
+{% elif ui == 'Svelte' %}
+```typescript
+// entrypoints/options/main.ts
+import { mount } from 'svelte';
+import App from './App.svelte';
+import './style.css';
+
+mount(App, { target: document.getElementById('app')! });
+```
+{% else %}
+```typescript
+// entrypoints/options/main.ts -- build nodes, set textContent, never innerHTML with data
+import { settings, type Settings } from '@/utils/storage';
+
+const app = document.querySelector<HTMLDivElement>('#app')!;
+const enabled = document.createElement('input');
+enabled.type = 'checkbox';
+app.replaceChildren(enabled);
+
+const render = (s: Settings) => (enabled.checked = s.enabled);
+enabled.addEventListener('change', async () =>
+  settings.setValue({ ...(await settings.getValue()), enabled: enabled.checked }),
+);
+settings.watch(render);
+settings.getValue().then(render);
+```
+{% endif %}
+
+### 3. Data
+
+- Settings and shared state: a `storage.defineItem` in `utils/storage.ts` (`/new-storage-item`),
+{% if ui == 'React' %}
+  read through the `useStorageItem` hook (`.claude/styles/{{ 'styles/ui-react.md' | installed(stack) }}` section 2).
+{% elif ui == 'Vue' %}
+  read through the `useStorageItem` composable (`.claude/styles/{{ 'styles/ui-vue.md' | installed(stack) }}` section 2).
+{% elif ui == 'Svelte' %}
+  read through `storageState()` from `lib/storage-state.svelte.ts` (`.claude/styles/{{ 'styles/ui-svelte.md' | installed(stack) }}` section 2).
+{% else %}
+  rendered in a `watch` callback so every surface stays in sync.
+{% endif %}
+- Privileged work (tabs, network with host permissions): a typed message to the background
+  (`/new-message`), never `browser.*` calls duplicated in the surface.
+
+### 4. Surface specifics
+
+- **options**: open it from code with `browser.runtime.openOptionsPage()`.
+- **sidepanel**: WXT writes `side_panel` (Chrome) / `sidebar_action` (Firefox). Chrome also
+  needs the `sidePanel` permission: check the built manifest and add it to
+  `manifest.permissions` in `wxt.config.ts` if missing. To open it from the toolbar icon:
+  `browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` in the background,
+  guarded with `if (!import.meta.env.FIREFOX)`. `sidePanel.open()` only works in a user gesture.
+- **popup**: fixed `body` width (e.g. 360px); it is destroyed on close, so no timers or
+  in-memory state.
+- **newtab**: loads on every new tab; keep it fast (no blocking network on first paint).
+
+### 5. Test
+
+- Unit: logic in `utils/` with Vitest + `fakeBrowser` (`/test`).
+- E2E: one Playwright spec that opens `chrome-extension://${extensionId}/<surface>.html`
+  (`.claude/patterns/{{ 'patterns/testing.md' | installed(stack) }}`, section 7), e.g. `options.html`, `sidepanel.html`.
+
+### 6. Verify
+
+```bash
+npm run compile
+npm run build      # check .output/{{ variables.target_browser }}-mv3/manifest.json has the new entry
+```
+
+## Checklist
+
+- [ ] Folder entrypoint with `index.html` + `{{ main }}`; manifest options in `<meta>` tags
+- [ ] State via `utils/storage.ts` items, privileged calls via `utils/messaging.ts`
+- [ ] Page and user data rendered as text, never as HTML
+- [ ] Side panel: `sidePanel` permission present for Chrome; Firefox path checked
+- [ ] `npm run compile` and `npm run build` pass; E2E spec opens the page

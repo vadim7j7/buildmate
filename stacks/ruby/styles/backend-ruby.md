@@ -17,14 +17,17 @@ Every Ruby file MUST start with the frozen string literal pragma:
 
 ## 2. String Literals
 
-**Always use single quotes** unless string interpolation is needed:
+Follow the project's RuboCop config (`.rubocop.yml`, or `standard` if the project
+uses it). RuboCop's default is single quotes unless interpolating; `standard` and
+Rails 8's `rubocop-rails-omakase` use double quotes. Match the config so
+`rubocop -A` does not rewrite your code.
 
 ```ruby
-# GOOD
+# RuboCop default (Style/StringLiterals: single_quotes)
 name = 'John'
 greeting = "Hello, #{name}"
 
-# BAD
+# standard / rubocop-rails-omakase
 name = "John"
 ```
 

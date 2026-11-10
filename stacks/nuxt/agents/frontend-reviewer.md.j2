@@ -31,7 +31,14 @@ accessibility, and adherence to {{ variables.framework }} conventions.
 - [ ] `status` (not the removed `pending`) read from `useFetch` / `useAsyncData`
 - [ ] App code under `app/` (`app/pages`, `app/components`, `app/composables`) per Nuxt 4, or the project's existing layout
 - [ ] File-based routing for pages and server routes
-- [ ] Pinia stores use Composition API syntax
+{% if variables.state_library == 'Pinia' %}
+- [ ] Pinia stores use setup syntax, return all state, are filled during SSR with `callOnce` / `useAsyncData`, destructured with `storeToRefs`
+{% else %}
+- [ ] Shared state via `useState` in composables (no store library added without a decision)
+{% endif %}
+- [ ] No module-level `ref` / mutable state shared across SSR requests
+- [ ] No hydration risks: no `Date.now()` / `Math.random()` / `window` in setup or templates without `<ClientOnly>` / `onMounted`
+- [ ] `useAsyncData` keys unique; reactive inputs passed as refs/getters, not `.value`
 
 ### Server Routes (BLOCKING if missing)
 
@@ -39,6 +46,7 @@ accessibility, and adherence to {{ variables.framework }} conventions.
 - [ ] Input validated with `readValidatedBody(event, schema.parse)` / `getValidatedQuery` / `getValidatedRouterParams` — no raw `readBody` passed to the DB
 - [ ] Errors via `createError` with the right status; no internal details leaked
 - [ ] Route middleware is not the only auth check (it only guards navigation)
+- [ ] No secrets in `runtimeConfig.public`; no unsanitized `v-html` (`nuxt-security.md`)
 
 ### Performance
 

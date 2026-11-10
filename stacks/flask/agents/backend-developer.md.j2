@@ -49,8 +49,8 @@ Match the existing code style exactly.
 Flask is **synchronous**. Flask-SQLAlchemy's `db.session` is a sync session scoped to
 the app context: use `db.session.execute(select(...))`, `db.session.get(...)`,
 `db.session.commit()`. Never `async with db.session()` / `await` (raises `TypeError`)
-and never `async def` views or services. Full examples: `.claude/patterns/flask-patterns.md`
-and `.claude/patterns/backend-patterns.md`.
+and never `async def` views or services. Full examples: `.claude/patterns/{{ 'patterns/flask-patterns.md' | installed(stack) }}`
+and `.claude/patterns/{{ 'patterns/backend-patterns.md' | installed(stack) }}`.
 
 ### App Factory Pattern
 
@@ -61,6 +61,7 @@ import os
 from flask import Flask
 
 from app.config import CONFIGS
+from app.errors import register_error_handlers
 from app.extensions import cors, db, migrate
 
 
@@ -68,6 +69,7 @@ def create_app(config_name: str | None = None) -> Flask:
     """Create and configure the Flask application."""
     app = Flask(__name__)
     app.config.from_object(CONFIGS[config_name or os.environ.get("APP_ENV", "development")])
+    app.config.from_prefixed_env()  # FLASK_<KEY> env vars override
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -89,7 +91,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
 ```python
 # src/app/blueprints/projects.py
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, abort, jsonify, request
 
 from app.schemas.project import ProjectRead
 from app.services.project_service import ProjectService
@@ -107,16 +109,16 @@ def list_projects() -> Response:
 
 
 @bp.get("/<int:project_id>")
-def get_project(project_id: int) -> Response | tuple[dict[str, str], int]:
+def get_project(project_id: int) -> Response:
     """Get a single project by ID."""
     project = ProjectService().get_by_id(project_id)
     if project is None:
-        return {"error": "Project not found"}, 404
+        abort(404, description=f"Project {project_id} not found")
     return jsonify(ProjectRead.model_validate(project).model_dump(mode="json"))
 ```
 
 Boolean query flags: never `request.args.get("x", type=bool)` (`bool("false")` is
-`True`); use the `parse_bool` helper from `.claude/patterns/flask-patterns.md`.
+`True`); use the `parse_bool` helper from `.claude/patterns/{{ 'patterns/flask-patterns.md' | installed(stack) }}`.
 
 ### Service Pattern (sync)
 
@@ -177,7 +179,8 @@ Config classes in `src/app/config.py` selected through a `CONFIGS` dict
 (`development`, `testing`, `production`); `SECRET_KEY` and `DATABASE_URL` come from
 the environment, with fallbacks only in development/testing. The database URL uses
 the sync driver for {{ variables.database }}{% if variables.db_url_scheme %} (`{{ variables.db_url_scheme }}://...`){% endif %}.
-See `.claude/patterns/flask-patterns.md` section 4.
+`create_app` then calls `app.config.from_prefixed_env()`, so any `FLASK_<KEY>`
+variable overrides a value. See `.claude/patterns/{{ 'patterns/flask-patterns.md' | installed(stack) }}` section 4.
 
 ### Schema Pattern (Pydantic v2)
 
@@ -208,31 +211,12 @@ class ProjectRead(ProjectBase):
     updated_at: datetime
 ```
 
-### Error Handler Pattern
+### Error Pattern
 
-```python
-from flask import Flask
-from pydantic import ValidationError
-
-from app.extensions import db
-
-
-def register_error_handlers(app: Flask) -> None:
-    """Register application error handlers."""
-
-    @app.errorhandler(ValidationError)
-    def validation_error(error: ValidationError) -> tuple[dict[str, object], int]:
-        return {"errors": error.errors(include_url=False)}, 422
-
-    @app.errorhandler(404)
-    def not_found(error: Exception) -> tuple[dict[str, str], int]:
-        return {"error": "Not found"}, 404
-
-    @app.errorhandler(500)
-    def internal_error(error: Exception) -> tuple[dict[str, str], int]:
-        db.session.rollback()
-        return {"error": "Internal server error"}, 500
-```
+Every error response is `application/problem+json` (RFC 9457), built by the
+handlers in `src/app/errors.py`. Services raise domain errors (`NotFoundError`,
+`ConflictError`); views call `abort(404, description=...)`; nothing returns
+`{"error": ...}, 404` by hand. See `.claude/patterns/{{ 'patterns/errors.md' | installed(stack) }}`.
 
 ## Style Rules (MANDATORY)
 

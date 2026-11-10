@@ -7,9 +7,8 @@ description: Generate a new React Context with Provider, custom hook, and TypeSc
 
 ## What This Does
 
-Creates a new React Context with a typed Provider component, `useMemo`-optimized
-value, `useCallback` handlers, and a custom hook with an `undefined` safety
-check.
+Creates a new React Context with a typed Provider component, a stable value, and
+a custom hook with an `undefined` safety check.
 
 ## Usage
 
@@ -53,8 +52,8 @@ const <Name>Context = createContext<<Name>ContextValue | undefined>(undefined);
 
 export function <Name>Provider({ children }: { children: ReactNode }) {
   // state
-  // handlers wrapped in useCallback
-  // value wrapped in useMemo
+  // handlers + value: plain code if the React Compiler is on (reactCompiler: true);
+  // otherwise useCallback for handlers and useMemo for the value
 
   return <<Name>Context.Provider value={value}>{children}</<Name>Context.Provider>;
 }
@@ -81,8 +80,10 @@ Run `npx tsc --noEmit` to verify the context compiles.
 - All contexts use `'use client'` directive
 - Context value type includes `| undefined` for the `createContext` call
 - Custom hook throws if used outside Provider
-- Provider value wrapped in `useMemo` to prevent unnecessary re-renders
-- Event handlers wrapped in `useCallback`
+- Check `next.config.*` for `reactCompiler: true`. With the compiler: no `useMemo` /
+  `useCallback` (it memoizes). Without it: value in `useMemo`, handlers in
+  `useCallback` (a context value is the one place memoization is the default, since
+  every consumer re-renders when its identity changes)
 - Use `type` for context value (not `interface`)
 - Named exports for Provider and hook
 

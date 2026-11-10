@@ -25,7 +25,7 @@ following Nuxt 4 conventions with Vue 3 Composition API.
 - {{ variables.ui_framework }} (Composition API, `<script setup>`, reactivity)
 - {{ variables.language }} (strict mode, type annotations)
 - {{ variables.test_framework }} + `@nuxt/test-utils` (unit and component testing)
-- Auto-imports, composables, Pinia stores
+- Auto-imports, composables{% if variables.state_library == 'Pinia' %}, Pinia stores (`@pinia/nuxt`){% else %}, `useState` for shared state{% endif %}
 
 ## Before Writing Any Code
 
@@ -55,6 +55,9 @@ The quality gates need tooling that a fresh Nuxt starter does not ship. If missi
   and `package.json` has `"lint": "eslint ."` (`npm pkg set scripts.lint="eslint ."`)
 - **Tests** (`npx vitest run`): needs `vitest`, `@nuxt/test-utils`, `@vue/test-utils`,
   `happy-dom` and a `vitest.config.ts` using `defineVitestConfig` (see the tester agent)
+{% if variables.state_library == 'Pinia' %}
+- **Pinia**: `@pinia/nuxt` in `modules` → `npx nuxi module add pinia` if missing
+{% endif %}
 
 ## Code Patterns
 
@@ -154,31 +157,48 @@ export default defineEventHandler(async (event) => {
 });
 ```
 
+{% if variables.state_library == 'Pinia' %}
 ### Pinia Store Pattern
 
+Shared client state goes in a setup store in `app/stores/` (full rules in
+`pinia.md`). Server data a single page reads stays in `useFetch`.
+
 ```typescript
-// app/stores/auth.ts
-export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null);
-  const isAuthenticated = computed(() => user.value !== null);
+// app/stores/cart.ts
+export const useCartStore = defineStore('cart', () => {
+  const items = ref<CartItem[]>([]);
+  const total = computed(() => items.value.reduce((sum, i) => sum + i.price * i.qty, 0));
 
-  async function login(email: string, password: string) {
-    const response = await $fetch('/api/auth/login', {
-      method: 'POST',
-      body: { email, password },
-    });
-    user.value = response.user;
+  async function load() {
+    items.value = await $fetch('/api/cart');
   }
 
-  async function logout() {
-    await $fetch('/api/auth/logout', { method: 'POST' });
-    user.value = null;
-    await navigateTo('/login');
-  }
-
-  return { user, isAuthenticated, login, logout };
+  return { items, total, load };
 });
 ```
+
+Fill it during SSR with `await callOnce('cart', () => cart.load())` and destructure
+state with `storeToRefs(cart)`.
+{% else %}
+### Shared State Pattern
+
+No store library: shared state is `useState` inside a composable (SSR-safe, one
+copy per request). Never a module-level `ref`.
+
+```typescript
+// app/composables/useCart.ts
+export function useCart() {
+  const items = useState<CartItem[]>('cart-items', () => []);
+  const total = computed(() => items.value.reduce((sum, i) => sum + i.price * i.qty, 0));
+
+  async function load() {
+    items.value = await $fetch('/api/cart');
+  }
+
+  return { items, total, load };
+}
+```
+{% endif %}
 
 ### Layout Pattern
 
@@ -211,10 +231,12 @@ export const useAuthStore = defineStore('auth', () => {
 5. **Server routes** - `server/api/`, file-based routing, input via `readValidatedBody` / `getValidatedQuery` / `getValidatedRouterParams`
 6. **Auth in server routes** - Authenticate and authorize in every handler for private data
 7. **Composables** - Reusable logic in `app/composables/`
-8. **Pinia for state** - Use `defineStore` with Composition API syntax
+8. **Shared state** - {% if variables.state_library == 'Pinia' %}Pinia setup stores (`defineStore('id', () => {...})`), `storeToRefs` to destructure{% else %}`useState` in composables; no store library{% endif %}; never module-level `ref`s
 9. **Named exports** - For composables and utilities
 10. **TypeScript strict** - No `any` types
 11. **`useHead` / `useSeoMeta`** - For page titles and meta
+12. **Auth in two places** - Page middleware for UX, server-route checks for data (`nuxt-auth.md`)
+13. **Browser APIs only on the client** - `onMounted`, `import.meta.client`, `<ClientOnly>` (`nuxt-pitfalls.md`)
 
 ## Completion Checklist
 

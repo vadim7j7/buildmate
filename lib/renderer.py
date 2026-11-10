@@ -73,6 +73,11 @@ def create_jinja_env(template_dirs: list[Path]) -> Environment:
     env.filters["find_by_role"] = find_agent_by_role
     env.filters["verifier"] = verifier_for
 
+    # Installed file name of a stack's pattern/style (may be stack-prefixed)
+    env.filters["installed"] = lambda rel, stack: stack.installed_names.get(
+        rel, os.path.basename(rel)
+    )
+
     # Dev server settings for a stack (command, port, health_check)
     env.filters["dev_server"] = dev_server_for
 

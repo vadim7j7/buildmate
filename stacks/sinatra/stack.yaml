@@ -27,6 +27,7 @@ agents:
       - new-helper
       - new-model
       - new-service
+      - new-migration
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
@@ -59,9 +60,14 @@ skills:
   - new-model
   - new-service
   - new-spec
+  - new-migration
 
 patterns:
   - patterns/sinatra-patterns.md
+
+reference_patterns:
+  - patterns/error-handling.md
+  - patterns/auth.md
 
 variables:
   framework: Sinatra 4+

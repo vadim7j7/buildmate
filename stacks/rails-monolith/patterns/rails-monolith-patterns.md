@@ -181,7 +181,7 @@ class ProfilesController < ApplicationController
   end
 
   def profile_params
-    params.require(:profile).permit(:name, :email, :bio, :company_id)
+    params.expect(profile: [:name, :email, :bio, :company_id])
   end
 end
 ```
@@ -192,10 +192,10 @@ end
 - Set instance variables (`@profile`) for views
 - Use `respond_to do |format|` only when both HTML and JSON are needed
 - Use `redirect_to ..., notice:` and `redirect_to ..., alert:` for flash
-- **Use `status: :unprocessable_entity` (422) on validation failure** — Turbo expects this
-- **Use `status: :see_other` (303) on DELETE redirects** — Turbo expects this
+- **Use `status: :unprocessable_entity` (422) on validation failure** — correct HTTP, and Turbo requires it
+- **Use `status: :see_other` (303) on DELETE redirects** — the browser follows with GET; Turbo requires it
 - Scope through `current_user` for authorization-by-default
-- Strong params with explicit `permit`
+- Strong params with `params.expect(model: [...])` (Rails 8)
 - `includes()` to prevent N+1 queries
 
 ---
@@ -324,7 +324,7 @@ Rules:
 ## 7. Style Rules (MANDATORY)
 
 1. **`frozen_string_literal: true`** - First line of every Ruby file
-2. **Single quotes** - Always, unless interpolation
+2. **Quotes per `.rubocop.yml`** - omakase (Rails 8 default) means double quotes
 3. **Hash shorthand** - `{ id:, name: }` not `{ id: id, name: name }`
 4. **Guard clauses** - `return if condition?` over nested conditionals
 5. **YARD docs** - On public methods (especially helpers and components)

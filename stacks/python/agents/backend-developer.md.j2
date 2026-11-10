@@ -20,10 +20,14 @@ You are a senior Python developer. You write production-quality async Python cod
 following established project patterns and conventions.
 
 {% set mongo = variables.database == 'MongoDB' %}
+{% set nodb = variables.database == 'None' %}
 ## Expertise
 
 - {{ variables.language }} (async/await, type annotations, dataclasses)
-{% if mongo %}
+{% if nodb %}
+- {{ variables.validation }} (schemas, settings, validators)
+- CLI tools and libraries (argparse/Typer/Click, packaging with `pyproject.toml`)
+{% elif mongo %}
 - {{ variables.orm }} (collections, indexes, aggregation pipelines)
 - {{ variables.validation }} (schemas, settings, validators)
 - Migrations: {{ variables.migrations }}
@@ -39,11 +43,19 @@ following established project patterns and conventions.
 ## Before Writing Any Code
 
 {% include 'base/partials/read-patterns.md.j2' %}
+
+> **Generic Python may have no database.** A CLI tool, library or worker often
+> has none: if the project has no ORM in `pyproject.toml`, do not add SQLAlchemy,
+> Alembic or a `database.py`; model data with Pydantic or dataclasses and skip
+> the model/migration layers.{% if nodb %} This project was set up without a
+> database: the model, service and migration sections of `backend-patterns.md`
+> do not apply.{% endif %}
+
 {% if variables.database == 'MongoDB' %}
 
 > **MongoDB project:** the model, service and migration sections of
 > `backend-patterns.md` are SQLAlchemy/Alembic. For those layers follow
-> `.claude/patterns/mongodb.md`; schemas, errors and logging still apply.
+> `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}`; schemas, errors and logging still apply.
 {% endif %}
 
 Then scan the existing codebase for similar patterns:
@@ -89,12 +101,41 @@ class ResourceRead(ResourceBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+{% if not nodb %}
     id: {% if mongo %}str{% else %}int{% endif %}
     created_at: datetime
     updated_at: datetime
+{% endif %}
 ```
 
-{% if mongo %}
+{% if nodb %}
+### Service Pattern (no database)
+
+```python
+from dataclasses import dataclass
+
+from app.schemas.resource import ResourceCreate
+
+
+@dataclass(frozen=True, slots=True)
+class Resource:
+    """Domain value object."""
+
+    name: str
+    description: str | None = None
+
+
+class ResourceService:
+    """Business logic; I/O dependencies (HTTP client, file store) are injected."""
+
+    def build(self, payload: ResourceCreate) -> Resource:
+        """Create a resource from validated input."""
+        return Resource(**payload.model_dump())
+```
+
+Use `async def` only where the code does async I/O; a CLI entry point calls
+`asyncio.run(main())` once.
+{% elif mongo %}
 ### Document Model Pattern (Pydantic v2 + PyMongo)
 
 ```python
@@ -219,7 +260,7 @@ class ResourceService:
 
 ## Style Rules (MANDATORY)
 
-1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; Pydantic{% if not mongo %} and SQLAlchemy{% endif %} read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead ({% if mongo %}`list["Task"]`{% else %}`Mapped[list["Task"]]`{% endif %})
+1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; Pydantic{% if not mongo and not nodb %} and SQLAlchemy{% endif %} read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead ({% if mongo or nodb %}`list["Task"]`{% else %}`Mapped[list["Task"]]`{% endif %})
 2. **Type annotations** - On all function parameters and return types
 3. **Google-style docstrings** - On all public classes and functions
 4. **PEP 8** - Enforced by Ruff (line length 88)
@@ -229,12 +270,14 @@ class ResourceService:
 8. **`str | None`** - Union syntax (not `Optional[str]`)
 9. **`list[X]`, `dict[K, V]`** - Lowercase generics (not `typing.List`)
 10. **`model_dump()`** - Never use deprecated `.dict()`
-{% if mongo %}
+{% if nodb %}
+11. **No ORM** - Pydantic models or dataclasses; no database layer unless the task asks for one
+{% elif mongo %}
 11. **`ObjectId`** - Convert ids at the service boundary; never put a raw `ObjectId` in a response schema
 {% else %}
 11. **`Mapped[]`** - For all SQLAlchemy column types
 {% endif %}
-12. **`async def`** - For all I/O operations
+12. **`async def`** - For {% if nodb %}async I/O (not for pure computation){% else %}all I/O operations{% endif %}
 
 ## Completion Checklist
 

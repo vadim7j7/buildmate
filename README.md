@@ -958,7 +958,7 @@ buildmate scraping /path/to/project --browser=none
 | `/new-spider` | `/new-spider products --url https://example.com` | Generate Scrapy spider or scraper class |
 | `/new-scraper` | `/new-scraper api-data --browser playwright` | Generate HTTP or browser-based scraper |
 | `/analyze-target` | `/analyze-target https://example.com/products` | Analyze website structure and plan strategy |
-| `/analyze-site` | `/analyze-site example.com --sitemap` | Site-wide analysis for large projects |
+| `/analyze-crawl` | `/analyze-crawl example.com --sitemap` | Site-wide crawl planning for large projects |
 | `/test-scraper` | `/test-scraper products --live` | Run comprehensive scraper tests |
 
 Page cloning (`/clone-page`, `/analyze-site`, the site-analyzer, ui-cloner and api-generator agents) comes from base and works in every project; the scraping stack focuses on data extraction.

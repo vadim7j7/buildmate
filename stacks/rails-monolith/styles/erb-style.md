@@ -3,6 +3,10 @@
 Conventions for ERB templates (views, partials, mailer templates) in a Rails
 monolith.
 
+Class names in the examples are Tailwind; use the project's CSS framework
+(see `.claude/patterns/` and `CLAUDE.md`). Turbo-specific items (`turbo_frame_tag`,
+`turbo_confirm`, `.turbo_stream.erb`) apply only when the app uses Turbo.
+
 ## File Layout
 
 ```
@@ -98,14 +102,11 @@ Always pass locals **explicitly**:
 NEVER access instance variables (`@profile`) inside a partial — it breaks
 encapsulation. Always pass via locals.
 
-Document the locals contract at the top of the partial:
+Declare the contract with strict locals (Rails 7.1+) on the partial's first line.
+Rails then raises on a missing required local or an unknown one:
 
 ```erb
-<%# locals:
-      profile: Profile
-      submit_label: String (optional)
-%>
-
+<%# locals: (profile:, submit_label: nil) -%>
 <% submit_label ||= profile.persisted? ? t('common.update') : t('common.create') %>
 ...
 ```
@@ -128,6 +129,9 @@ Document the locals contract at the top of the partial:
               class: "px-3 py-1 text-red-600" %>
 ```
 
+Without Turbo, `data-turbo-confirm` does nothing: use
+`form: { onsubmit: "return confirm('...')" }` or a Stimulus controller.
+
 `button_to` generates a real form with CSRF token and proper HTTP method.
 Don't fake state changes via `link_to` with `data-method`.
 
@@ -145,7 +149,7 @@ Use `form_with`:
 
 NEVER use `form_for` (deprecated) or `form_tag` (low-level, no model integration).
 
-## Turbo Frames
+## Turbo Frames (Turbo only)
 
 ```erb
 <%= turbo_frame_tag "profile_#{@profile.id}" do %>
@@ -231,7 +235,7 @@ output (text emails, generated source files).
 
 1. **`t('...')` for all user-visible strings** — no exceptions
 2. **Pass locals explicitly to partials** — never rely on `@instance_variable`
-3. **Document locals contract** at the top of partials
+3. **Declare strict locals** (`<%# locals: (profile:) -%>`) at the top of partials
 4. **Use `link_to` for GET, `button_to` for state changes**
 5. **Use `form_with`** — never `form_for` or `form_tag`
 6. **Semantic HTML** — `<article>`, `<header>`, `<nav>`, `<section>`, `<main>`

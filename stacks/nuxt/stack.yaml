@@ -21,6 +21,22 @@ compatible_with:
   - elixir
   - phoenix
 
+options:
+  state:
+    description: Shared client state
+    default: pinia
+    choices:
+      pinia:
+        description: Pinia stores via the @pinia/nuxt module (SSR-safe)
+        patterns:
+          - patterns/pinia.md
+        variables:
+          state_library: Pinia
+      none:
+        description: No store library; Nuxt useState + composables
+        variables:
+          state_library: None
+
 agents:
   - name: frontend-developer
     template: agents/frontend-developer.md.j2
@@ -35,7 +51,10 @@ agents:
       - Glob
     skills:
       - new-page
+      - new-component
       - new-composable
+      - new-middleware
+      - new-plugin
       - new-server-route
 
   - name: frontend-tester
@@ -64,7 +83,10 @@ agents:
 
 skills:
   - new-page
+  - new-component
   - new-composable
+  - new-middleware
+  - new-plugin
   - new-server-route
 
 # Merged with the javascript parent by key: `lint` (npm run lint) is inherited,
@@ -79,8 +101,17 @@ quality_gates:
     command: npx vitest run
     description: Vitest test suite
 
+# Always read: the core framework pattern (+ the state option's pattern).
 patterns:
   - patterns/nuxt-patterns.md
+
+# Read only when the task touches the topic. Prefixed names: a backend stack
+# installed next to Nuxt (rails+nuxt...) ships its own auth/security/testing files.
+reference_patterns:
+  - patterns/nuxt-auth.md
+  - patterns/nuxt-security.md
+  - patterns/nuxt-testing.md
+  - patterns/nuxt-pitfalls.md
 
 # Overrides the parent setup: Nuxt starters ship without the dev tooling the
 # quality gates need (vue-tsc for typecheck, @nuxt/eslint + a "lint" script,
@@ -96,6 +127,7 @@ setup:
 
 variables:
   framework: Nuxt 4
+  state_library: Pinia
   test_framework: Vitest
   ui_framework: Vue 3
   dev_port: 3000

@@ -23,7 +23,7 @@ conventions, performance best practices, security requirements, and quality stan
 
 > **MongoDB project:** the model, service and migration sections of
 > `backend-patterns.md` are SQLAlchemy/Alembic. For those layers follow
-> `.claude/patterns/mongodb.md`; schemas, errors and logging still apply.
+> `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}`; schemas, errors and logging still apply.
 {% endif %}
 
 ### Step 2: Run Automated Checks
@@ -45,12 +45,19 @@ Review each changed file against the checklist below.
 
 ### Python Conventions
 
-- [ ] No `from __future__ import annotations` (annotations must stay runtime-resolvable for Pydantic{% if variables.database != 'MongoDB' %}/SQLAlchemy{% endif %}); forward references are quoted; no runtime-needed import moved into `if TYPE_CHECKING:`
+- [ ] No `from __future__ import annotations` (annotations must stay runtime-resolvable for Pydantic{% if variables.database not in ['MongoDB', 'None'] %}/SQLAlchemy{% endif %}); forward references are quoted; no runtime-needed import moved into `if TYPE_CHECKING:`
+{% if variables.database == 'None' %}
+- [ ] No database layer (SQLAlchemy, Alembic) added unless the task asked for persistence
+- [ ] I/O dependencies (HTTP clients, file stores) are injected, not created inside services
+{% else %}
 - [ ] Services inject {% if variables.database == 'MongoDB' %}the `AsyncDatabase` (or a collection){% else %}`AsyncSession`{% endif %} via constructor
-- [ ] Services are async (all I/O methods use `async def`)
+{% endif %}
+- [ ] I/O methods use `async def` where the project is async
 - [ ] Schemas use Pydantic v2 (`BaseModel`, `ConfigDict`)
 - [ ] Read schemas use `model_config = ConfigDict(from_attributes=True)`
-{% if variables.database == 'MongoDB' %}
+{% if variables.database == 'None' %}
+- [ ] Domain models are Pydantic v2 or dataclasses
+{% elif variables.database == 'MongoDB' %}
 - [ ] Document models are Pydantic v2; `_id` is aliased and converted to/from `ObjectId` at the service boundary
 {% else %}
 - [ ] Models use SQLAlchemy 2.0 `Mapped[]` annotations
@@ -59,7 +66,9 @@ Review each changed file against the checklist below.
 
 ### Performance
 
-{% if variables.database == 'MongoDB' %}
+{% if variables.database == 'None' %}
+- [ ] **Batching**: No repeated I/O (network, disk) inside loops that could be batched
+{% elif variables.database == 'MongoDB' %}
 - [ ] **N+1 Prevention**: No per-document queries in loops; use `$in`, `$lookup` or embedding
 - [ ] **Indexes**: Fields used in filters and sorts have indexes
 {% else %}
@@ -67,12 +76,16 @@ Review each changed file against the checklist below.
 - [ ] **Database Indices**: New foreign keys have indices
 {% endif %}
 - [ ] **Pagination**: List operations accept `skip`/`limit` parameters
+{% if variables.database != 'None' %}
 - [ ] **Async I/O**: All database operations are async
+{% endif %}
 
 ### Security
 
 - [ ] **Input Validation**: All external inputs use Pydantic schemas
-{% if variables.database == 'MongoDB' %}
+{% if variables.database == 'None' %}
+- [ ] **Command/Path Injection**: No `shell=True` with input; paths from input are resolved and checked
+{% elif variables.database == 'MongoDB' %}
 - [ ] **NoSQL Injection**: Query filters are built from validated values, never from raw request dicts (`$where`, `$regex`, operator keys)
 {% else %}
 - [ ] **SQL Injection**: All queries use SQLAlchemy (no raw SQL with f-strings)

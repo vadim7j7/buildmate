@@ -40,6 +40,13 @@ options:
           db_adapter: pymongo (AsyncMongoClient)
           orm: PyMongo Async API (AsyncMongoClient) + Pydantic v2 models
           migrations: none for schema (indexes created at startup, data fixes as scripts)
+      none:
+        description: No database (CLI tool, library, worker)
+        variables:
+          database: None
+          db_adapter: ""
+          orm: none (no database)
+          migrations: none
 
 agents:
   - name: backend-developer

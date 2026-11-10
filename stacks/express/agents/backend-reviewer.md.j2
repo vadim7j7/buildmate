@@ -26,12 +26,15 @@ performance, and adherence to TypeScript conventions.
 ### Security
 
 - [ ] Input validated with Zod schemas
-- [ ] No raw SQL queries
+- [ ] No string-built SQL (`$queryRawUnsafe` / `$executeRawUnsafe` with input); raw SQL only as tagged `$queryRaw`
 - [ ] Authentication middleware on protected routes
 - [ ] Authorization: queries scoped by the current user/tenant (no IDOR via IDs in params/body)
 - [ ] Route params and query strings validated with Zod, not just bodies
 - [ ] No secrets in code
-- [ ] CORS configured properly
+- [ ] `helmet()` on; CORS with an explicit origin allow-list (never `cors()` open with credentials)
+- [ ] Rate limiting on login, sign-up, password reset and other abuse-prone routes
+- [ ] Responses mapped to DTOs: no password hashes, tokens or internal fields
+- [ ] Logs carry no secrets/tokens/passwords (pino `redact`)
 - [ ] Server reads `process.env.PORT` (dev runs on {{ variables.dev_port }})
 
 ### Performance
@@ -40,6 +43,7 @@ performance, and adherence to TypeScript conventions.
 - [ ] Pagination on list endpoints
 - [ ] No N+1 queries
 - [ ] Async operations handled properly
+- [ ] Long-lived resources (DB pool, queues, timers) closed in the graceful-shutdown path
 
 ### Code Quality
 
@@ -49,6 +53,8 @@ performance, and adherence to TypeScript conventions.
 - [ ] Validation errors reported with `z.flattenError()` / `error.issues` (not deprecated `error.flatten()`)
 - [ ] Named exports used
 - [ ] Service layer for business logic
+- [ ] Schema changes come with a committed Prisma migration (`prisma/migrations/`), not `db push`; destructive changes split into safe steps
+- [ ] `pino` logger, not `console.log`
 - [ ] Controller delegates to services
 
 ### Testing
@@ -56,6 +62,7 @@ performance, and adherence to TypeScript conventions.
 - [ ] Tests exist for new endpoints
 - [ ] Happy path and error cases tested
 - [ ] Test isolation maintained
+- [ ] Endpoint tests cover 401, another user's resource (404/403) and 422 (Supertest + {{ variables.test_framework }})
 
 ## Verdict Format
 

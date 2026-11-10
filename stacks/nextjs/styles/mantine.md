@@ -2,7 +2,13 @@
 
 ## Overview
 
-Use Mantine v7+ components for all UI. Never use raw HTML when a Mantine component exists.
+Use Mantine v9 components for all UI (Mantine 9 needs React 19.2+, which Next.js 16
+ships). Never use raw HTML when a Mantine component exists.
+
+Mantine 9 changes that trip up code written for v7/v8: `Text` / `Anchor` take the
+`c` style prop, not `color`; `Grid` uses `gap` (was `gutter`); `Collapse` uses
+`expanded` (was `in`); `TypographyStylesProvider` is now `Typography`; the default
+`theme.defaultRadius` is `md`. Follow the 8.x → 9.x migration guide when upgrading.
 
 ## Component Mapping
 
@@ -32,7 +38,7 @@ Mantine imports go in the **Third-party** group (group 2):
 
 ```typescript
 // 1. React / Next.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 
 // 2. Third-party (Mantine)
@@ -73,7 +79,7 @@ Set up MantineProvider in the root layout:
 
 ```tsx
 // src/app/layout.tsx
-import { MantineProvider, ColorSchemeScript } from '@mantine/core';
+import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { theme } from '@/styles/theme';
 import '@mantine/core/styles.css';
@@ -81,7 +87,7 @@ import '@mantine/notifications/styles.css';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" {...mantineHtmlProps}>
       <head>
         <ColorSchemeScript />
       </head>

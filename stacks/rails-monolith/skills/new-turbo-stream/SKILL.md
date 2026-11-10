@@ -8,14 +8,15 @@ description: Add Turbo Stream broadcasts or controller responses for real-time D
 ## What This Does
 
 Generates a Turbo Stream — either as a controller response (`*.turbo_stream.erb`)
-or as a model broadcast (`broadcasts_to`) — so server-side changes update the DOM
-without a full page reload.
+or as a model broadcast (`broadcasts_refreshes` or `broadcasts_to`) — so server-side
+changes update the DOM without a full page reload.
 
 ## Usage
 
 ```
 /new-turbo-stream Comment create     # Controller response on create
 /new-turbo-stream Comment broadcast  # Model-level broadcast on save/destroy
+/new-turbo-stream Post refresh       # Morphing page refresh for everyone viewing the post
 /new-turbo-stream Notification append --to=notifications
 ```
 
@@ -31,7 +32,8 @@ without a full page reload.
 | Style | Use when |
 |-------|----------|
 | **Controller response** (`format.turbo_stream`) | The triggering user is the only one who needs the update |
-| **Model broadcast** (`broadcasts_to`) | All connected users need to see the change in real time |
+| **Morph refresh** (`broadcasts_refreshes`, Turbo 8) | All viewers should see the change and the page is cheap to re-render: the default for "keep this page live" |
+| **Model broadcast** (`broadcasts_to`) | All viewers need a targeted insert/replace (long lists, expensive pages, chat-like append) |
 
 ### 3a. Controller Response Pattern
 
@@ -72,7 +74,39 @@ end
 <%= turbo_stream.update "comment_count", @post.comments.count %>
 ```
 
-### 3b. Model Broadcast Pattern
+### 3b. Morph Refresh Pattern (Turbo 8, preferred for live pages)
+
+No stream templates or target IDs: the model announces "something changed", each
+subscribed browser re-fetches the page and morphs the difference in.
+
+```ruby
+# app/models/comment.rb
+class Comment < ApplicationRecord
+  belongs_to :post, touch: true          # touching the post refreshes its page
+end
+
+# app/models/post.rb
+class Post < ApplicationRecord
+  has_many :comments
+  broadcasts_refreshes                   # refresh on create/update/destroy
+end
+```
+
+```erb
+<%# app/views/layouts/application.html.erb, in <head> %>
+<%= turbo_refreshes_with method: :morph, scroll: :preserve %>
+
+<%# app/views/posts/show.html.erb %>
+<%= turbo_stream_from @post %>
+```
+
+- Refreshes are debounced and skip the browser that made the change (its own
+  redirect already shows it).
+- `broadcasts_refreshes_to ->(c) { [c.post, :comments] }` targets another stream.
+- Keep transient UI (open dropdowns, text being typed) in elements with
+  `data-turbo-permanent`.
+
+### 3c. Model Broadcast Pattern (targeted)
 
 ```ruby
 # app/models/comment.rb
@@ -144,6 +178,7 @@ end
 - **Form doesn't reset after submit**: include a `turbo_stream.replace "new_<x>_form"` action
 - **Broadcast partial errors**: don't use helpers that depend on the request (no `current_user`, no `link_to_unless_current`)
 - **Subscribers don't update**: ensure the view has `turbo_stream_from <record>, <stream_name>` matching the model's `broadcasts_to`
+- **Morph refresh replaces the whole body / loses scroll**: `turbo_refreshes_with method: :morph, scroll: :preserve` is missing from the layout
 - **Duplicate elements appear**: if both controller response AND model broadcast fire for the same action, the user sees double — pick one
 
 ## Output

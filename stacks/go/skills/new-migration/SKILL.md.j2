@@ -1,0 +1,181 @@
+---
+name: new-migration
+{% if variables.database == 'MongoDB' %}
+description: Add a MongoDB index or schema change as a versioned, idempotent Go script
+{% else %}
+description: Create a goose SQL migration ({{ variables.database }}) with Up and Down
+{% endif %}
+---
+
+# /new-migration
+
+{% if variables.database == 'MongoDB' %}
+## What This Does
+
+MongoDB has no schema migrations. Here a "migration" is an idempotent Go step that
+creates indexes, sets a collection validator, or backfills documents. Steps are
+numbered, run in order at startup (or by `/db-migrate`), and recorded in a
+`schema_migrations` collection so each runs once.
+
+## Usage
+
+```
+/new-migration users_email_unique_index
+/new-migration backfill_users_status
+```
+
+## How It Works
+
+1. **Read** `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}` and find the existing steps
+   (`internal/migrations/`). A plain new index can go in the startup index list from
+   `mongodb.md` (`CreateMany` is idempotent); use a numbered step for validators,
+   backfills and index changes. If there is no runner yet, create the one below.
+2. **Add a step** with the next version number. Index creation is idempotent (same
+   keys and options are a no-op); backfills filter on documents not yet migrated, so a
+   re-run changes nothing.
+
+{% raw %}
+```go
+package migrations
+
+import (
+	"context"
+	"fmt"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+type Step struct {
+	Version int
+	Name    string
+	Up      func(ctx context.Context, db *mongo.Database) error
+}
+
+var Steps = []Step{
+	{Version: 1, Name: "users_email_unique_index", Up: func(ctx context.Context, db *mongo.Database) error {
+		_, err := db.Collection("users").Indexes().CreateOne(ctx, mongo.IndexModel{
+			Keys:    bson.D{{Key: "email", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		})
+		return err
+	}},
+}
+
+// Run applies steps not yet recorded in schema_migrations, in order.
+func Run(ctx context.Context, db *mongo.Database) error {
+	applied := db.Collection("schema_migrations")
+	for _, s := range Steps {
+		n, err := applied.CountDocuments(ctx, bson.M{"_id": s.Version})
+		if err != nil {
+			return fmt.Errorf("check migration %d: %w", s.Version, err)
+		}
+		if n > 0 {
+			continue
+		}
+		if err := s.Up(ctx, db); err != nil {
+			return fmt.Errorf("migration %d %s: %w", s.Version, s.Name, err)
+		}
+		if _, err := applied.InsertOne(ctx, bson.M{"_id": s.Version, "name": s.Name}); err != nil {
+			return fmt.Errorf("record migration %d: %w", s.Version, err)
+		}
+	}
+	return nil
+}
+```
+{% endraw %}
+
+3. **Large backfills**: process in batches (`Find` with a limit, `BulkWrite`), never load
+   the whole collection. A unique index on a collection with duplicates fails: clean the
+   data in an earlier step.
+4. **Test** the step against a testcontainers MongoDB (`.claude/patterns/{{ 'patterns/testing.md' | installed(stack) }}`):
+   run `Run` twice and assert the second run changes nothing.
+5. **Run quality checks**: `gofmt -w`, `golangci-lint run ./...`, `go test ./...`.
+
+## Rules
+
+- Never edit or renumber a step that has run anywhere; add a new one
+- Steps must be safe to run while the old app version is still serving
+{% else %}
+## What This Does
+
+Creates a versioned SQL migration with [goose](https://github.com/pressly/goose) in
+`db/migrations/`, with an Up and a Down section. The project uses goose for every
+schema change; do not add another migration tool.
+
+## Usage
+
+```
+/new-migration create_users
+/new-migration add_status_to_orders
+```
+
+## How It Works
+
+1. **Check setup.** `goose -version`; if missing:
+   `go install github.com/pressly/goose/v3/cmd/goose@latest`.
+   Look at existing files in `db/migrations/` and match their numbering.
+2. **Create the file** (sequential numbers avoid merge-order surprises):
+
+   ```bash
+   goose -dir db/migrations -s create <name> sql
+   ```
+
+3. **Write Up and Down.**
+
+```sql
+-- +goose Up
+{% if variables.database == 'PostgreSQL' %}
+CREATE TABLE users (
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    email      TEXT        NOT NULL UNIQUE,
+    name       TEXT        NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+{% elif variables.database == 'MySQL' %}
+CREATE TABLE users (
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email      VARCHAR(254) NOT NULL UNIQUE,
+    name       VARCHAR(100) NOT NULL,
+    created_at DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+{% else %}
+CREATE TABLE users (
+    id         INTEGER PRIMARY KEY,
+    email      TEXT NOT NULL UNIQUE,
+    name       TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+{% endif %}
+
+-- +goose Down
+DROP TABLE users;
+```
+
+   Wrap statements that contain semicolons (functions, triggers) in
+   `-- +goose StatementBegin` / `-- +goose StatementEnd`.
+{% if variables.database == 'PostgreSQL' %}
+   `CREATE INDEX CONCURRENTLY` cannot run in a transaction: put it alone in a file that
+   starts with `-- +goose NO TRANSACTION`.
+{% elif variables.database == 'MySQL' %}
+   MySQL DDL is not transactional: a failed multi-statement migration leaves the schema
+   half-applied, so keep one DDL change per file.
+{% else %}
+   SQLite `ALTER TABLE` is limited (no `ALTER COLUMN`): change a column by creating a new
+   table, copying rows, dropping the old one and renaming.
+{% endif %}
+4. **Apply and roll back once** to prove Down works (see `/db-migrate`):
+   `up`, then `down`, then `up` again.
+5. **Update queries**: if the project uses sqlc, run `go tool sqlc generate`
+   (`.claude/patterns/{{ 'patterns/sqlc.md' | installed(stack) }}`); otherwise update the repository's hand-written SQL.
+6. **Run quality checks**: `go test ./...`.
+
+## Rules
+
+- Never edit a migration that has run outside your machine; write a new one
+- Deploy-safe changes: add nullable columns or ones with a default; drop or rename a
+  column only after the code that reads it is gone (two deploys)
+- Index foreign key columns; name constraints explicitly
+- Data backfills on big tables go in batches, not one `UPDATE` over every row
+{% endif %}

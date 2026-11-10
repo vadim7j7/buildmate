@@ -83,7 +83,9 @@ export default function TabsLayout() {
 import { Tabs } from 'expo-router';
 import { Home, Search, User } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { colors } from '@/constants';
+// Navigator options take colour strings, not classes or tokens: keep the theme's
+// values as plain strings in one module
+import { navColors as colors } from '@/theme/navColors';
 
 export default function TabsLayout() {
   const { t } = useTranslation();

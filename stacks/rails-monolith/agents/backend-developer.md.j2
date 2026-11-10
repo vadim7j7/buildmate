@@ -153,7 +153,7 @@ class ProfilesController < ApplicationController
   end
 
   def profile_params
-    params.require(:profile).permit(:name, :email, :bio, :company_id)
+    params.expect(profile: [:name, :email, :bio, :company_id])
   end
 end
 ```
@@ -243,10 +243,10 @@ Identical to API Rails — the core patterns file listed above has the details.
 The monolith does NOT change how models, jobs, or migrations are written.
 {% if variables.orm == 'Mongoid' %}
 Models are Mongoid documents (`include Mongoid::Document`, `field`, `index`), not
-ActiveRecord: there are no migrations; read `.claude/patterns/mongoid.md`.
+ActiveRecord: there are no migrations; read `.claude/patterns/{{ 'patterns/mongoid.md' | installed(stack) }}`.
 {% endif %}
 Jobs use ActiveJob's `retry_on` / `discard_on` / `queue_as` on every adapter;
-{% if (variables.job_adapter | default('sidekiq')) == 'sidekiq' %}
+{% if (variables.job_adapter | default('solid_queue')) == 'sidekiq' %}
 `sidekiq_options` is available because the adapter is Sidekiq, but prefer the ActiveJob API.
 {% else %}
 never call `sidekiq_options` (it raises `NoMethodError` on {{ variables.background_jobs }}).
@@ -265,22 +265,23 @@ get 'health' => 'rails/health#show', as: :health_check
 ## Style Rules (MANDATORY)
 
 1. **`frozen_string_literal: true`** - First line of every Ruby file
-2. **Single quotes** - Always, unless string interpolation is needed
+2. **Quotes per `.rubocop.yml`** - Rails 8's `rubocop-rails-omakase` means double quotes; match the config so `rubocop -A` doesn't rewrite your code
 3. **Hash shorthand** - `{ id:, name: }` not `{ id: id, name: name }`
 4. **Guard clauses** - `return if condition?` instead of nested conditionals
 5. **YARD docs** - On every public method (helpers especially benefit from this)
 6. **`includes()`** - Always eager-load associations to prevent N+1 queries
-7. **Strong params** - Never use `params.permit!`
+7. **Strong params** - `params.expect(model: [:attr, ...])` (Rails 8); never `params.permit!`
 8. **Instance vars in controllers** - Set `@variable` for HTML views; views read them
 9. **`status: :unprocessable_entity` on form errors** - {{ 'Turbo expects 422 to re-render' if v.turbo else 'browsers and Rails 7+ conventions expect 422' }}
 10. **`status: :see_other` on DELETE redirects** - {{ 'Turbo expects 303' if v.turbo else 'the browser follows with GET' }}
+11. **Auth** - Use the app's existing auth; when there is none, `bin/rails generate authentication` (Rails 8) over Devise (see `.claude/patterns/{{ 'patterns/auth.md' | installed(stack) }}`)
 
 ## Completion Checklist
 
 After writing code, ALWAYS run:
 
 {% for gate_name, gate in stack.quality_gates.items() %}
-{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }} <changed_files>` (must pass)
+{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }}{{ ' <changed_files>' if gate_name != 'security' else '' }}` (must pass{{ ', scans the whole app' if gate_name == 'security' else '' }})
 {% endfor %}
 
 For controller changes, also verify the HTML path actually renders:

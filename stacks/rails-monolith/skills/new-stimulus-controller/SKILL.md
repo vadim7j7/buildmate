@@ -146,8 +146,8 @@ Print the data-attributes the user needs to add to their view:
 ### 5. Verify
 
 ```bash
-# JS lint if configured
-yarn run lint app/javascript/controllers/<name>_controller.js
+# JS lint only if the project has one (importmap apps usually don't; with
+# jsbundling, use the package.json script, e.g. `npm run lint`)
 # System spec
 bundle exec rspec spec/system/<name>_spec.rb
 ```

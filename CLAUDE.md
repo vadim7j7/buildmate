@@ -398,6 +398,7 @@ setup:
 - [ ] Agent and skill templates use `variables` / `stack`, which are the stack's own (with its selected options); never assume another stack's values
 - [ ] Content that depends on an option uses Jinja conditions in `.j2` files; a skill whose text depends on an option is a `SKILL.md.j2` (any `*.j2` in a skill folder is rendered at install)
 - [ ] `buildmate --validate <name>` shows no warnings (unreferenced files, folders the installer never reads)
+- [ ] Patterns and styles are installed flat by file name. When two stacks in a project bring different files with the same name, both are installed as `<stack>-<name>.md` and each stack's templates get the right one through `{{ pattern | installed(stack) }}` (the read-list partial does this). In plain `.md` files that point at a topical pattern, prefer a stack-specific name (e.g. `nuxt-testing.md`) so the link survives
 
 #### 8. Compatible With
 

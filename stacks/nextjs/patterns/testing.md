@@ -549,21 +549,21 @@ test.describe('Authentication', () => {
   test('user can sign up', async ({ page }) => {
     await page.goto('/signup');
 
-    await page.fill('[name="email"]', 'newuser@example.com');
-    await page.fill('[name="password"]', 'SecurePassword123!');
-    await page.fill('[name="confirmPassword"]', 'SecurePassword123!');
-    await page.click('button[type="submit"]');
+    await page.getByLabel('Email').fill( 'newuser@example.com');
+    await page.getByLabel('Password', { exact: true }).fill( 'SecurePassword123!');
+    await page.getByLabel('Confirm password').fill( 'SecurePassword123!');
+    await page.getByRole('button', { name: 'Sign up' }).click();
 
     await expect(page).toHaveURL('/dashboard');
-    await expect(page.locator('text=Welcome')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /welcome/i })).toBeVisible();
   });
 
   test('user can log in', async ({ page }) => {
     await page.goto('/login');
 
-    await page.fill('[name="email"]', 'existing@example.com');
-    await page.fill('[name="password"]', 'password123');
-    await page.click('button[type="submit"]');
+    await page.getByLabel('Email').fill( 'existing@example.com');
+    await page.getByLabel('Password', { exact: true }).fill( 'password123');
+    await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page).toHaveURL('/dashboard');
   });
@@ -571,25 +571,25 @@ test.describe('Authentication', () => {
   test('shows error for invalid credentials', async ({ page }) => {
     await page.goto('/login');
 
-    await page.fill('[name="email"]', 'wrong@example.com');
-    await page.fill('[name="password"]', 'wrongpassword');
-    await page.click('button[type="submit"]');
+    await page.getByLabel('Email').fill( 'wrong@example.com');
+    await page.getByLabel('Password', { exact: true }).fill( 'wrongpassword');
+    await page.getByRole('button', { name: 'Log in' }).click();
 
-    await expect(page.locator('text=Invalid credentials')).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveText(/invalid credentials/i);
     await expect(page).toHaveURL('/login');
   });
 
   test('user can log out', async ({ page }) => {
     // Login first
     await page.goto('/login');
-    await page.fill('[name="email"]', 'existing@example.com');
-    await page.fill('[name="password"]', 'password123');
-    await page.click('button[type="submit"]');
+    await page.getByLabel('Email').fill( 'existing@example.com');
+    await page.getByLabel('Password', { exact: true }).fill( 'password123');
+    await page.getByRole('button', { name: 'Log in' }).click();
     await expect(page).toHaveURL('/dashboard');
 
     // Log out
-    await page.click('button[aria-label="User menu"]');
-    await page.click('text=Log out');
+    await page.getByRole('button', { name: 'User menu' }).click();
+    await page.getByRole('menuitem', { name: 'Log out' }).click();
 
     await expect(page).toHaveURL('/');
   });

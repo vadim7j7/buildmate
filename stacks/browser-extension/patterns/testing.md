@@ -98,11 +98,67 @@ gives you `document`. Keep API calls behind the fake browser.
 - Permission-gated paths assert the guard rejects when the permission is absent.
 - Cross-browser branches (`import.meta.env.FIREFOX`, MV2/MV3) — exercise both sides.
 
-## 7. End-to-end (optional)
+## 7. End-to-end with Playwright (Chromium)
 
-For real-browser smoke tests, drive the built extension from `.output/` with Playwright's
-persistent context (`launchPersistentContext` with `--load-extension`). Keep E2E thin;
-prefer fast unit tests for logic.
+WXT recommends Playwright for E2E. It loads the **built** extension from
+`.output/chrome-mv3` into a persistent Chromium context. Only Chromium works this way
+(branded Chrome no longer honours `--load-extension`, so use Playwright's bundled
+Chromium via `channel: 'chromium'`, which also runs headless). Firefox and Safari builds
+are smoke-tested by hand.
+
+```typescript
+// e2e/fixtures.ts
+import path from 'node:path';
+import { test as base, chromium, type BrowserContext } from '@playwright/test';
+
+const pathToExtension = path.resolve('.output/chrome-mv3');
+
+export const test = base.extend<{ context: BrowserContext; extensionId: string }>({
+  context: async ({}, use) => {
+    const context = await chromium.launchPersistentContext('', {
+      channel: 'chromium',
+      args: [
+        `--disable-extensions-except=${pathToExtension}`,
+        `--load-extension=${pathToExtension}`,
+      ],
+    });
+    await use(context);
+    await context.close();
+  },
+  extensionId: async ({ context }, use) => {
+    // MV3: the background is a service worker; its URL host is the extension id
+    let [worker] = context.serviceWorkers();
+    if (!worker) worker = await context.waitForEvent('serviceworker');
+    await use(worker.url().split('/')[2]);
+  },
+});
+export const expect = test.expect;
+```
+
+```typescript
+// e2e/popup.spec.ts
+import { test, expect } from './fixtures';
+
+test('popup renders and toggles the theme', async ({ page, extensionId }) => {
+  await page.goto(`chrome-extension://${extensionId}/popup.html`);
+  const toggle = page.getByRole('button', { name: /Theme:/ });
+  await expect(toggle).toHaveText('Theme: light');
+  await toggle.click();
+  await expect(toggle).toHaveText('Theme: dark');
+});
+
+test('content script runs on a matching page', async ({ page }) => {
+  await page.goto('https://example.com');
+  await expect(page.locator('my-overlay')).toBeAttached(); // the createShadowRootUi host
+});
+```
+
+- `npm run test:e2e` = `wxt build && playwright test` (always test a fresh build).
+- Install the browser once: `npx playwright install chromium`.
+- Keep `e2e/` out of Vitest (`test.exclude` in `vitest.config.ts`).
+- Surfaces open at `chrome-extension://<id>/<name>.html` (`popup.html`, `options.html`,
+  `sidepanel.html`); the toolbar UI itself can't be clicked, so open the page directly.
+- Keep E2E to a few smoke flows; logic belongs in fast unit tests.
 
 ## Checklist
 
@@ -110,4 +166,5 @@ prefer fast unit tests for logic.
 - [ ] Storage items, migrations, and message handlers covered
 - [ ] Sender-validation guards tested for the reject case
 - [ ] Content-script logic extracted to testable `utils/` functions
+- [ ] A Playwright smoke spec loads the built extension (`npm run test:e2e`)
 - [ ] `npm test` green before shipping

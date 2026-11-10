@@ -1,0 +1,175 @@
+{%- import 'stacks/rails-monolith/agents/_view-vars.j2' as v with context -%}
+{%- if v.ui == 'tailwind' -%}
+{%- set c = {'page_header': 'mb-6 flex items-center justify-between', 'h1': 'text-2xl font-bold', 'h1_mb': 'text-2xl font-bold mb-6', 'grid': 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3', 'actions': 'mt-4 flex gap-2', 'btn_secondary': 'px-3 py-1 border rounded', 'btn_danger': 'px-3 py-1 border rounded text-red-600', 'nav_bar': 'bg-white border-b', 'nav_inner': 'max-w-7xl mx-auto px-4 py-3 flex items-center justify-between', 'brand': 'font-bold text-lg', 'nav': 'flex items-center gap-4', 'form_actions': 'flex justify-end gap-2', 'errors_title': 'font-semibold text-red-800'} -%}
+{%- elif v.ui == 'bootstrap' -%}
+{%- set c = {'page_header': 'd-flex align-items-center justify-content-between mb-4', 'h1': 'h3 mb-0', 'h1_mb': 'h3 mb-4', 'grid': 'row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3 list-unstyled', 'actions': 'd-flex gap-2 mt-3', 'btn_secondary': 'btn btn-outline-secondary btn-sm', 'btn_danger': 'btn btn-outline-danger btn-sm', 'nav_bar': 'navbar border-bottom', 'nav_inner': 'container d-flex align-items-center justify-content-between', 'brand': 'navbar-brand', 'nav': 'd-flex align-items-center gap-3', 'form_actions': 'd-flex justify-content-end gap-2', 'errors_title': 'h6'} -%}
+{%- else -%}
+{%- set c = {'page_header': 'page-header', 'h1': 'page-header__title', 'h1_mb': 'page-title', 'grid': 'card-grid', 'actions': 'actions', 'btn_secondary': 'button', 'btn_danger': 'button button--danger', 'nav_bar': 'site-header', 'nav_inner': 'site-header__inner', 'brand': 'site-header__brand', 'nav': 'site-header__nav', 'form_actions': 'form__actions', 'errors_title': 'form__errors-title'} -%}
+{%- endif -%}
+{%- if v.turbo -%}
+{%- set confirm = "data: { turbo_confirm: t('common.confirm_destroy') }" -%}
+{%- set confirm_signout = "data: { turbo_confirm: t('common.confirm_sign_out') }" -%}
+{%- else -%}
+{%- set confirm = "form: { onsubmit: \"return confirm('#{j t('common.confirm_destroy')}')\" }" -%}
+{%- set confirm_signout = "form: { onsubmit: \"return confirm('#{j t('common.confirm_sign_out')}')\" }" -%}
+{%- endif -%}
+{%- if v.vc -%}{%- set card = "render(ProfileCardComponent.new(profile:))" -%}{%- set card_lg = "render(ProfileCardComponent.new(profile: @profile, size: :lg))" -%}
+{%- elif v.phlex -%}{%- set card = "render Components::ProfileCard.new(profile:)" -%}{%- set card_lg = "render Components::ProfileCard.new(profile: @profile, size: :lg)" -%}
+{%- else -%}{%- set card = 'render "profiles/card", profile:' -%}{%- set card_lg = 'render "profiles/card", profile: @profile, size: :lg' -%}
+{%- endif %}
+---
+name: new-partial
+description: Generate an ERB partial with an explicit locals contract
+---
+
+# /new-partial
+
+## What This Does
+
+Creates a new ERB partial in `app/views/<resource>/_<name>.html.erb`. Documents
+the partial's contract with a **strict locals** magic comment (Rails 7.1+) so
+Rails raises on a missing or unknown local.
+
+## Usage
+
+```
+/new-partial profiles form
+/new-partial shared header
+/new-partial layouts flash_messages
+```
+
+## How It Works
+
+### 1. Read Patterns
+
+- `.claude/styles/{{ 'styles/erb-style.md' | installed(stack) }}`
+- Existing partials in `app/views/` for project conventions
+
+### 2. Determine Locals Contract
+
+What does the caller need to provide? Declare it on the first line of the
+partial: `<%# locals: (profile:, submit_label: nil) -%>`. Required locals have
+no default; optional ones get one. `<%# locals: () -%>` means "takes no locals".
+
+### 3. Generate the Partial
+
+#### Form partial: `app/views/profiles/_form.html.erb`
+
+```erb
+<%# locals: (profile:, submit_label: nil) -%>
+<%# profile: Profile (new or persisted); submit_label: optional String %>
+<% submit_label ||= profile.persisted? ? t('common.update') : t('common.create') %>
+
+<%= form_with(model: profile, class: "{{ v.css.form }}") do |form| %>
+  <% if profile.errors.any? %>
+    <div role="alert" class="{{ v.css.errors }}">
+      <h2 class="{{ c.errors_title }}">
+        <%= t('errors.messages.validation_failed', count: profile.errors.count) %>
+      </h2>
+      <ul class="{{ v.css.errors_list }}">
+        <% profile.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :name, class: "{{ v.css.label }}" %>
+    <%= form.text_field :name,
+                        required: true,
+                        class: "{{ v.css.input }}" %>
+  </div>
+
+  <div>
+    <%= form.label :email, class: "{{ v.css.label }}" %>
+    <%= form.email_field :email,
+                          class: "{{ v.css.input }}" %>
+  </div>
+
+  <div class="{{ c.form_actions }}">
+    <%= link_to t('common.cancel'), :back, class: "{{ c.btn_secondary }}" %>
+    <%= form.submit submit_label, class: "{{ v.css.button }}" %>
+  </div>
+<% end %>
+```
+
+Caller (with explicit `locals:`):
+
+```erb
+<%= render "form", profile: @profile %>
+<%= render "form", profile: @profile, submit_label: t('profiles.update') %>
+```
+
+#### Shared partial: `app/views/shared/_header.html.erb`
+
+```erb
+<%# locals: (user:) -%>
+
+<header class="{{ c.nav_bar }}">
+  <div class="{{ c.nav_inner }}">
+    <%= link_to root_path, class: "{{ c.brand }}" do %>
+      <%= t('app.name') %>
+    <% end %>
+
+    <nav class="{{ c.nav }}">
+      <%= link_to t('navigation.profiles'), profiles_path %>
+      <%# session_path: Rails 8 auth generator; Devise uses destroy_user_session_path %>
+      <%= button_to t('navigation.sign_out'), session_path,
+                    method: :delete,
+                    {{ confirm_signout }} %>
+    </nav>
+  </div>
+</header>
+```
+
+### 4. Verify
+
+The template syntax is checked at render time. To verify quickly:
+
+```bash
+bin/rails runner 'puts ApplicationController.render(template: "profiles/index", assigns: { profiles: [] })'
+# Or run a system spec that exercises the view
+```
+
+## Rules
+
+- Declare strict locals on the first line: `<%# locals: (profile:, size: :md) -%>`
+- Always pass locals **explicitly**: `render "form", profile: @profile`
+- NEVER rely on instance variables (`@profile`) in a partial — break encapsulation
+{% if v.vc %}- If a partial needs >3 locals, consider promoting it to a ViewComponent
+{% elif v.phlex %}- If a partial needs >3 locals, consider promoting it to a Phlex component
+{% else %}- If a partial needs >3 locals, split it or move logic into a helper/presenter
+{% endif %}
+- Use `t('...')` for all strings
+- Provide ARIA roles on dynamic alerts/status regions
+- Give optional locals their default in the strict-locals signature
+
+{% if v.vc or v.phlex %}
+## Partial vs {{ 'ViewComponent' if v.vc else 'Phlex component' }} — When to choose
+
+Choose a partial when:
+- The markup is mostly static
+- Used only in 1–2 places
+- No conditional class logic
+
+Choose a {{ 'ViewComponent' if v.vc else 'Phlex component' }} when:
+- 3+ usages
+- Variants (size, color, state)
+- Computed class names
+- Slots needed (header / body / footer)
+- You want a unit-testable rendering
+
+{% endif %}
+## Output
+
+```
+Created:
+  app/views/profiles/_form.html.erb
+
+Locals contract:
+  <%# locals: (profile:, submit_label: nil) -%>
+
+Caller example:
+  <%= render "form", profile: @profile %>
+```

@@ -167,7 +167,7 @@ skills:
   - new-scraper
   - test-scraper
   - analyze-target
-  - analyze-site
+  - analyze-crawl
 
 quality_gates:
   lint:
@@ -198,6 +198,9 @@ reference_patterns:
 styles:
   - styles/scraping-general.md
 
+# `setup` is not read by lib/ (no installer step runs it) and option choices
+# cannot override it, so it holds the Python default; the scraper-developer
+# agent states the per-language install command (uv sync / npm install).
 setup:
   install_command: uv sync
   dev_server_check: uv run python --version

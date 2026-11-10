@@ -28,6 +28,8 @@ agents:
       - new-handler
       - new-service
       - new-model
+      - new-migration
+      - db-migrate
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
@@ -42,6 +44,7 @@ agents:
       - Glob
     skills:
       - test
+      - new-test
 
   - name: backend-reviewer
     template: agents/backend-reviewer.md.j2
@@ -59,10 +62,17 @@ skills:
   - new-handler
   - new-service
   - new-model
+  - new-migration
+  - db-migrate
   - test
+  - new-test
 
 patterns:
   - patterns/gin-patterns.md
+
+# Plus the go parent's reference patterns (auth.md, rate-limiting.md, testing.md...)
+reference_patterns:
+  - patterns/gin-auth.md
 
 variables:
   framework: Gin

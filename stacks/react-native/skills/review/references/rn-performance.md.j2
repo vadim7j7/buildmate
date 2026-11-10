@@ -1,0 +1,369 @@
+# React Native Performance Checklist
+
+## List Rendering
+
+### FlashList (Required for Long Lists)
+
+Use `@shopify/flash-list` for any list that may contain more than ~20 items.
+FlashList recycles views and is significantly more performant than FlatList for
+large datasets.
+
+```typescript
+import { FlashList } from '@shopify/flash-list';
+
+// CORRECT
+<FlashList
+  data={items}
+  renderItem={({ item }) => <ItemCard item={item} />}
+  keyExtractor={(item) => item.id}
+/>
+
+// WRONG - ScrollView + map for dynamic lists
+<ScrollView>
+  {items.map((item) => (
+    <ItemCard key={item.id} item={item} />
+  ))}
+</ScrollView>
+
+// WRONG - FlatList for potentially large lists
+<FlatList
+  data={items}
+  renderItem={({ item }) => <ItemCard item={item} />}
+/>
+```
+
+### FlashList v2 (no size estimates)
+
+FlashList v2 (the version current Expo SDKs ship) measures items itself and
+**removed `estimatedItemSize`** (also `estimatedListSize` and
+`estimatedFirstItemOffset`). Do not pass them — they are ignored and flagged.
+
+- `getItemType` is still the main lever for mixed lists: return a stable type per
+  row shape so cells are only recycled into rows of the same shape.
+- `maintainVisibleContentPosition` is on by default; use it (with
+  `startRenderingFromBottom`) for chat-style lists instead of `inverted`.
+- Masonry layouts use the `masonry` prop on `FlashList`
+  (`<FlashList masonry numColumns={2} … />`); `MasonryFlashList` is deprecated.
+- `overrideItemLayout` only sets `span` now (sizes are not estimated).
+- FlashList v2 requires the New Architecture (the only one current Expo supports).
+
+```typescript
+<FlashList
+  data={rows}
+  renderItem={renderRow}
+  getItemType={(row) => row.kind}   // 'header' | 'item' | 'ad' ...
+  keyExtractor={(row) => row.id}
+/>
+```
+
+### Keep renderItem Light
+
+`renderItem` returns one named row component; the row holds the markup. Heavy work
+(formatting large data, parsing) happens before the list, not per cell render.
+
+```typescript
+// CORRECT - a named row component; inline arrows are fine (the compiler memoizes)
+<FlashList
+  data={items}
+  renderItem={({ item }) => <ItemCard item={item} onPress={openItem} />}
+/>
+
+// WRONG - large inline markup and per-row computation inside renderItem
+<FlashList
+  data={items}
+  renderItem={({ item }) => {
+    const stats = computeStats(allTransactions, item.id); // O(n) per row
+    return <View>{/* 40 lines of markup */}</View>;
+  }}
+/>
+```
+
+---
+
+## Memoisation and the React Compiler
+
+The React Compiler (on in Expo SDK 54+ templates, `experiments.reactCompiler` in
+`app.json`) memoizes components, callbacks and derived values automatically.
+
+- Do **not** ask for `React.memo`, `useCallback` or `useMemo` as a default. Flag
+  hand-written ones that have no comment naming the measured problem (SUGGESTION).
+- A manual memo is justified for a measured problem (React DevTools profiler, dropped
+  frames, FlashList blank cells) or an identity a non-React API depends on.
+- Flag code the compiler skips because it breaks the Rules of React (WARNING): mutating
+  props, state or captured values during render, reading `ref.current` in render,
+  conditional hooks. `npx react-compiler-healthcheck` or the `react-hooks` ESLint
+  rules point at those components.
+- React 19: `ref` is a normal prop; new `forwardRef` wrappers are a SUGGESTION to remove.
+
+```typescript
+// CORRECT - plain code
+export function ItemCard({ item, onPress }: ItemCardProps) {
+  return (
+    <Pressable onPress={() => onPress?.(item.id)}>
+      <Text>{item.name}</Text>
+    </Pressable>
+  );
+}
+const filteredItems = filterCategory
+  ? items.filter((item) => item.category === filterCategory)
+  : items;
+
+// WRONG - breaks the Rules of React, so the compiler bails out
+function ItemCard({ item }: ItemCardProps) {
+  item.viewed = true; // mutating a prop during render
+  return <Text>{item.name}</Text>;
+}
+```
+
+---
+
+## Image Optimisation
+
+### Use expo-image
+
+Use `expo-image` instead of React Native's built-in `Image` component. It
+provides caching, placeholder support, and better performance.
+
+```typescript
+import { Image } from 'expo-image';
+
+// CORRECT
+<Image
+  source={% raw %}{{ uri: imageUrl }}{% endraw %}
+  placeholder={blurhash}
+  contentFit="cover"
+  transition={200}
+  cachePolicy="memory-disk"
+/>
+
+// WRONG - Built-in Image with no caching strategy
+import { Image } from 'react-native';
+<Image source={% raw %}{{ uri: imageUrl }}{% endraw %} />
+```
+
+### Image Sizing
+
+Always give images an explicit width and height (or a fixed aspect ratio inside a
+sized parent); unsized remote images cause layout jumps.
+
+{% if variables.ui_library == 'StyleSheet' %}
+```typescript
+<Image source={% raw %}{{ uri }}{% endraw %} style={styles.avatar} contentFit="cover" />
+
+const styles = StyleSheet.create({
+  avatar: { width: 48, height: 48, borderRadius: 24 },
+});
+```
+{% elif variables.ui_library == 'Tamagui' %}
+```typescript
+// expo-image is not a Tamagui component: size it with a plain style object
+<Image source={% raw %}{{ uri }}{% endraw %} style={% raw %}{{ width: 48, height: 48, borderRadius: 24 }}{% endraw %} />
+```
+{% else %}
+```typescript
+<Image source={% raw %}{{ uri }}{% endraw %} className="h-12 w-12 rounded-full" contentFit="cover" />
+```
+`expo-image` takes `className` only once it is registered with NativeWind (`cssInterop` in v4);
+otherwise pass `style={% raw %}{{ width: 48, height: 48 }}{% endraw %}`.
+{% endif %}
+
+---
+
+## Avoiding Unnecessary Re-renders
+
+{% if variables.state_library == 'Zustand' %}
+### Fine-Grained Zustand Selectors
+
+Subscribe to specific values, not the entire store.
+
+```typescript
+// CORRECT - Only re-renders when filterCategory changes
+const filterCategory = useTransactionStore((s) => s.filterCategory);
+
+// WRONG - Re-renders on ANY store change
+const { filterCategory } = useTransactionStore();
+```
+
+{% elif variables.state_library == 'Redux Toolkit' %}
+### Narrow Redux Selectors
+
+Select single values with `useAppSelector`; derive with `createSelector` so a new
+array/object is not returned on every call.
+
+```typescript
+// CORRECT
+const filterCategory = useAppSelector((s) => s.transactionFilter.category);
+
+// WRONG - returns a new object every time -> re-render on any state change
+const { category, sort } = useAppSelector((s) => ({ ...s.transactionFilter }));
+```
+
+{% elif variables.state_library == 'MobX' %}
+### MobX Observers
+
+Wrap every component that reads observables in `observer`, and dereference
+observables as late as possible (in the child that displays them).
+
+```typescript
+// CORRECT - only FilterLabel re-renders when the filter changes
+const FilterLabel = observer(function FilterLabel() {
+  return <Text>{filterStore.category}</Text>;
+});
+```
+
+{% elif variables.state_library == 'Jotai' %}
+### Small Jotai Atoms
+
+One atom per value; derived atoms for computed values. A component re-renders only
+for the atoms it reads, so don't bundle unrelated values into one object atom.
+
+```typescript
+// CORRECT
+export const filterCategoryAtom = atom<string | null>(null);
+const category = useAtomValue(filterCategoryAtom);
+```
+
+{% endif %}
+### Stable References Outside React
+
+The compiler memoizes values inside components, but not values passed to effects in
+non-compiled code or module-level caches. Keep constants at module scope.
+
+```typescript
+const EMPTY_ITEMS: Item[] = [];   // module scope
+const items = data ?? EMPTY_ITEMS;
+```
+
+### Split Components
+
+Split large components into smaller ones so that state changes only re-render
+the relevant portion.
+
+```typescript
+// CORRECT - Filter bar re-renders independently of the list
+function ItemsScreen() {
+  return (
+    <View>
+      <FilterBar />  {/* Owns its filter state */}
+      <ItemList />   {/* Has its own query subscription */}
+    </View>
+  );
+}
+
+// WRONG - Entire screen re-renders when filter changes
+function ItemsScreen() {
+  const [filter, setFilter] = useState(defaultFilter); // every keystroke re-renders the list
+  const { data } = useItems(filter);
+  return (
+    <View>
+      <FilterBar filter={filter} onChange={setFilter} />
+      <FlashList data={data} ... />
+    </View>
+  );
+}
+```
+
+---
+
+## React Query Performance
+
+### Appropriate staleTime
+
+Set `staleTime` to avoid unnecessary background re-fetches.
+
+```typescript
+// Data that rarely changes (settings, categories)
+useQuery({
+  queryKey: queryKeys.categories.all,
+  queryFn: getCategories,
+  staleTime: 30 * 60 * 1000, // 30 minutes
+});
+
+// Data that changes moderately (transactions list)
+useQuery({
+  queryKey: queryKeys.transactions.all,
+  queryFn: getTransactions,
+  staleTime: 5 * 60 * 1000, // 5 minutes
+});
+
+// Data that should always be fresh (real-time balance)
+useQuery({
+  queryKey: queryKeys.balance.current,
+  queryFn: getBalance,
+  staleTime: 0, // Always re-fetch
+});
+```
+
+### Avoid Waterfall Queries
+
+Fetch independent data in parallel, not sequentially.
+
+```typescript
+// CORRECT - Parallel fetching
+function DashboardScreen() {
+  const balance = useBalance();       // Starts immediately
+  const transactions = useTransactions(); // Starts immediately
+  const categories = useCategories();     // Starts immediately
+  // All three fetch in parallel
+}
+
+// WRONG - Sequential fetching
+function DashboardScreen() {
+  const { data: user } = useUser();
+  const { data: balance } = useBalance(user?.id); // Waits for user
+  const { data: transactions } = useTransactions(user?.id); // Also waits
+}
+```
+
+---
+
+## Bundle Size
+
+### Import Only What You Need
+
+Use named imports instead of default imports for tree-shaking.
+
+```typescript
+// CORRECT
+import { format } from 'date-fns';
+
+// WRONG - Imports entire library
+import dateFns from 'date-fns';
+```
+
+### Lazy Load Heavy Screens
+
+Use React.lazy for screens that include heavy dependencies.
+
+```typescript
+// For screens with heavy charts or maps
+const ChartScreen = React.lazy(() => import('./ChartScreen'));
+```
+
+---
+
+## Animation Performance
+
+### Use Reanimated for Complex Animations
+
+Use `react-native-reanimated` for complex animations. Run animations on the UI
+thread, not the JS thread.
+
+```typescript
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+
+const offset = useSharedValue(0);
+
+const animatedStyle = useAnimatedStyle(() => ({
+  transform: [{ translateX: offset.value }],
+}));
+```
+
+### Avoid Layout Animations on Lists
+
+Layout animations on FlashList items can cause performance issues. Use them
+sparingly and test on low-end devices.

@@ -41,7 +41,7 @@ User.where(users[:name].matches("%#{User.sanitize_sql_like(query)}%"))
 
 ### What to Check
 
-- Controllers use strong params (`params.require(:model).permit(...)`)
+- Controllers use strong params via `params.expect(model: [...])` (Rails 8); flag new `params.require(...).permit(...)` code
 - No usage of `params.permit!` (permits everything)
 - No direct assignment of user-controlled params to models
 - Sensitive attributes are never permitted (role, admin, permissions)
@@ -53,7 +53,7 @@ User.where(users[:name].matches("%#{User.sanitize_sql_like(query)}%"))
 @user.update(params.permit!)
 
 # BAD - Permits sensitive attributes
-params.require(:user).permit(:name, :email, :role, :admin)
+params.expect(user: [:name, :email, :role, :admin])
 
 # BAD - Direct param assignment
 @user.assign_attributes(params[:user])
@@ -64,12 +64,12 @@ params.require(:user).permit(:name, :email, :role, :admin)
 ```ruby
 # GOOD - Explicit whitelist
 def user_params
-  params.require(:user).permit(:name, :email, :bio)
+  params.expect(user: [:name, :email, :bio])
 end
 
 # GOOD - Separate params for admin actions
 def admin_user_params
-  params.require(:user).permit(:name, :email, :bio, :role)
+  params.expect(user: [:name, :email, :bio, :role])
 end
 ```
 

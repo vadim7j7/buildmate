@@ -1,5 +1,8 @@
 # Lookbook Patterns
 
+> Applies only when the project has a component layer (ViewComponent or Phlex).
+> With plain ERB partials (`--components=none`) there is nothing to preview: ignore this file.
+
 Lookbook is a UI framework for ViewComponent (and Phlex) previews. It mounts at
 `/lookbook` in development and provides a browseable component library, props
 playground, and source viewer.
@@ -227,6 +230,6 @@ end
 |---------|--------------|
 | Lookbook shows "Preview not found" | Preview file not in `preview_paths`, or class name mismatch |
 | Layout is broken | `default_preview_layout` not configured, or layout file missing |
-| Tailwind classes don't apply | `tailwind.config.js` `content` doesn't include preview path |
+| Tailwind classes don't apply | Preview path is git-ignored or outside the app (add `@source` in `app/assets/tailwind/application.css`), or the preview layout doesn't load `stylesheet_link_tag "tailwind"` |
 | Page errors with `Rails.application.routes` | Mount inside `if Rails.env.development?` block |
 | Real DB rows show up | Using `create` — switch to `new` or `build_stubbed` |

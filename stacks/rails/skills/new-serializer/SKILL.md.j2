@@ -24,8 +24,8 @@ and the corresponding spec file. Do not mix in another serializer library.
 
 1. **Read reference patterns.** Load serializer patterns from:
    - `skills/new-serializer/references/serializer-examples.md`
-   - `.claude/patterns/backend-patterns.md`
-   - `.claude/styles/backend-ruby.md`
+   - `.claude/patterns/{{ 'patterns/backend-patterns.md' | installed(stack) }}`
+   - `.claude/styles/{{ 'styles/backend-ruby.md' | installed(stack) }}`
 
 2. **Determine serializer name.** Parse the argument to determine:
    - Serializer class name (e.g., `UserSerializer`)

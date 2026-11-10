@@ -13,6 +13,7 @@ skills:
 memory: {{ agent.memory }}
 {% endif %}
 ---
+{% import 'stacks/nextjs/agents/_backend-api.j2' as api with context %}
 
 # Frontend Developer Agent
 
@@ -168,6 +169,36 @@ export default async function ProjectPage({ params }: PageProps) {
 
 Server-side data functions in `src/lib/data/`. These run on the server only.
 
+{% if api.bff %}
+**This app is a BFF for the {{ api.api_name }} backend** (installed next to it). Next.js has
+no database client: data functions and Server Actions call that API on the server
+through the server-only services in `src/services/` (`/new-api-service`), which add
+the user's token. The browser never calls the backend directly. `API_URL` is a server
+env var (local: `http://localhost:{{ api.api_port or '<backend port>' }}`); never a `NEXT_PUBLIC_*` one.
+
+```typescript
+// src/lib/data/projects.ts
+import 'server-only';
+import { cache } from 'react';
+import { fetchProjectsApi, fetchProjectApi, type Project } from '@/services/projects';
+import { ApiError } from '@/services/request';
+
+export const getProjects = cache(async (): Promise<Project[]> => fetchProjectsApi());
+
+export const getProject = cache(async (id: string): Promise<Project | null> => {
+  try {
+    return await fetchProjectApi(id);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+});
+```
+
+The {{ api.api_name }} backend authorizes every request (it owns the data); Next.js still
+authenticates in every Server Action. Before adding a call, read the backend's route
+and serializer/schema so request and response types match it field by field.
+{% else %}
 ```typescript
 // src/lib/data/projects.ts
 import 'server-only';
@@ -192,7 +223,13 @@ export const getProject = cache(async (id: string) => {
 ```
 
 If the app talks to an external backend API instead of a database, these functions
-call the server-only services in `src/services/` (see `/new-api-service`).
+call the server-only services in `src/services/` (see `/new-api-service` and the BFF
+variant in `frontend-patterns.md`).
+{% endif %}
+
+`cache()` dedupes calls within one request. For caching across requests, check
+`next.config.*`: with `cacheComponents: true` use `'use cache'` + `cacheLife` +
+`cacheTag` and invalidate with `updateTag` in actions (`patterns/cache-components.md`).
 
 ### Server Action Pattern
 
@@ -214,7 +251,11 @@ Checks in the page, the UI, or `proxy.ts` do not protect the action.
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+{% if api.bff %}
+import { createProjectApi, deleteProjectApi } from '@/services/projects';
+{% else %}
 import { db } from '@/lib/db';
+{% endif %}
 import { requireUser } from '@/lib/auth'; // returns the session user or throws/redirects
 
 const ProjectSchema = z.object({
@@ -231,7 +272,11 @@ export async function createProject(
   _prevState: ProjectFormState,
   formData: FormData
 ): Promise<ProjectFormState> {
+{% if api.bff %}
+  await requireUser();                                                // 1. authenticate
+{% else %}
   const user = await requireUser();                                   // 1. authenticate
+{% endif %}
 
   const parsed = ProjectSchema.safeParse({                            // 3. validate
     name: formData.get('name'),
@@ -245,7 +290,11 @@ export async function createProject(
     };
   }
 
+{% if api.bff %}
+  await createProjectApi(parsed.data); // the backend sets the owner from the token
+{% else %}
   await db.project.create({ data: { ...parsed.data, ownerId: user.id } });
+{% endif %}
 
 {% if variables.i18n %}
   revalidatePath('/[locale]/projects', 'page');
@@ -256,13 +305,21 @@ export async function createProject(
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
+{% if api.bff %}
+  await requireUser();                                                // 1. authenticate
+{% else %}
   const user = await requireUser();                                   // 1. authenticate
+{% endif %}
   const id = z.string().uuid().parse(projectId);                      // 3. validate
 
+{% if api.bff %}
+  await deleteProjectApi(id);                                         // 2. backend authorizes (403/404)
+{% else %}
   const { count } = await db.project.deleteMany({
     where: { id, ownerId: user.id },                                  // 2. authorize
   });
   if (count === 0) throw new Error('Not found');
+{% endif %}
 
 {% if variables.i18n %}
   revalidatePath('/[locale]/projects', 'page');
@@ -377,6 +434,10 @@ export function CreateProjectForm() {
 10. **Named exports** - Except pages (default export required by Next.js)
 11. **{{ variables.ui_library }} components** - Use {{ variables.ui_library }} components where appropriate
 12. **`@/` imports** - Absolute imports for internal modules
+13. **No memoization by reflex** - With `reactCompiler: true` in `next.config.*`, no `useMemo` / `useCallback` / `React.memo`; without it, only with a measured reason (see `frontend-patterns.md`)
+{% if api.bff %}
+14. **BFF** - No database client in this app; data comes from the {{ api.api_name }} backend via `src/services/` on the server
+{% endif %}
 
 ## When to Use 'use client'
 
@@ -396,5 +457,12 @@ After writing code, ALWAYS run:
 {% for gate_name, gate in stack.quality_gates.items() %}
 1. **{{ gate_name | title }}**: `{{ gate.command }}`
 {% endfor %}
+{% if stack.quality_gates.build %}
+
+`{{ stack.quality_gates.build.command }}` is the only check that catches Server/Client
+boundary errors (a server-only import reaching a `'use client'` file, non-serializable
+props, request APIs in prerendered or `'use cache'` code). It is slow: run the fast
+gates while iterating and the build once at the end (grind runs it last too).
+{% endif %}
 
 Report any remaining issues. Do not mark work as complete if quality gates fail.

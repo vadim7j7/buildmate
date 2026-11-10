@@ -29,7 +29,6 @@ shape for the chosen surface and registers any manifest keys it needs in
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `surface` | Yes | One of `popup`, `options`, `sidepanel`, `content`, `background`, `devtools` |
-| `--vue` / `--react` | No | UI framework for HTML surfaces. Default: vanilla TS |
 
 ## How It Works
 
@@ -44,8 +43,10 @@ shape for the chosen surface and registers any manifest keys it needs in
 | `content` | `entrypoints/content.ts` | `defineContentScript({...})` |
 | `background` | `entrypoints/background.ts` | `defineBackground(() => {})` |
 
-Use the `/new-content-script` skill for richer content scripts (matches, shadow
-root UI). This skill creates the minimal valid version.
+Use `/new-ui-surface` for popup / options / sidepanel / newtab pages: it writes them in
+the project's UI framework with storage and messaging wired. Use `/new-content-script`
+for richer content scripts (matches, shadow root UI). This skill creates the minimal
+valid version of each shape.
 
 ### 2. Generate the Files
 
@@ -111,8 +112,8 @@ browser.devtools.panels.create('My Panel', '', 'panel.html');
 
 Most surfaces are auto-detected, but a few need manifest entries:
 
-- **sidepanel** → add `"side_panel"` / `permissions: ['sidePanel']` (Chrome) and
-  branch with `import.meta.env` for Firefox's `sidebar_action`.
+- **sidepanel** → WXT writes `side_panel` (Chrome) / `sidebar_action` (Firefox); add
+  `permissions: ['sidePanel']` for Chrome if the built manifest lacks it.
 - **devtools** → WXT auto-registers `devtools_page` from the entrypoint.
 - **options** → WXT auto-registers `options_ui` from the entrypoint.
 
@@ -131,7 +132,7 @@ export default defineConfig({
 ### 4. Verify
 
 ```bash
-npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
+npm run compile   # wxt prepare + type check
 npx wxt build            # confirm the generated manifest is valid
 ```
 

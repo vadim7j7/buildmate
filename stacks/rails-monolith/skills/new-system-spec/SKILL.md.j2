@@ -1,0 +1,147 @@
+{%- set rt = variables.realtime_kind | default('hotwire') -%}
+{%- set js = rt in ['hotwire', 'stimulus_only'] -%}
+---
+name: new-system-spec
+description: Generate an RSpec system spec ({{ 'Capybara with Cuprite or Playwright for JS, rack_test otherwise' if js else 'Capybara on rack_test' }}) for a user flow
+---
+
+# /new-system-spec
+
+## What This Does
+
+Writes an end-to-end spec in `spec/system/` that drives the app the way a user
+does: visit, fill in, click, assert on what is visible. Sets up the browser
+driver once if the project has none.
+
+## Usage
+
+```
+/new-system-spec "user edits their profile"
+/new-system-spec "sign in with wrong password shows an error"
+```
+
+## How It Works
+
+### 1. Check the existing setup
+
+```bash
+ls spec/system spec/support 2>/dev/null
+grep -rn "driven_by\|register_driver" spec/ | head
+grep -n "cuprite\|playwright\|selenium" Gemfile
+```
+
+Use the driver the project already registers. Only when there is none, set one
+up (step 2).
+
+### 2. Driver setup (once per project)
+
+{% if js %}
+**Cuprite** (default choice: drives Chrome over CDP, no chromedriver/Selenium):
+
+```ruby
+# Gemfile, group :test
+gem "capybara"
+gem "cuprite"
+
+# spec/support/system.rb
+require "capybara/cuprite"
+
+Capybara.register_driver(:cuprite) do |app|
+  Capybara::Cuprite::Driver.new(app, window_size: [1400, 1000], headless: ENV["HEADFUL"].blank?)
+end
+
+RSpec.configure do |config|
+  config.before(:each, type: :system) { driven_by :rack_test }
+  config.before(:each, type: :system, js: true) { driven_by :cuprite }
+end
+```
+
+**Playwright** (alternative, when the team also needs Firefox/WebKit): add
+`capybara-playwright-driver`, install a browser with `npx playwright install chromium`,
+and register it:
+
+```ruby
+Capybara.register_driver(:playwright) do |app|
+  Capybara::Playwright::Driver.new(app, browser_type: :chromium, headless: true)
+end
+# then: driven_by :playwright for js: true specs
+```
+{% else %}
+This app has no JavaScript layer, so every system spec runs on `rack_test`
+(fast, no browser):
+
+```ruby
+# spec/support/system.rb
+RSpec.configure do |config|
+  config.before(:each, type: :system) { driven_by :rack_test }
+end
+```
+{% endif %}
+
+### 3. Sign-in helper
+
+Use what the project has. With the Rails 8 authentication generator there is no
+test helper, so sign in through the form:
+
+```ruby
+# spec/support/system_auth_helpers.rb
+module SystemAuthHelpers
+  def sign_in_as(user, password: "password")
+    visit new_session_path
+    fill_in "email_address", with: user.email_address
+    fill_in "password", with: password
+    click_button "Sign in"
+  end
+end
+RSpec.configure { |c| c.include SystemAuthHelpers, type: :system }
+```
+
+With Devise: `include Warden::Test::Helpers` and `login_as(user)` (no form needed).
+
+### 4. Write the spec
+
+```ruby
+# spec/system/profile_editing_spec.rb
+require "rails_helper"
+
+RSpec.describe "Profile editing", type: :system{{ ', js: true' if js else '' }} do
+  let(:user) { create(:user) }
+  let!(:profile) { create(:profile, user:, name: "Old name") }
+
+  before { sign_in_as(user) }
+
+  it "saves the new name" do
+    visit edit_profile_path(profile)
+    fill_in "Name", with: "Ada Lovelace"
+    click_button "Update Profile"
+
+    expect(page).to have_text("Profile updated")
+    expect(page).to have_text("Ada Lovelace")
+  end
+
+  it "shows validation errors" do
+    visit edit_profile_path(profile)
+    fill_in "Name", with: ""
+    click_button "Update Profile"
+
+    expect(page).to have_css("[role=alert]", text: "can't be blank")
+  end
+end
+```
+
+### 5. Run it
+
+```bash
+bundle exec rspec spec/system/profile_editing_spec.rb
+```
+
+## Rules
+
+- One user goal per file; one behavior per `it`
+- Find by what users see: labels, button text, roles (`have_button`, `have_field`); avoid CSS-class selectors
+{% if js %}
+- Add `js: true` only when the flow needs JavaScript ({% if rt == 'hotwire' %}Turbo Frames/Streams, {% endif %}Stimulus); everything else stays on `rack_test`
+- Never `sleep`: Capybara matchers wait (`have_text`, `have_no_css`); raise `Capybara.default_max_wait_time` only if the app is genuinely slow
+{% endif %}
+- Assert the outcome (text, URL, record count) after the action, not intermediate DOM
+- Keep test data in factories; no fixtures in system specs

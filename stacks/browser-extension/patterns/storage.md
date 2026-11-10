@@ -50,8 +50,8 @@ const unwatch = settings.watch((newValue, oldValue) => {
 // later: unwatch();
 ```
 
-In UI surfaces, attach the watcher on mount and detach on unmount (see
-`.claude/styles/ui-react.md`). Watchers fire across contexts — a write in the popup updates the
+In UI surfaces, attach the watcher on mount and detach on unmount (see the
+project's `.claude/styles/ui-<framework>.md`). Watchers fire across contexts — a write in the popup updates the
 content script live.
 
 ## 4. Versioned migrations

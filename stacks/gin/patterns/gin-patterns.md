@@ -177,6 +177,7 @@ func ErrorHandler() gin.HandlerFunc {
 }
 
 func handleError(c *gin.Context, err error) {
+	// AppError.Message is written for clients (never built from a wrapped error).
 	var appErr *apperror.AppError
 	if errors.As(err, &appErr) {
 		c.JSON(appErr.HTTPStatus(), gin.H{
@@ -188,17 +189,40 @@ func handleError(c *gin.Context, err error) {
 
 	switch {
 	case errors.Is(err, apperror.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "resource not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "resource not found", "code": "NOT_FOUND"})
 	case errors.Is(err, apperror.ErrValidation):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed", "code": "VALIDATION_FAILED"})
 	case errors.Is(err, apperror.ErrUnauthorized):
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "code": "UNAUTHORIZED"})
 	default:
-		slog.Error("unhandled error", "err", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		slog.ErrorContext(c.Request.Context(), "unhandled error", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error", "code": "INTERNAL"})
 	}
 }
 ```
+
+Binding errors go through `respondBindError` (see the developer agent): a
+`validator.ValidationErrors` becomes `fields: [{field, rule}]`, anything else
+`invalid request body`. Report JSON field names instead of Go names by
+registering a tag-name func once at startup:
+
+```go
+// import "github.com/gin-gonic/gin/binding", "github.com/go-playground/validator/v10"
+if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+	v.RegisterTagNameFunc(func(f reflect.StructField) string {
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		if name == "-" {
+			return ""
+		}
+		return name
+	})
+}
+```
+
+### Rules
+- Never send `err.Error()` to clients: wrapped errors leak SQL, IDs and parser text
+- Every error body has a fixed `error` message and a stable `code`
+- Log the cause with `slog.ErrorContext` for 5xx only
 
 ---
 

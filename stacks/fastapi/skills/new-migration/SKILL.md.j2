@@ -1,0 +1,114 @@
+{% if variables.database == 'MongoDB' %}
+---
+name: new-migration
+description: Write a MongoDB data migration script or index change (Beanie)
+---
+
+# /new-migration
+
+## What This Does
+
+MongoDB has no schema migrations ({{ variables.migrations }}). This skill covers
+what replaces them:
+
+- **Index changes**: declared on the Beanie document (`Indexed(...)`,
+  `Settings.indexes`); `init_beanie` creates missing ones at startup. Beanie does
+  not drop indexes you removed: drop them explicitly in a script.
+- **Data migrations**: a change to existing documents (rename a field, backfill a
+  value, change a type) is a script in `scripts/migrations/`.
+
+## Usage
+
+```
+/new-migration "backfill role on users"
+/new-migration --index "users by email, unique"
+```
+
+## How It Works
+
+1. **Read** `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}`.
+
+2. **Index change.** Edit the document class. A new unique index on a collection
+   with data: check for duplicates first (aggregation `$group` by the key,
+   `count > 1`), or startup fails.
+
+3. **Data migration.** Create `scripts/migrations/<YYYYMMDD>_<slug>.py` that calls
+   `init_beanie` and then:
+   - Is idempotent: filter only documents in the old shape
+     (`{"role": {"$exists": False}}`) so a re-run is a no-op
+   - Updates in bulk: `await Model.find(filter).update_many({"$set": {...}})`, or
+     the PyMongo collection's `bulk_write` in chunks for per-document values;
+     never load the whole collection
+   - Logs matched/changed counts and has a `--dry-run` that only counts
+   - Deploy order: code that reads both shapes first, then the script, then remove
+     the old-shape handling
+
+4. **Test** it on the test database: old-shape documents in, new shape out, a
+   second run changes nothing.
+
+5. **Run quality checks.**
+
+   ```bash
+   uv run ruff format <files>
+   uv run ruff check <files>
+   ```
+{% else %}
+---
+name: new-migration
+description: Generate an Alembic migration file
+---
+
+# /new-migration
+
+## What This Does
+
+Generates a new Alembic migration file, either by auto-detecting model changes or from
+a manual description. Ensures the migration has proper upgrade and downgrade functions.
+
+## Usage
+
+```
+/new-migration "add role column to users"       # Manual migration
+/new-migration --autogenerate "add users table"  # Auto-detect from models
+/new-migration "create projects table" --auto    # Short form for autogenerate
+```
+
+## How It Works
+
+1. **Read reference patterns.** Load the migration pattern from:
+   - `skills/new-migration/references/migration-examples.md`
+   - `patterns/backend-patterns.md`
+
+2. **Generate the migration file.**
+
+   ```bash
+   # Auto-detect model changes
+   uv run alembic revision --autogenerate -m "<description>"
+
+   # Or manual (empty template)
+   uv run alembic revision -m "<description>"
+   ```
+
+3. **Review the generated migration.** Open the file in `alembic/versions/` and verify:
+   - `upgrade()` contains the expected schema changes
+   - `downgrade()` correctly reverses all changes
+   - Index names are explicit
+   - Nullable and default values are correct
+
+4. **Edit if needed.** For manual migrations, add the appropriate `op.*` calls.
+
+5. **Run quality checks.**
+
+   ```bash
+   uv run ruff format alembic/versions/<migration_file>.py
+   uv run ruff check alembic/versions/<migration_file>.py
+   ```
+
+6. **Report results.** Show the generated migration file path and contents.
+
+## Generated Files
+
+```
+alembic/versions/<timestamp>_<description>.py
+```
+{% endif %}

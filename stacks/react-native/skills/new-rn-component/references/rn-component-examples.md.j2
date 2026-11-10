@@ -1,0 +1,907 @@
+{#- Rendered per the `ui` option: only this project's styling library is shown. -#}
+{%- set ui = variables.ui_library -%}
+# React Native Component Examples ({{ ui }})
+
+Shared rules, whatever the library: exported props interface, optional `testID`,
+accessibility labels/roles on interactive elements, translated text via `t()`, no
+manual `React.memo` / `useCallback` (the React Compiler memoizes), `ref` as a normal
+prop (React 19, no `forwardRef`). Styling follows `.claude/styles/{% if ui == 'StyleSheet' %}stylesheet{% elif ui == 'NativeWind' %}nativewind{% elif ui == 'Tamagui' %}tamagui{% else %}gluestack{% endif %}.md`.
+
+{% if ui == 'StyleSheet' %}
+{% raw %}
+## Card Component (UI Primitive)
+
+A versatile card component with variants, shadow support, and theme constants.
+
+```typescript
+// src/components/ui/Card.tsx
+import type { ReactNode } from 'react';
+import { View, StyleSheet, ViewStyle, Pressable } from 'react-native';
+import { colors, spacing, borderRadius, shadows } from '@/constants';
+
+export interface CardProps {
+  children: ReactNode;
+  style?: ViewStyle;
+  variant?: 'default' | 'elevated' | 'outlined';
+  onPress?: () => void;
+  testID?: string;
+}
+
+export function Card({
+  children,
+  style,
+  variant = 'default',
+  onPress,
+  testID,
+}: CardProps) {
+  const cardStyle = [styles.base, variantStyles[variant], style];
+
+  if (onPress) {
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          ...cardStyle,
+          pressed && styles.pressed,
+        ]}
+        onPress={onPress}
+        testID={testID}
+      >
+        {children}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={cardStyle} testID={testID}>
+      {children}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  base: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+});
+
+const variantStyles = StyleSheet.create({
+  default: {},
+  elevated: {
+    ...shadows.md,
+  },
+  outlined: {
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+});
+```
+
+---
+
+## List Item Component
+
+A transaction card for a FlashList row. No `React.memo`: the React Compiler
+memoizes it.
+
+```typescript
+// src/components/lists/TransactionCard.tsx
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, typography, borderRadius, shadows } from '@/constants';
+import type { Transaction } from '@/db/schema';
+
+export interface TransactionCardProps {
+  transaction: Transaction;
+  onPress?: (id: string) => void;
+  testID?: string;
+}
+
+function formatCurrency(amount: number): string {
+  const formatted = Math.abs(amount).toFixed(2);
+  return amount < 0 ? `-$${formatted}` : `$${formatted}`;
+}
+
+const CATEGORY_ICONS: Record<string, string> = {
+  food: 'restaurant-outline',
+  transport: 'car-outline',
+  housing: 'home-outline',
+  entertainment: 'game-controller-outline',
+  shopping: 'bag-outline',
+  other: 'ellipsis-horizontal-outline',
+};
+
+export function TransactionCard({
+  transaction,
+  onPress,
+  testID,
+}: TransactionCardProps) {
+  const isExpense = transaction.amount < 0;
+  const iconName = CATEGORY_ICONS[transaction.category ?? 'other'] ?? 'ellipsis-horizontal-outline';
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.container,
+        pressed && styles.pressed,
+      ]}
+      onPress={() => onPress?.(transaction.id)}
+      android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false }}
+      testID={testID}
+    >
+      <View style={styles.iconContainer}>
+        <Ionicons
+          name={iconName as any}
+          size={20}
+          color={colors.primary}
+        />
+      </View>
+
+      <View style={styles.details}>
+        <Text style={styles.description} numberOfLines={1}>
+          {transaction.description}
+        </Text>
+        {transaction.category && (
+          <Text style={styles.category} testID="category-badge">
+            {transaction.category}
+          </Text>
+        )}
+      </View>
+
+      <Text style={[styles.amount, isExpense ? styles.expense : styles.income]}>
+        {formatCurrency(transaction.amount)}
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    marginHorizontal: spacing.md,
+    ...shadows.sm,
+  },
+  pressed: {
+    opacity: Platform.OS === 'ios' ? 0.7 : 1,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  details: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  description: {
+    ...typography.body,
+    color: colors.text,
+    marginBottom: 2,
+  },
+  category: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: 'capitalize',
+  },
+  amount: {
+    ...typography.body,
+    fontWeight: '600',
+  },
+  expense: {
+    color: colors.error,
+  },
+  income: {
+    color: colors.success,
+  },
+});
+```
+
+---
+
+## Form Input Component
+
+A styled text input with label, error message, and proper accessibility.
+
+```typescript
+// src/components/ui/TextInput.tsx
+import {
+  View,
+  Text,
+  TextInput as RNTextInput,
+  TextInputProps as RNTextInputProps,
+  StyleSheet,
+} from 'react-native';
+import { colors, spacing, typography, borderRadius } from '@/constants';
+
+export interface TextInputProps extends Omit<RNTextInputProps, 'style'> {
+  label: string;
+  error?: string;
+  testID?: string;
+}
+
+export function TextInput({
+  label,
+  error,
+  testID,
+  ...inputProps
+}: TextInputProps) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>{label}</Text>
+      <RNTextInput
+        style={[styles.input, error && styles.inputError]}
+        placeholderTextColor={colors.textTertiary}
+        testID={testID}
+        accessibilityLabel={label}
+        {...inputProps}
+      />
+      {error && <Text style={styles.error}>{error}</Text>}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    gap: spacing.xs,
+  },
+  label: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  input: {
+    ...typography.body,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    color: colors.text,
+    backgroundColor: colors.surface,
+    minHeight: 44, // Minimum touch target
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  error: {
+    ...typography.caption,
+    color: colors.error,
+  },
+});
+```
+
+---
+
+## Badge / Chip Component
+
+A small badge component for labels and categories.
+
+```typescript
+// src/components/ui/Badge.tsx
+import { View, Text, StyleSheet } from 'react-native';
+import { colors, spacing, typography, borderRadius } from '@/constants';
+
+export interface BadgeProps {
+  label: string;
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
+  size?: 'sm' | 'md';
+  testID?: string;
+}
+
+const VARIANT_COLORS: Record<
+  NonNullable<BadgeProps['variant']>,
+  { bg: string; text: string }
+> = {
+  default: { bg: colors.surfaceSecondary, text: colors.text },
+  success: { bg: colors.successLight, text: colors.success },
+  warning: { bg: colors.warningLight, text: colors.warning },
+  error: { bg: colors.errorLight, text: colors.error },
+  info: { bg: colors.primaryLight, text: colors.primary },
+};
+
+export function Badge({
+  label,
+  variant = 'default',
+  size = 'sm',
+  testID,
+}: BadgeProps) {
+  const variantColor = VARIANT_COLORS[variant];
+
+  return (
+    <View
+      style={[
+        styles.base,
+        size === 'md' && styles.sizeMd,
+        { backgroundColor: variantColor.bg },
+      ]}
+      testID={testID}
+    >
+      <Text
+        style={[
+          styles.label,
+          size === 'md' && styles.labelMd,
+          { color: variantColor.text },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  base: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+    alignSelf: 'flex-start',
+  },
+  sizeMd: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  label: {
+    ...typography.caption,
+    fontWeight: '500',
+    fontSize: 11,
+  },
+  labelMd: {
+    fontSize: 13,
+  },
+});
+```
+
+---
+
+## Section Component (Layout)
+
+A reusable section wrapper with title and optional action.
+
+```typescript
+// src/components/ui/Section.tsx
+import type { ReactNode } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { colors, spacing, typography, borderRadius, shadows } from '@/constants';
+
+export interface SectionProps {
+  title: string;
+  children: ReactNode;
+  action?: {
+    label: string;
+    onPress: () => void;
+  };
+  testID?: string;
+}
+
+export function Section({ title, children, action, testID }: SectionProps) {
+  return (
+    <View style={styles.container} testID={testID}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{title}</Text>
+        {action && (
+          <Pressable onPress={action.onPress}>
+            <Text style={styles.actionLabel}>{action.label}</Text>
+          </Pressable>
+        )}
+      </View>
+      <View style={styles.content}>{children}</View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    ...shadows.sm,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  title: {
+    ...typography.heading3,
+    color: colors.text,
+  },
+  actionLabel: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  content: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+});
+```
+
+---
+
+## Platform-Specific Component
+
+A floating action button that only renders on Android, following Material
+Design patterns.
+
+```typescript
+// src/components/ui/FloatingActionButton.tsx
+import { Pressable, StyleSheet, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, spacing, shadows } from '@/constants';
+
+export interface FloatingActionButtonProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  testID?: string;
+}
+
+export function FloatingActionButton({
+  icon,
+  onPress,
+  testID,
+}: FloatingActionButtonProps) {
+  // FAB is an Android pattern; on iOS use header buttons
+  if (Platform.OS === 'ios') return null;
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.container,
+        pressed && styles.pressed,
+      ]}
+      onPress={onPress}
+      android_ripple={{ color: 'rgba(255,255,255,0.3)', borderless: true }}
+      testID={testID}
+    >
+      <Ionicons name={icon} size={24} color={colors.onPrimary} />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.lg,
+  },
+  pressed: {
+    opacity: 0.9,
+  },
+});
+```
+{% endraw %}
+{% elif ui == 'NativeWind' %}
+{% raw %}
+## Card Component (UI Primitive)
+
+Variants switch between whole class strings (Tailwind can't see `bg-${x}`).
+
+```typescript
+// src/components/ui/Card.tsx
+import type { ReactNode } from 'react';
+import { Pressable, View } from 'react-native';
+
+const VARIANT_CLASSES = {
+  default: 'bg-white dark:bg-gray-900',
+  elevated: 'bg-white shadow-md dark:bg-gray-900',
+  outlined: 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900',
+} as const;
+
+export interface CardProps {
+  children: ReactNode;
+  variant?: keyof typeof VARIANT_CLASSES;
+  className?: string;
+  onPress?: () => void;
+  testID?: string;
+}
+
+export function Card({ children, variant = 'default', className = '', onPress, testID }: CardProps) {
+  const classes = `rounded-xl p-4 ${VARIANT_CLASSES[variant]} ${className}`;
+
+  if (onPress) {
+    return (
+      <Pressable className={`${classes} active:opacity-85`} onPress={onPress} testID={testID}>
+        {children}
+      </Pressable>
+    );
+  }
+  return <View className={classes} testID={testID}>{children}</View>;
+}
+```
+
+---
+
+## List Item Component
+
+A FlashList row. No `React.memo`: the React Compiler memoizes it.
+
+```typescript
+// src/components/lists/TransactionCard.tsx
+import { Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import type { Transaction } from '@/db/schema';
+
+export interface TransactionCardProps {
+  transaction: Transaction;
+  onPress?: (id: string) => void;
+  testID?: string;
+}
+
+export function TransactionCard({ transaction, onPress, testID }: TransactionCardProps) {
+  const { t } = useTranslation();
+  const isExpense = transaction.amount < 0;
+
+  return (
+    <Pressable
+      className="mx-4 flex-row items-center rounded-lg bg-white p-4 shadow-sm active:opacity-70 dark:bg-gray-900"
+      onPress={() => onPress?.(transaction.id)}
+      android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+      accessibilityRole="button"
+      testID={testID}
+    >
+      <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-primary-100">
+        <Ionicons name="receipt-outline" size={20} className="text-primary-600" />
+      </View>
+      <View className="mr-3 flex-1">
+        <Text className="text-base text-gray-900 dark:text-gray-100" numberOfLines={1}>
+          {transaction.description}
+        </Text>
+        {transaction.category && (
+          <Text className="text-xs capitalize text-gray-500">{transaction.category}</Text>
+        )}
+      </View>
+      <Text
+        className={isExpense ? 'font-semibold text-red-600' : 'font-semibold text-green-600'}
+        accessibilityLabel={t(isExpense ? 'transactions.expense' : 'transactions.income')}
+      >
+        {transaction.amount.toFixed(2)}
+      </Text>
+    </Pressable>
+  );
+}
+```
+
+`Ionicons` takes `className` only if registered with NativeWind (`cssInterop`); otherwise
+pass `color` from the theme.
+
+---
+
+## Form Input Component
+
+React 19: `ref` is a normal prop, no `forwardRef`.
+
+```typescript
+// src/components/ui/TextInput.tsx
+import type { Ref } from 'react';
+import { Text, TextInput as RNTextInput, View, type TextInputProps as RNTextInputProps } from 'react-native';
+
+export interface TextInputProps extends RNTextInputProps {
+  label: string;
+  error?: string;
+  ref?: Ref<RNTextInput>;
+}
+
+export function TextInput({ label, error, ref, className = '', ...props }: TextInputProps) {
+  return (
+    <View className="gap-1">
+      <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</Text>
+      <RNTextInput
+        ref={ref}
+        accessibilityLabel={label}
+        className={`min-h-11 rounded-lg border bg-white px-3 text-base text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${
+          error ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+        } ${className}`}
+        {...props}
+      />
+      {error && <Text className="text-xs text-red-600">{error}</Text>}
+    </View>
+  );
+}
+```
+
+---
+
+## Badge / Chip Component
+
+```typescript
+// src/components/ui/Badge.tsx
+import { Text, View } from 'react-native';
+
+const VARIANTS = {
+  default: { box: 'bg-gray-100', text: 'text-gray-800' },
+  success: { box: 'bg-green-100', text: 'text-green-700' },
+  warning: { box: 'bg-amber-100', text: 'text-amber-700' },
+  error: { box: 'bg-red-100', text: 'text-red-700' },
+} as const;
+
+export interface BadgeProps {
+  label: string;
+  variant?: keyof typeof VARIANTS;
+  testID?: string;
+}
+
+export function Badge({ label, variant = 'default', testID }: BadgeProps) {
+  const v = VARIANTS[variant];
+  return (
+    <View className={`self-start rounded-full px-2 py-0.5 ${v.box}`} testID={testID}>
+      <Text className={`text-xs font-medium ${v.text}`}>{label}</Text>
+    </View>
+  );
+}
+```
+{% endraw %}
+{% elif ui == 'Tamagui' %}
+{% raw %}
+## Card Component (UI Primitive)
+
+Variants live in `styled()`; values are theme tokens.
+
+```typescript
+// src/components/ui/Card.tsx
+import { styled, YStack, type GetProps } from 'tamagui';
+
+export const Card = styled(YStack, {
+  name: 'Card',
+  padding: '$md',
+  borderRadius: '$md',
+  backgroundColor: '$background',
+
+  variants: {
+    variant: {
+      default: {},
+      elevated: { elevation: '$2', shadowColor: '$shadowColor' },
+      outlined: { borderWidth: 1, borderColor: '$borderColor' },
+    },
+    pressable: {
+      true: { pressStyle: { opacity: 0.85 } },
+    },
+  } as const,
+
+  defaultVariants: { variant: 'default' },
+});
+
+export type CardProps = GetProps<typeof Card>;
+// <Card variant="outlined" pressable onPress={...} testID="budget-card">...</Card>
+```
+
+---
+
+## List Item Component
+
+A FlashList row. No `React.memo`: the React Compiler memoizes it.
+
+```typescript
+// src/components/lists/TransactionCard.tsx
+import { useTranslation } from 'react-i18next';
+import { Paragraph, SizableText, XStack, YStack } from 'tamagui';
+import type { Transaction } from '@/db/schema';
+
+export interface TransactionCardProps {
+  transaction: Transaction;
+  onPress?: (id: string) => void;
+  testID?: string;
+}
+
+export function TransactionCard({ transaction, onPress, testID }: TransactionCardProps) {
+  const { t } = useTranslation();
+  const isExpense = transaction.amount < 0;
+
+  return (
+    <XStack
+      alignItems="center"
+      gap="$sm"
+      marginHorizontal="$md"
+      padding="$md"
+      borderRadius="$md"
+      backgroundColor="$background"
+      pressStyle={{ backgroundColor: '$backgroundPress' }}
+      onPress={() => onPress?.(transaction.id)}
+      role="button"
+      testID={testID}
+    >
+      <YStack flex={1}>
+        <SizableText size="$4" numberOfLines={1}>{transaction.description}</SizableText>
+        {transaction.category && (
+          <Paragraph size="$2" color="$color10" textTransform="capitalize">
+            {transaction.category}
+          </Paragraph>
+        )}
+      </YStack>
+      <SizableText
+        size="$4"
+        fontWeight="600"
+        color={isExpense ? '$red10' : '$green10'}
+        aria-label={t(isExpense ? 'transactions.expense' : 'transactions.income')}
+      >
+        {transaction.amount.toFixed(2)}
+      </SizableText>
+    </XStack>
+  );
+}
+```
+
+---
+
+## Form Input Component
+
+See `.claude/styles/{{ 'styles/tamagui.md' | installed(stack) }}` (Input Component): a `styled(Input)` with an `error`
+variant, wrapped with `Label` and an error `Paragraph`. `ref` is a normal prop (React 19).
+
+```typescript
+<Input
+  id="budget-name"
+  label={t('budgets.name')}
+  value={name}
+  onChangeText={setName}
+  error={errors.name}
+  testID="budget-name-input"
+/>
+```
+
+---
+
+## Badge / Chip Component
+
+```typescript
+// src/components/ui/Badge.tsx
+import { styled, Text, XStack } from 'tamagui';
+
+const BadgeFrame = styled(XStack, {
+  name: 'Badge',
+  alignSelf: 'flex-start',
+  paddingHorizontal: '$sm',
+  paddingVertical: 2,
+  borderRadius: '$full',
+  backgroundColor: '$color3',
+  variants: {
+    tone: {
+      default: {},
+      success: { backgroundColor: '$green3' },
+      error: { backgroundColor: '$red3' },
+    },
+  } as const,
+});
+
+export interface BadgeProps {
+  label: string;
+  tone?: 'default' | 'success' | 'error';
+  testID?: string;
+}
+
+export function Badge({ label, tone = 'default', testID }: BadgeProps) {
+  return (
+    <BadgeFrame tone={tone} testID={testID}>
+      <Text fontSize="$1" fontWeight="500">{label}</Text>
+    </BadgeFrame>
+  );
+}
+```
+{% endraw %}
+{% else %}
+{% raw %}
+Start from the generated components (`npx gluestack-ui@latest add card badge input
+form-control`) in `src/components/ui/`, and build app components on top of them.
+
+## Card Component (UI Primitive)
+
+```typescript
+// src/components/ui/AppCard.tsx -- composes the generated Card
+import type { ReactNode } from 'react';
+import { Card } from '@/components/ui/card';
+import { Pressable } from '@/components/ui/pressable';
+
+export interface AppCardProps {
+  children: ReactNode;
+  variant?: 'elevated' | 'outline' | 'filled' | 'ghost'; // the generated Card's tva variants
+  onPress?: () => void;
+  testID?: string;
+}
+
+export function AppCard({ children, variant = 'elevated', onPress, testID }: AppCardProps) {
+  const card = (
+    <Card variant={variant} size="md" className="rounded-lg" testID={testID}>
+      {children}
+    </Card>
+  );
+  if (!onPress) return card;
+  return (
+    <Pressable onPress={onPress} className="data-[active=true]:opacity-85">
+      {card}
+    </Pressable>
+  );
+}
+```
+
+Check the variant names in the generated `src/components/ui/card/index.tsx` and use those.
+
+---
+
+## List Item Component
+
+See the `TransactionCard` in `.claude/styles/{{ 'styles/gluestack.md' | installed(stack) }}`: `Pressable` + `HStack` /
+`VStack` + `Text` from `@/components/ui/*`, semantic colour classes
+(`text-destructive`, `text-muted-foreground`), and no `React.memo` (the React Compiler
+memoizes it). Add an accessibility label for the amount:
+
+```typescript
+<Text bold className={isExpense ? 'text-destructive' : 'text-primary'}
+  accessibilityLabel={t(isExpense ? 'transactions.expense' : 'transactions.income')}>
+  {transaction.amount.toFixed(2)}
+</Text>
+```
+
+---
+
+## Form Input Component
+
+```typescript
+// src/components/forms/TextField.tsx
+import {
+  FormControl, FormControlLabel, FormControlLabelText,
+  FormControlError, FormControlErrorText,
+} from '@/components/ui/form-control';
+import { Input, InputField } from '@/components/ui/input';
+
+export interface TextFieldProps extends React.ComponentProps<typeof InputField> {
+  label: string;
+  error?: string;
+  isRequired?: boolean;
+}
+
+// React 19: `ref` arrives in props and is passed on, no forwardRef
+export function TextField({ label, error, isRequired, ...fieldProps }: TextFieldProps) {
+  return (
+    <FormControl isInvalid={!!error} isRequired={isRequired}>
+      <FormControlLabel>
+        <FormControlLabelText>{label}</FormControlLabelText>
+      </FormControlLabel>
+      <Input variant="outline" size="md">
+        <InputField accessibilityLabel={label} {...fieldProps} />
+      </Input>
+      <FormControlError>
+        <FormControlErrorText>{error}</FormControlErrorText>
+      </FormControlError>
+    </FormControl>
+  );
+}
+```
+
+---
+
+## Badge / Chip Component
+
+```typescript
+import { Badge, BadgeText } from '@/components/ui/badge';
+
+<Badge action="success" variant="solid" size="sm" className="self-start">
+  <BadgeText>{t('budgets.onTrack')}</BadgeText>
+</Badge>
+```
+
+`action` / `variant` / `size` are the generated `tva` variants. A chip the library
+doesn't have is a new `tva` component (see `.claude/styles/{{ 'styles/gluestack.md' | installed(stack) }}`).
+{% endraw %}
+{% endif %}

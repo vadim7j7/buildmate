@@ -11,7 +11,7 @@ A client component that uses hooks, manages state, and handles user events.
 // src/components/SearchBar.tsx
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 
 type SearchBarProps = {
   /** Callback fired when user submits a search query */
@@ -30,25 +30,23 @@ export function SearchBar({
 }: SearchBarProps) {
   const [query, setQuery] = useState('');
 
-  const handleSubmit = useCallback(() => {
+  // Plain handlers: the React Compiler memoizes them; no useCallback by reflex
+  const handleSubmit = () => {
     if (query.trim()) {
       onSearch(query.trim());
     }
-  }, [query, onSearch]);
+  };
 
-  const handleClear = useCallback(() => {
+  const handleClear = () => {
     setQuery('');
     onSearch('');
-  }, [onSearch]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        handleSubmit();
-      }
-    },
-    [handleSubmit]
-  );
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSubmit();
+    }
+  };
 
   return (
     <div className="flex items-center gap-2">

@@ -1,0 +1,79 @@
+{%- set db = variables.database -%}
+---
+name: new-model
+description: Generate a {% if db == 'MongoDB' %}MongoDB document model (Pydantic v2) with its indexes{% elif db == 'None' %}Pydantic model or dataclass{% else %}SQLAlchemy 2.0 model{% endif %} and a test
+---
+
+# /new-model
+
+## What This Does
+
+{% if db == 'MongoDB' %}
+Generates a MongoDB document model: a Pydantic v2 model with an `_id` alias
+(`PyObjectId`), its collection name and the indexes its queries need. Stack:
+{{ variables.orm }}.
+{% elif db == 'None' %}
+This project has no database. Generates a domain model as a Pydantic v2 model (when
+it validates external input: config, files, API payloads) or a frozen `dataclass`
+(internal value objects). Do not add SQLAlchemy or another ORM for it.
+{% else %}
+Generates a SQLAlchemy 2.0 model ({{ variables.orm }}) with `Mapped[]`
+annotations, an explicit `__tablename__` and timestamp columns, on
+{{ variables.database }}.
+{% endif %}
+
+## Usage
+
+```
+/new-model Article
+/new-model UserProfile
+```
+
+## How It Works
+
+1. **Read the patterns.**
+{% if db == 'MongoDB' %}
+   - `.claude/patterns/{{ 'patterns/mongodb.md' | installed(stack) }}` (document model, `PyObjectId`, index creation)
+{% elif db != 'None' %}
+   - `.claude/patterns/{{ 'patterns/backend-patterns.md' | installed(stack) }}` (Model Pattern)
+{% endif %}
+   - `.claude/styles/{{ 'styles/backend-python.md' | installed(stack) }}`
+   - An existing model in `src/app/models/` (match it)
+
+2. **Generate the model** in `src/app/models/<name>.py`:
+   - Type annotations on every field, a class docstring
+{% if db == 'MongoDB' %}
+   - `id: PyObjectId | None = Field(default=None, alias="_id")` and
+     `model_config = ConfigDict(populate_by_name=True)`
+   - Embed 1:1 / 1:few data as nested models; reference other collections by id
+   - Timezone-aware `created_at` / `updated_at` (`datetime.now(UTC)`)
+{% elif db == 'None' %}
+   - Pydantic: field constraints (`Field(min_length=...)`), `model_config` as needed
+   - dataclass: `@dataclass(frozen=True, slots=True)` for value objects
+{% else %}
+   - `Mapped[...]` + `mapped_column()` for every column, explicit `__tablename__`
+   - Standard `id`, `created_at`, `updated_at` (`server_default=func.now()`)
+   - Relationships with `back_populates`; index foreign keys
+{% endif %}
+
+{% if db == 'MongoDB' %}
+3. **Add the indexes** the new queries need to `src/app/db/indexes.py`
+   (`create_index` is idempotent and runs at startup). There is no schema
+   migration; a change to existing documents is a data script (`/new-migration`).
+{% elif db == 'None' %}
+3. **No migration.** There is no schema to migrate.
+{% else %}
+3. **Generate the migration** with `/new-migration` (Alembic autogenerate) and
+   review it.
+{% endif %}
+
+4. **Generate the test** in `tests/`: creation, validation errors, and
+   {% if db == 'MongoDB' %}a round trip through the collection (test database){% elif db == 'None' %}equality/immutability where relevant{% else %}relationships (if any){% endif %}.
+
+5. **Run quality checks.**
+
+   ```bash
+   uv run ruff format <generated_files>
+   uv run ruff check <generated_files>
+   uv run pytest <test_file> -v
+   ```

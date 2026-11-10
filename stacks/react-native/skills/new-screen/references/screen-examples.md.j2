@@ -1,0 +1,1066 @@
+{#- Rendered per the `ui` option. -#}
+{%- set ui = variables.ui_library -%}
+{%- if ui == 'Gluestack UI' -%}
+{%- set box = 'Box' -%}
+{%- set imp_box = "import { Box } from '@/components/ui/box';" -%}
+{%- set imp_text = "import { Text } from '@/components/ui/text';" -%}
+{%- set field = 'TextField' -%}{%- set field_path = 'forms/TextField' -%}
+{%- set c = {'bg': 'bg-background', 'card': 'bg-card', 'primary': 'text-primary', 'muted': 'text-muted-foreground', 'danger': 'text-destructive', 'text': 'text-foreground', 'border': 'border-border'} -%}
+{%- else -%}
+{%- set box = 'View' -%}
+{%- set imp_box = "import { View } from 'react-native';" -%}
+{%- set imp_text = "import { Text } from 'react-native';" -%}
+{%- set field = 'TextInput' -%}{%- set field_path = 'ui/TextInput' -%}
+{%- set c = {'bg': 'bg-gray-50 dark:bg-gray-950', 'card': 'bg-white dark:bg-gray-900', 'primary': 'text-primary-600', 'muted': 'text-gray-500', 'danger': 'text-red-600', 'text': 'text-gray-900 dark:text-gray-100', 'border': 'border-gray-200 dark:border-gray-800'} -%}
+{%- endif -%}
+# Expo Router Screen Examples ({{ ui }})
+
+Data comes from TanStack Query hooks, never copied into state with an effect. No manual
+`useCallback` / `useMemo` (the React Compiler memoizes); every user-facing string goes
+through `t()`; every screen root has a `testID` for tests and Maestro flows.
+
+{% if ui == 'StyleSheet' %}
+{% raw %}
+## List Screen Template
+
+A list screen with FlashList, data loading, pull-to-refresh, empty state, and
+platform-specific primary action.
+
+```typescript
+// src/app/(tabs)/budgets.tsx
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { Stack, Link, router } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
+import { useTranslation } from 'react-i18next';
+import { useBudgets } from '@/queries/useBudgets';
+import { BudgetCard } from '@/components/lists/BudgetCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { ErrorScreen } from '@/components/ui/ErrorScreen';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+import { colors, spacing } from '@/constants';
+import type { Budget } from '@/db/schema';
+
+export default function BudgetsScreen() {
+  const { t } = useTranslation();
+  const { data: budgets, isLoading, isError, error, refetch } = useBudgets();
+
+  // No useCallback: the React Compiler memoizes handlers and renderItem
+  const renderItem = ({ item }: { item: Budget }) => (
+    <BudgetCard budget={item} onPress={() => router.push(`/budgets/${item.id}`)} />
+  );
+
+  if (isLoading) return <LoadingScreen />;
+  if (isError) return <ErrorScreen message={error?.message ?? t('common.error')} onRetry={refetch} />;
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: t('budgets.title'),
+          ...(Platform.OS === 'ios' && {
+            headerRight: () => (
+              <Link href="/(modals)/budget-form">
+                <Text style={styles.headerAction}>{t('common.add')}</Text>
+              </Link>
+            ),
+          }),
+        }}
+      />
+
+      <FlashList
+        data={budgets ?? []}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        onRefresh={refetch}
+        refreshing={isLoading}
+        ListEmptyComponent={
+          <EmptyState
+            message={t('budgets.empty')}
+            actionLabel={t('budgets.createFirst')}
+            onAction={() => router.push('/(modals)/budget-form')}
+          />
+        }
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
+
+      {Platform.OS === 'android' && (
+        <FloatingActionButton
+          icon="plus"
+          onPress={() => router.push('/(modals)/budget-form')}
+          testID="add-budget-fab"
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  listContent: {
+    paddingVertical: spacing.sm,
+  },
+  separator: {
+    height: spacing.xs,
+  },
+  headerAction: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+```
+
+---
+
+## Form Screen Template
+
+A form screen with KeyboardAvoidingView, validation, header save button, and
+mutation handling.
+
+```typescript
+// src/app/(modals)/budget-form.tsx
+import { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { useBudget, useCreateBudget, useUpdateBudget } from '@/queries/useBudgets';
+import { TextInput } from '@/components/ui/TextInput';
+import { SelectInput } from '@/components/ui/SelectInput';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
+import { colors, spacing, typography } from '@/constants';
+
+const BUDGET_CATEGORIES = ['housing', 'food', 'transport', 'entertainment', 'savings', 'other'];
+
+export default function BudgetFormScreen() {
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const isEditing = !!id;
+
+  // Load existing data when editing
+  const { data: existingBudget } = useBudget(id ?? '');
+  const createMutation = useCreateBudget();
+  const updateMutation = useUpdateBudget();
+
+  // Form state
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState(0);
+  const [category, setCategory] = useState<string>('other');
+
+  // Populate form when editing
+  useEffect(() => {
+    if (existingBudget) {
+      setName(existingBudget.name);
+      setAmount(existingBudget.amount);
+      setCategory(existingBudget.category);
+    }
+  }, [existingBudget]);
+
+  // Validation
+  const errors: Record<string, string> = {};
+  if (!name.trim()) errors.name = t('budgets.validation.nameRequired');
+  if (amount <= 0) errors.amount = t('budgets.validation.amountPositive');
+  const isValid = Object.keys(errors).length === 0;
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const handleSave = async () => {
+    if (!isValid || isSaving) return;
+
+    try {
+      if (isEditing && id) {
+        await updateMutation.mutateAsync({ id, name, amount, category });
+      } else {
+        await createMutation.mutateAsync({ name, amount, category });
+      }
+      router.back();
+    } catch {
+      Alert.alert(t('common.error'), t('budgets.saveFailed'));
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
+      <Stack.Screen
+        options={{
+          title: isEditing ? t('budgets.edit') : t('budgets.create'),
+          presentation: 'modal',
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()}>
+              <Text style={styles.cancelButton}>{t('common.cancel')}</Text>
+            </Pressable>
+          ),
+          headerRight: () => (
+            <Pressable onPress={handleSave} disabled={!isValid || isSaving}>
+              <Text
+                style={[
+                  styles.saveButton,
+                  (!isValid || isSaving) && styles.saveButtonDisabled,
+                ]}
+              >
+                {isSaving ? t('common.saving') : t('common.save')}
+              </Text>
+            </Pressable>
+          ),
+        }}
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <TextInput
+          label={t('budgets.name')}
+          value={name}
+          onChangeText={setName}
+          placeholder={t('budgets.namePlaceholder')}
+          error={errors.name}
+          autoFocus={!isEditing}
+          testID="budget-name-input"
+        />
+
+        <CurrencyInput
+          label={t('budgets.amount')}
+          value={amount}
+          onChangeValue={setAmount}
+          error={errors.amount}
+          testID="budget-amount-input"
+        />
+
+        <SelectInput
+          label={t('budgets.category')}
+          value={category}
+          onValueChange={setCategory}
+          options={BUDGET_CATEGORIES.map((cat) => ({
+            label: t(`categories.${cat}`),
+            value: cat,
+          }))}
+          testID="budget-category-select"
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  cancelButton: {
+    color: colors.textSecondary,
+    fontSize: 16,
+  },
+  saveButton: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButtonDisabled: {
+    opacity: 0.4,
+  },
+});
+```
+
+---
+
+## Detail Screen Template
+
+A detail screen with ScrollView, sections, data loading, and navigation
+parameter handling.
+
+```typescript
+// src/app/(tabs)/budgets/[id].tsx
+import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
+import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { useBudget, useDeleteBudget } from '@/queries/useBudgets';
+import { Section } from '@/components/ui/Section';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { ErrorScreen } from '@/components/ui/ErrorScreen';
+import { IconButton } from '@/components/ui/IconButton';
+import { colors, spacing, typography } from '@/constants';
+
+export default function BudgetDetailScreen() {
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: budget, isLoading, error } = useBudget(id);
+  const deleteMutation = useDeleteBudget();
+
+  if (isLoading) return <LoadingScreen />;
+  if (error || !budget) {
+    return (
+      <ErrorScreen
+        message={t('budgets.notFound')}
+        onRetry={() => router.back()}
+      />
+    );
+  }
+
+  const spentPercentage = budget.spent / budget.amount;
+  const remaining = budget.amount - budget.spent;
+
+  const handleEdit = () => {
+    router.push(`/(modals)/budget-form?id=${budget.id}`);
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      t('budgets.deleteTitle'),
+      t('budgets.deleteMessage', { name: budget.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            await deleteMutation.mutateAsync(budget.id);
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Stack.Screen
+        options={{
+          title: budget.name,
+          headerRight: () => (
+            <View style={styles.headerActions}>
+              <IconButton icon="pencil" onPress={handleEdit} />
+              <IconButton icon="trash" onPress={handleDelete} variant="danger" />
+            </View>
+          ),
+        }}
+      />
+
+      {/* Budget Overview Section */}
+      <Section title={t('budgets.overview')}>
+        <View style={styles.amountRow}>
+          <View>
+            <Text style={styles.amountLabel}>{t('budgets.totalBudget')}</Text>
+            <Text style={styles.amountValue}>
+              {formatCurrency(budget.amount)}
+            </Text>
+          </View>
+          <View style={styles.amountRight}>
+            <Text style={styles.amountLabel}>{t('budgets.remaining')}</Text>
+            <Text
+              style={[
+                styles.amountValue,
+                remaining < 0 && styles.amountNegative,
+              ]}
+            >
+              {formatCurrency(remaining)}
+            </Text>
+          </View>
+        </View>
+        <ProgressBar
+          progress={Math.min(spentPercentage, 1)}
+          color={spentPercentage > 0.9 ? colors.error : colors.primary}
+        />
+      </Section>
+
+      {/* Category Section */}
+      <Section title={t('budgets.details')}>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>{t('budgets.category')}</Text>
+          <Text style={styles.detailValue}>
+            {t(`categories.${budget.category}`)}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>{t('budgets.period')}</Text>
+          <Text style={styles.detailValue}>{budget.period}</Text>
+        </View>
+      </Section>
+
+      {/* Metadata Section */}
+      <Section title={t('budgets.metadata')}>
+        <Text style={styles.metaText}>
+          {t('common.createdAt', { date: formatDate(budget.createdAt) })}
+        </Text>
+        {budget.updatedAt && (
+          <Text style={styles.metaText}>
+            {t('common.updatedAt', { date: formatDate(budget.updatedAt) })}
+          </Text>
+        )}
+      </Section>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    padding: spacing.md,
+    gap: spacing.lg,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  amountRight: {
+    alignItems: 'flex-end',
+  },
+  amountLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  amountValue: {
+    ...typography.heading2,
+    color: colors.text,
+  },
+  amountNegative: {
+    color: colors.error,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  detailLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  detailValue: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  metaText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+});
+```
+{% endraw %}
+{% elif ui == 'Tamagui' %}
+{% raw %}
+## List Screen Template
+
+```typescript
+// src/app/(tabs)/budgets.tsx
+import { Platform } from 'react-native';
+import { Stack, Link, router } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
+import { useTranslation } from 'react-i18next';
+import { SizableText, YStack } from 'tamagui';
+import { useBudgets } from '@/queries/useBudgets';
+import { BudgetCard } from '@/components/lists/BudgetCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { ErrorScreen } from '@/components/ui/ErrorScreen';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+import type { Budget } from '@/db/schema';
+
+export default function BudgetsScreen() {
+  const { t } = useTranslation();
+  const { data: budgets, isLoading, isError, error, refetch, isRefetching } = useBudgets();
+
+  if (isLoading) return <LoadingScreen />;
+  if (isError) return <ErrorScreen message={error?.message ?? t('common.error')} onRetry={refetch} />;
+
+  return (
+    <YStack flex={1} backgroundColor="$background" testID="budgets-screen">
+      <Stack.Screen
+        options={
+          Platform.OS === 'ios'
+            ? {
+                title: t('budgets.title'),
+                headerRight: () => (
+                  <Link href="/(modals)/budget-form">
+                    <SizableText color="$primary" fontWeight="600">{t('common.add')}</SizableText>
+                  </Link>
+                ),
+              }
+            : { title: t('budgets.title') }
+        }
+      />
+
+      <FlashList
+        data={budgets ?? []}
+        renderItem={({ item }: { item: Budget }) => (
+          <BudgetCard budget={item} onPress={() => router.push(`/budgets/${item.id}`)} />
+        )}
+        keyExtractor={(item) => item.id}
+        onRefresh={refetch}
+        refreshing={isRefetching}
+        ListEmptyComponent={
+          <EmptyState
+            message={t('budgets.empty')}
+            actionLabel={t('budgets.createFirst')}
+            onAction={() => router.push('/(modals)/budget-form')}
+          />
+        }
+        ItemSeparatorComponent={() => <YStack height="$xs" />}
+        testID="budgets-list"
+      />
+
+      {Platform.OS === 'android' && (
+        <FloatingActionButton icon="add" onPress={() => router.push('/(modals)/budget-form')} testID="add-budget-fab" />
+      )}
+    </YStack>
+  );
+}
+```
+
+---
+
+## Form Screen Template
+
+```typescript
+// src/app/(modals)/budget-form.tsx
+import { useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { Button, ScrollView } from 'tamagui';
+import { useCreateBudget, useBudget, useUpdateBudget } from '@/queries/useBudgets';
+import { Input } from '@/components/ui/Input';
+import { CurrencyInput } from '@/components/forms/CurrencyInput';
+
+export default function BudgetFormScreen() {
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { data: existing } = useBudget(id ?? '', { enabled: !!id });
+  const createMutation = useCreateBudget();
+  const updateMutation = useUpdateBudget();
+
+  const [name, setName] = useState(existing?.name ?? '');
+  const [amount, setAmount] = useState(existing?.amount ?? 0);
+
+  const errors: Record<string, string> = {};
+  if (!name.trim()) errors.name = t('budgets.validation.nameRequired');
+  if (amount <= 0) errors.amount = t('budgets.validation.amountPositive');
+  const isValid = Object.keys(errors).length === 0;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const handleSave = async () => {
+    if (!isValid || isSaving) return;
+    try {
+      if (id) await updateMutation.mutateAsync({ id, name, amount });
+      else await createMutation.mutateAsync({ name, amount });
+      router.back();
+    } catch {
+      Alert.alert(t('common.error'), t('budgets.saveFailed'));
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <Stack.Screen
+        options={{
+          title: id ? t('budgets.edit') : t('budgets.create'),
+          headerRight: () => (
+            <Button chromeless size="$3" disabled={!isValid || isSaving} opacity={!isValid || isSaving ? 0.4 : 1} onPress={handleSave}>
+              {isSaving ? t('common.saving') : t('common.save')}
+            </Button>
+          ),
+        }}
+      />
+      <ScrollView backgroundColor="$background" contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
+        <Input id="budget-name" label={t('budgets.name')} value={name} onChangeText={setName}
+          error={errors.name} autoFocus={!id} testID="budget-name-input" />
+        <CurrencyInput label={t('budgets.amount')} value={amount} onChangeValue={setAmount}
+          error={errors.amount} testID="budget-amount-input" />
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+```
+
+For an edit form whose record loads after mount, render the form only once `existing`
+is loaded (or key it by id) instead of copying query data into state with an effect.
+
+---
+
+## Detail Screen Template
+
+```typescript
+// src/app/(tabs)/budgets/[id].tsx
+import { Alert } from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { Paragraph, ScrollView, SizableText, XStack, YStack } from 'tamagui';
+import { useBudget, useDeleteBudget } from '@/queries/useBudgets';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { ErrorScreen } from '@/components/ui/ErrorScreen';
+import { IconButton } from '@/components/ui/IconButton';
+
+export default function BudgetDetailScreen() {
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: budget, isLoading, error } = useBudget(id);
+  const deleteMutation = useDeleteBudget();
+
+  if (isLoading) return <LoadingScreen />;
+  if (error || !budget) return <ErrorScreen message={t('budgets.notFound')} onRetry={() => router.back()} />;
+
+  const remaining = budget.amount - budget.spent;
+  const confirmDelete = () =>
+    Alert.alert(t('budgets.deleteTitle'), t('budgets.deleteMessage', { name: budget.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: async () => {
+          await deleteMutation.mutateAsync(budget.id);
+          router.back();
+        } },
+    ]);
+
+  return (
+    <ScrollView flex={1} backgroundColor="$background" contentContainerStyle={{ padding: 16, gap: 24 }}>
+      <Stack.Screen
+        options={{
+          title: budget.name,
+          headerRight: () => (
+            <XStack gap="$sm">
+              <IconButton icon="pencil" onPress={() => router.push(`/(modals)/budget-form?id=${budget.id}`)} />
+              <IconButton icon="trash" onPress={confirmDelete} variant="danger" />
+            </XStack>
+          ),
+        }}
+      />
+      <YStack padding="$md" borderRadius="$md" backgroundColor="$color2">
+        <Paragraph size="$2" color="$color10">{t('budgets.remaining')}</Paragraph>
+        <SizableText size="$8" fontWeight="700" color={remaining < 0 ? '$red10' : '$color'}>
+          {remaining.toFixed(2)}
+        </SizableText>
+      </YStack>
+      <XStack justifyContent="space-between" paddingVertical="$sm" borderBottomWidth={1} borderColor="$borderColor">
+        <Paragraph color="$color10">{t('budgets.category')}</Paragraph>
+        <Paragraph fontWeight="500">{t(`categories.${budget.category}`)}</Paragraph>
+      </XStack>
+    </ScrollView>
+  );
+}
+```
+{% endraw %}
+{% else %}
+## List Screen Template
+
+FlashList, data loading, pull-to-refresh, empty state, platform-specific primary action.
+
+```typescript
+// src/app/(tabs)/budgets.tsx
+import { Platform } from 'react-native';
+import { Stack, Link, router } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
+import { useTranslation } from 'react-i18next';
+{{ imp_box }}
+{{ imp_text }}
+import { useBudgets } from '@/queries/useBudgets';
+import { BudgetCard } from '@/components/lists/BudgetCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { ErrorScreen } from '@/components/ui/ErrorScreen';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+import type { Budget } from '@/db/schema';
+
+export default function BudgetsScreen() {
+  const { t } = useTranslation();
+  const { data: budgets, isLoading, isError, error, refetch, isRefetching } = useBudgets();
+
+  if (isLoading) return <LoadingScreen />;
+  if (isError) return <ErrorScreen message={error?.message ?? t('common.error')} onRetry={refetch} />;
+
+  return (
+    <{{ box }} className="flex-1 {{ c.bg }}" testID="budgets-screen">
+      <Stack.Screen
+        options={
+          Platform.OS === 'ios'
+            ? {
+                title: t('budgets.title'),
+                headerRight: () => (
+                  <Link href="/(modals)/budget-form">
+                    <Text className="text-base font-semibold {{ c.primary }}">{t('common.add')}</Text>
+                  </Link>
+                ),
+              }
+            : { title: t('budgets.title') }
+        }
+      />
+
+      <FlashList
+        data={budgets ?? []}
+        renderItem={({ item }: { item: Budget }) => (
+          <BudgetCard budget={item} onPress={() => router.push(`/budgets/${item.id}`)} />
+        )}
+        keyExtractor={(item) => item.id}
+        onRefresh={refetch}
+        refreshing={isRefetching}
+        ListEmptyComponent={
+          <EmptyState
+            message={t('budgets.empty')}
+            actionLabel={t('budgets.createFirst')}
+            onAction={() => router.push('/(modals)/budget-form')}
+          />
+        }
+        ItemSeparatorComponent={() => <{{ box }} className="h-1" />}
+        testID="budgets-list"
+      />
+
+      {Platform.OS === 'android' && (
+        <FloatingActionButton
+          icon="add"
+          onPress={() => router.push('/(modals)/budget-form')}
+          testID="add-budget-fab"
+        />
+      )}
+    </{{ box }}>
+  );
+}
+```
+
+---
+
+## Form Screen Template
+
+KeyboardAvoidingView, validation, header save button, mutation handling.
+
+```typescript
+// src/app/(modals)/budget-form.tsx
+import { useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView } from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+{{ imp_text }}
+import { useBudget, useCreateBudget, useUpdateBudget } from '@/queries/useBudgets';
+import { {{ field }} } from '@/components/{{ field_path }}';
+import { CurrencyInput } from '@/components/forms/CurrencyInput';
+
+export default function BudgetFormScreen() {
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { data: existing } = useBudget(id ?? '', { enabled: !!id });
+  const createMutation = useCreateBudget();
+  const updateMutation = useUpdateBudget();
+
+  // Initialise from the loaded record; the form owns the draft after that
+  const [name, setName] = useState(existing?.name ?? '');
+  const [amount, setAmount] = useState(existing?.amount ?? 0);
+
+  const errors: Record<string, string> = {};
+  if (!name.trim()) errors.name = t('budgets.validation.nameRequired');
+  if (amount <= 0) errors.amount = t('budgets.validation.amountPositive');
+  const isValid = Object.keys(errors).length === 0;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  const handleSave = async () => {
+    if (!isValid || isSaving) return;
+    try {
+      if (id) await updateMutation.mutateAsync({ id, name, amount });
+      else await createMutation.mutateAsync({ name, amount });
+      router.back();
+    } catch {
+      Alert.alert(t('common.error'), t('budgets.saveFailed'));
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      className="flex-1 {{ c.bg }}"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Stack.Screen
+        options={{ '{{' }}
+          title: id ? t('budgets.edit') : t('budgets.create'),
+          headerRight: () => (
+            <Pressable onPress={handleSave} disabled={!isValid || isSaving} accessibilityRole="button">
+              <Text className={!isValid || isSaving ? 'font-semibold opacity-40 {{ c.primary }}' : 'font-semibold {{ c.primary }}'}>
+                {isSaving ? t('common.saving') : t('common.save')}
+              </Text>
+            </Pressable>
+          ),
+        {{ '}}' }}
+      />
+      <ScrollView contentContainerClassName="gap-4 p-4" keyboardShouldPersistTaps="handled">
+        <{{ field }}
+          label={t('budgets.name')}
+          value={name}
+          onChangeText={setName}
+          error={errors.name}
+          autoFocus={!id}
+          testID="budget-name-input"
+        />
+        <CurrencyInput
+          label={t('budgets.amount')}
+          value={amount}
+          onChangeValue={setAmount}
+          error={errors.amount}
+          testID="budget-amount-input"
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+```
+
+For an edit form whose record loads after mount, render the form only once `existing`
+is loaded (or key it: `<BudgetForm key={existing?.id} initial={existing} />`) instead of
+copying query data into state with an effect.
+
+---
+
+## Detail Screen Template
+
+```typescript
+// src/app/(tabs)/budgets/[id].tsx
+import { Alert, ScrollView } from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+{{ imp_box }}
+{{ imp_text }}
+import { useBudget, useDeleteBudget } from '@/queries/useBudgets';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { ErrorScreen } from '@/components/ui/ErrorScreen';
+import { IconButton } from '@/components/ui/IconButton';
+
+export default function BudgetDetailScreen() {
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: budget, isLoading, error } = useBudget(id);
+  const deleteMutation = useDeleteBudget();
+
+  if (isLoading) return <LoadingScreen />;
+  if (error || !budget) return <ErrorScreen message={t('budgets.notFound')} onRetry={() => router.back()} />;
+
+  const remaining = budget.amount - budget.spent;
+
+  const confirmDelete = () =>
+    Alert.alert(t('budgets.deleteTitle'), t('budgets.deleteMessage', { name: budget.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          await deleteMutation.mutateAsync(budget.id);
+          router.back();
+        },
+      },
+    ]);
+
+  return (
+    <ScrollView className="flex-1 {{ c.bg }}" contentContainerClassName="gap-6 p-4">
+      <Stack.Screen
+        options={{ '{{' }}
+          title: budget.name,
+          headerRight: () => (
+            <{{ box }} className="flex-row gap-2">
+              <IconButton icon="pencil" onPress={() => router.push(`/(modals)/budget-form?id=${budget.id}`)} />
+              <IconButton icon="trash" onPress={confirmDelete} variant="danger" />
+            </{{ box }}>
+          ),
+        {{ '}}' }}
+      />
+      <{{ box }} className="rounded-lg p-4 {{ c.card }}">
+        <Text className="text-xs {{ c.muted }}">{t('budgets.remaining')}</Text>
+        <Text className={remaining < 0 ? 'text-2xl font-bold {{ c.danger }}' : 'text-2xl font-bold {{ c.text }}'}>
+          {remaining.toFixed(2)}
+        </Text>
+      </{{ box }}>
+      <{{ box }} className="flex-row justify-between border-b py-2 {{ c.border }}">
+        <Text className="{{ c.muted }}">{t('budgets.category')}</Text>
+        <Text className="font-medium {{ c.text }}">{t(`categories.${budget.category}`)}</Text>
+      </{{ box }}>
+    </ScrollView>
+  );
+}
+```
+{% endif %}
+
+---
+
+## Tab Navigation Layout
+
+Navigator options take colour strings, not classes or tokens.
+
+```typescript
+// src/app/(tabs)/_layout.tsx
+import { Tabs } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
+{% if ui == 'StyleSheet' %}
+import { colors } from '@/constants';
+{% elif ui == 'Tamagui' %}
+import { useTheme } from 'tamagui';
+{% else %}
+import { navColors as colors } from '@/theme/navColors'; // same colour values as the {{ 'Tailwind theme' if ui == 'NativeWind' else 'gluestack config.ts' }}, as strings
+{% endif %}
+
+export default function TabLayout() {
+  const { t } = useTranslation();
+{% if ui == 'Tamagui' %}
+  const theme = useTheme();
+  const colors = { primary: theme.primary?.val, textSecondary: theme.color10?.val };
+{% endif %}
+
+  return (
+{% raw %}
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: t('tabs.dashboard'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="budgets"
+        options={{
+          title: t('tabs.budgets'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="wallet-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: t('tabs.settings'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} />,
+        }}
+      />
+{% endraw %}
+    </Tabs>
+  );
+}
+```
+
+---
+
+## Root Layout with Providers
+
+```typescript
+// src/app/_layout.tsx
+{% if ui in ['NativeWind', 'Gluestack UI'] %}
+import '@/global.css';
+{% endif %}
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
+import { db } from '@/db/client';
+import migrations from '@/db/migrations/migrations';
+import { queryClient } from '@/queries/queryClient';
+import '@/i18n';
+{% if ui == 'Tamagui' %}
+import { TamaguiProvider } from 'tamagui';
+import { useColorScheme } from 'react-native';
+import config from '../../tamagui.config';
+{% elif ui == 'Gluestack UI' %}
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+{% endif %}
+
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const { success, error } = useMigrations(db, migrations);
+{% if ui == 'Tamagui' %}
+  const colorScheme = useColorScheme();
+{% endif %}
+
+  useEffect(() => {
+    if (success || error) SplashScreen.hideAsync();
+  }, [success, error]);
+
+  if (error) throw error;      // surfaces in the error boundary
+  if (!success) return null;   // splash stays up
+
+  return (
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+{% if ui == 'Tamagui' %}
+        <TamaguiProvider config={config} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
+{% elif ui == 'Gluestack UI' %}
+        <GluestackUIProvider mode="system">
+{% endif %}
+        <StatusBar style="auto" />
+{% raw %}
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(modals)" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+{% endraw %}
+{% if ui == 'Tamagui' %}
+        </TamaguiProvider>
+{% elif ui == 'Gluestack UI' %}
+        </GluestackUIProvider>
+{% endif %}
+      </QueryClientProvider>
+    </SafeAreaProvider>
+  );
+}
+```
+
+Auth-gated apps add `<Stack.Protected guard={isSignedIn}>` around the signed-in groups
+and restore the session (status only; tokens stay in expo-secure-store) before hiding
+the splash screen.
+
+---
+
+{% raw %}
+## useFocusEffect for Data Refresh
+
+Refresh data when a screen comes into focus (e.g., after returning from a form).
+
+```typescript
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+
+export default function BudgetsScreen() {
+  const { refetch } = useBudgets();
+
+  // useFocusEffect re-runs when its callback identity changes: keep the useCallback here
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
+  // ... rest of screen
+}
+```
+{% endraw %}

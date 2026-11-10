@@ -15,7 +15,7 @@ Style with the library this project was set up with, and nothing else:
 | Plain StyleSheet | `.claude/styles/stylesheet.md` | `StyleSheet.create()` + theme constants from `@/constants` |
 | NativeWind | `.claude/styles/nativewind.md` | `className` utility classes + the Tailwind theme |
 | Tamagui | `.claude/styles/tamagui.md` | Tamagui components with style props + `$tokens` |
-| Gluestack UI | `.claude/styles/gluestack.md` | Gluestack components + its theme tokens |
+| gluestack-ui | `.claude/styles/gluestack.md` | Copied `@/components/ui/*` components + `className` |
 
 Only the file for this project's library is installed. Whatever the library:
 never hardcode colours, spacing or font sizes — use the theme tokens/constants,
@@ -94,49 +94,38 @@ Rules:
 
 ---
 
-## 4. React.memo and Performance
+## 4. Memoization and the React Compiler
 
-Wrap list item components with `React.memo()`. Use `useCallback` for event
-handlers passed to children. Use `useMemo` for expensive computations.
+The React Compiler (on in Expo SDK 54+ templates: `"experiments": { "reactCompiler": true }`
+in `app.json`) memoizes components, callbacks and derived values at build time. So:
+
+- Don't write `React.memo`, `useCallback` or `useMemo` by default -- not for list items,
+  not for handlers passed to children.
+- Add one by hand only for a measured problem (profiler, dropped frames, FlashList blank
+  cells) or an identity the compiler can't see (a value passed to a non-React API), and
+  leave a comment saying why.
+- Write compiler-friendly code: no mutating props, state or values during render, no
+  reading `ref.current` during render, hooks only at the top level. If the compiler
+  bails out of a component, fix the code rather than adding manual memoization.
+- React 19: `ref` is a regular prop. Take `ref` in the props type; don't add `forwardRef`.
 
 ```typescript
-// CORRECT - memoized list item
-export const TransactionCard = React.memo(function TransactionCard({
-  transaction,
-  onPress,
-}: TransactionCardProps) {
+// CORRECT - plain component and inline handlers; the compiler memoizes them
+export function TransactionCard({ transaction, onPress }: TransactionCardProps) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={() => onPress(transaction.id)}>
       <Text>{transaction.description}</Text>
     </Pressable>
   );
-});
+}
 
-// CORRECT - stable callback reference
-const handlePress = useCallback((id: string) => {
-  router.push(`/transactions/${id}`);
-}, []);
+const sortedItems = [...(items ?? [])].sort(compareByDate); // no useMemo needed
 
-// CORRECT - memoized computation
-const sortedItems = useMemo(
-  () => items?.slice().sort((a, b) => compareByDate(a, b)),
-  [items]
-);
-
-// WRONG - anonymous function in renderItem
-<FlashList
-  renderItem={({ item }) => (
-    <Pressable onPress={() => handlePress(item.id)}>
-      <Text>{item.name}</Text>
-    </Pressable>
-  )}
-/>
+// CORRECT - React 19 ref as a prop
+export function SearchInput({ ref, ...props }: TextInputProps & { ref?: Ref<TextInput> }) {
+  return <TextInput ref={ref} {...props} />;
+}
 ```
-
-When to use:
-- `React.memo`: All list item components, expensive pure components
-- `useCallback`: Event handlers passed to memoized children or list items
-- `useMemo`: Sorted/filtered/computed data derived from state or props
 
 ---
 
@@ -223,7 +212,7 @@ Use the `@/` alias mapped to the project root. Group imports in five sections:
 
 ```typescript
 // 1. React / React Native
-import { useState, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import { View, Text, Platform, Pressable } from 'react-native';
 
 // 2. Expo / expo-router

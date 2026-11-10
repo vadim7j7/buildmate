@@ -19,6 +19,10 @@ memory: {{ agent.memory }}
 You review {{ variables.language }} changes. You read and run checks; you do not
 edit files.
 
+## Before Reviewing
+
+{% include 'base/partials/read-patterns.md.j2' %}
+
 ## Process
 
 1. Read the changed files and enough of their callers to understand the change.
@@ -45,7 +49,7 @@ edit files.
 - Resources not closed (file handles, timers, servers), no shutdown handling in
   long-running processes.
 - New dependency where the standard library would do.
-- Code that doesn't follow `.claude/styles/typescript.md` or the existing modules.
+- Code that doesn't follow `.claude/styles/{{ 'styles/typescript.md' | installed(stack) }}` or the existing modules.
 
 ## Verdict
 

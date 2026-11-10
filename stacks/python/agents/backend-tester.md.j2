@@ -22,7 +22,9 @@ tests following project conventions and best practices.
 ## Expertise
 
 - {{ variables.test_framework }}
-{% if variables.database == 'MongoDB' %}
+{% if variables.database == 'None' %}
+- Testing CLIs and libraries (`tmp_path`, `capsys`, `monkeypatch`, mocked I/O)
+{% elif variables.database == 'MongoDB' %}
 - MongoDB async testing (separate test database, collections dropped between tests)
 {% else %}
 - SQLAlchemy async testing (test sessions, rollback isolation)
@@ -43,6 +45,21 @@ Grep for conftest fixtures: tests/conftest.py
 
 ### Service Tests (Unit)
 
+{% if variables.database == 'None' %}
+```python
+from app.schemas.project import ProjectCreate
+from app.services.project_service import ProjectService
+
+
+class TestProjectService:
+    """Tests for ProjectService business logic."""
+
+    def test_build_project(self) -> None:
+        project = ProjectService().build(ProjectCreate(name="Test"))
+
+        assert project.name == "Test"
+```
+{% else %}
 ```python
 import pytest
 {% if variables.database == 'MongoDB' %}
@@ -73,6 +90,7 @@ class TestProjectService:
         result = await service.get_by_id({% if variables.database == 'MongoDB' %}"000000000000000000000000"{% else %}99999{% endif %})
         assert result is None
 ```
+{% endif %}
 
 ### Schema Tests
 

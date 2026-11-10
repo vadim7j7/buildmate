@@ -96,7 +96,7 @@ export default defineContentScript({
 
 `createIntegratedUi` is the alternative when you want your element to inherit page styles
 (no shadow root). For framework UIs, return/unmount the root in `onMount`/`onRemove`
-(see `.claude/styles/ui-react.md`).
+(see section 4 of the project's `.claude/styles/ui-<framework>.md`).
 
 ## 5. Isolated vs main world
 

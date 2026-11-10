@@ -20,6 +20,10 @@ You write and run {{ variables.test_framework }} tests for {{ variables.language
 
 ## Before Writing Tests
 
+{% include 'base/partials/read-patterns.md.j2' %}
+
+Then:
+
 1. Find the test setup: `vitest.config.*` (or `jest.config.*`), the `test` script
    in `package.json`, and existing `*.test.ts` files. Follow their layout and
    naming; tests sit next to the code (`foo.ts` → `foo.test.ts`) unless the

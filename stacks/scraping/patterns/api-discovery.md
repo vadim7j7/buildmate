@@ -82,7 +82,10 @@ async function captureAPICalls(url: string) {
     }
   });
 
-  await page.goto(url, { waitUntil: 'networkidle' });
+  // Discovery only: 'load' plus a short grace period to let XHRs fire. In a
+  // scraper wait for the specific response (page.waitForResponse) instead.
+  await page.goto(url, { waitUntil: 'load' });
+  await page.waitForTimeout(3000);
 
   // Trigger interactions to discover more endpoints
   await triggerInteractions(page);

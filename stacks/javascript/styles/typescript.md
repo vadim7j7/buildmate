@@ -136,7 +136,34 @@ const [users, projects] = await Promise.all([
 
 ---
 
-## 8. Formatting
+## 8. Runtime and Compiler Settings
+
+Target **Node.js 24 LTS** (`"engines": { "node": ">=24" }` and an `.nvmrc` with `24`).
+Libraries/services are ES modules (`"type": "module"`).
+
+```jsonc
+// tsconfig.json (Node service or library)
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,   // `import type` for types; no import elision surprises
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "outDir": "dist"
+  }
+}
+```
+
+Frameworks with their own bundler (Next.js, Nuxt, Vite) ship their own `module` /
+`moduleResolution` settings; keep those.
+
+---
+
+## 9. Formatting
 
 Configure Prettier:
 
@@ -152,18 +179,71 @@ Configure Prettier:
 
 ---
 
-## 9. ESLint and Prettier Enforcement
+## 10. ESLint (flat config)
+
+ESLint 9+ reads only `eslint.config.*` (flat config); `.eslintrc*` files are ignored.
+
+```js
+// eslint.config.js
+import js from '@eslint/js';
+import { defineConfig } from 'eslint/config';
+import tseslint from 'typescript-eslint';
+import prettier from 'eslint-config-prettier/flat';
+
+export default defineConfig(
+  { ignores: ['dist/', 'coverage/', '**/generated/'] },
+  js.configs.recommended,
+  tseslint.configs.strictTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: {
+      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      '@typescript-eslint/no-floating-promises': 'error',
+    },
+  },
+  prettier, // last: turns off rules that fight Prettier
+);
+```
+
+Framework stacks extend this with their own preset (`eslint-config-next`, `@nuxt/eslint`).
+
+---
+
+## 11. Tests (Vitest defaults)
+
+```ts
+// vitest.config.ts
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    restoreMocks: true,                 // undo vi.spyOn / vi.fn implementations after each test
+    coverage: { provider: 'v8', include: ['src/**'] },
+  },
+});
+```
+
+- `"test": "vitest run"` in `package.json` (CI), `vitest` for watch mode.
+- Tests import `describe`/`it`/`expect`/`vi` from `vitest` explicitly (no globals).
+- Details: `.claude/patterns/js-testing.md`.
+
+---
+
+## 12. Enforcement
 
 ```bash
 # Check
 npm run lint
 npx tsc --noEmit
+npm test
 
 # Fix
 npm run lint -- --fix
-
-# Format
 npx prettier --write .
 ```
 
-All code MUST pass `npm run lint` and `npx tsc --noEmit` before it can be committed.
+All code MUST pass `npm run lint`, `npx tsc --noEmit` and `npm test` before it can be committed.

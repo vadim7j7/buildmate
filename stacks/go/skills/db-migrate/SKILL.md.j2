@@ -1,0 +1,88 @@
+---
+name: db-migrate
+{% if variables.database == 'MongoDB' %}
+description: Apply pending MongoDB index/schema steps and report their status
+{% else %}
+description: Apply, roll back or inspect goose migrations ({{ variables.database }})
+{% endif %}
+---
+
+# /db-migrate
+
+{% if variables.database == 'MongoDB' %}
+## What This Does
+
+Runs the pending steps of `internal/migrations` (see `/new-migration`) against the
+database in `MONGODB_URI`, and lists what has been applied.
+
+## Usage
+
+```
+/db-migrate            # apply pending steps
+/db-migrate status     # list applied versions
+```
+
+## How It Works
+
+1. **Find the entry point.** Usually the server runs `migrations.Run` at startup; a
+   `cmd/migrate` command may also exist. If neither exists, add `cmd/migrate/main.go`
+   that connects, calls `migrations.Run(ctx, db)` and exits non-zero on error.
+2. **Apply**: `go run ./cmd/migrate` (or start the server once).
+3. **Status**: query the `schema_migrations` collection
+   (`mongosh "$MONGODB_URI" --eval 'db.schema_migrations.find().sort({_id: 1})'`).
+4. **Report** which steps ran and any error.
+
+## Rules
+
+- There is no rollback: a step that needs undoing gets a new step that reverses it
+- Never point this at production from a dev machine unless the user explicitly asks
+{% else %}
+## What This Does
+
+Runs [goose](https://github.com/pressly/goose) against the database in `DATABASE_URL`,
+using the migrations in `db/migrations/`.
+
+## Usage
+
+```
+/db-migrate            # apply all pending migrations (up)
+/db-migrate status     # list applied and pending
+/db-migrate down       # roll back the last migration
+/db-migrate redo       # roll back and re-apply the last one (tests its Down)
+```
+
+## How It Works
+
+1. **Check setup.** `goose -version`; if missing:
+   `go install github.com/pressly/goose/v3/cmd/goose@latest`.
+2. **Point goose at the database** (goose reads these variables):
+
+   ```bash
+   export GOOSE_DRIVER={{ {'PostgreSQL': 'postgres', 'MySQL': 'mysql', 'SQLite': 'sqlite3'}[variables.database] }}
+{% if variables.database == 'PostgreSQL' %}
+   export GOOSE_DBSTRING="$DATABASE_URL"          # postgres://user:pass@localhost:5432/app_dev?sslmode=disable
+{% elif variables.database == 'MySQL' %}
+   export GOOSE_DBSTRING="$DATABASE_URL"          # user:pass@tcp(localhost:3306)/app_dev?parseTime=true
+{% else %}
+   export GOOSE_DBSTRING="${DATABASE_URL:-./app.db}"
+{% endif %}
+   export GOOSE_MIGRATION_DIR=db/migrations
+   ```
+
+3. **Run** `goose status`, then the requested command (`goose up`, `goose down`,
+   `goose redo`, `goose up-to <version>`).
+4. **If the project uses sqlc**, run `go tool sqlc generate` after schema changes.
+5. **Report** the versions applied or rolled back, and any error with the failing file.
+
+Apps that migrate at startup embed the files instead (`//go:embed db/migrations/*.sql`,
+`goose.SetBaseFS`, `goose.SetDialect`, `goose.Up(db, "db/migrations")`, with a `*sql.DB`{% if variables.database == 'PostgreSQL' %};
+from a pgx pool use `stdlib.OpenDBFromPool(pool)` from `github.com/jackc/pgx/v5/stdlib`{% endif %}).
+
+## Rules
+
+- `down` and `redo` destroy data in the affected tables: only on a local or test database,
+  unless the user explicitly asks
+- Never run against production from a dev machine
+- A failed migration: fix it with a new migration if it ran anywhere shared; edit it only
+  if it never left your machine (then `down`, edit, `up`)
+{% endif %}

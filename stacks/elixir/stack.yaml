@@ -68,6 +68,7 @@ agents:
       - Glob
     skills:
       - test
+      - new-test
 
   - name: backend-reviewer
     template: agents/backend-reviewer.md.j2
@@ -87,6 +88,7 @@ skills:
   - new-module
   - new-genserver
   - new-supervisor
+  - new-test
 
 quality_gates:
   format:
@@ -105,6 +107,11 @@ quality_gates:
 
 patterns:
   - patterns/backend-patterns.md
+
+# Installed (also for phoenix); read only when the task touches the topic
+reference_patterns:
+  - patterns/testing.md
+  - patterns/pitfalls.md
 
 styles:
   - styles/backend-elixir.md

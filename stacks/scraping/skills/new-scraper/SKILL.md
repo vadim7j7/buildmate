@@ -126,9 +126,9 @@ class {{ Name }}BrowserScraper:
         # Block unnecessary resources
         await page.route("**/*.{png,jpg,jpeg,gif,svg,woff,woff2}", lambda r: r.abort())
 
-        await page.goto(url, wait_until="networkidle")
+        await page.goto(url, wait_until="domcontentloaded")
 
-        # Wait for dynamic content
+        # Wait for the content you need (not "networkidle")
         await page.wait_for_selector(".content", timeout=10000)
 
         # Extract data
@@ -248,9 +248,9 @@ export class {{ Name }}BrowserScraper {
     // Block unnecessary resources
     await page.route('**/*.{png,jpg,jpeg,gif,svg,woff,woff2}', route => route.abort());
 
-    await page.goto(url, { waitUntil: 'networkidle' });
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-    // Wait for dynamic content
+    // Wait for the content you need (not 'networkidle')
     await page.waitForSelector('.content', { timeout: 10000 });
 
     // Extract data

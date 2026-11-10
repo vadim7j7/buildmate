@@ -27,7 +27,8 @@ screens, {% if variables.state_library != 'None' %}{{ variables.state_library }}
 - {{ variables.state_library }} state testing with proper isolation between tests
 {% endif %}
 - React Query hook testing with fresh QueryClient per test
-- Mock strategies for navigation, database, and API calls
+- Screen tests with `renderRouter` (`expo-router/testing-library`); mocks for the database and API
+- Maestro E2E flows in `.maestro/` for journeys that need the real app
 
 ## Before Writing Tests
 
@@ -139,39 +140,44 @@ jest.mock('@/db/queries/features', () => ({
 }));
 ```
 
-### 4. Mock Navigation
+### 4. Test Screens with `renderRouter`
 
-Mock expo-router for screen tests.
-
-```typescript
-jest.mock('expo-router', () => ({
-  useLocalSearchParams: jest.fn(() => ({})),
-  useRouter: jest.fn(() => ({
-    push: jest.fn(),
-    back: jest.fn(),
-    replace: jest.fn(),
-  })),
-  router: {
-    push: jest.fn(),
-    back: jest.fn(),
-    replace: jest.fn(),
-  },
-  Link: ({ children }: { children: React.ReactNode }) => children,
-  Stack: {
-    Screen: () => null,
-  },
-}));
-```
-
-### 5. Use waitFor for Async Operations
+Don't mock expo-router for screen tests. `renderRouter` from `expo-router/testing-library`
+mounts screens in an in-memory router, so links, params and guards really run.
 
 ```typescript
-import { waitFor } from '@testing-library/react-native';
+import { Slot } from 'expo-router';
+import { renderRouter, screen } from 'expo-router/testing-library';
 
-await waitFor(() => {
-  expect(screen.getByText('Transaction 1')).toBeTruthy();
-});
+await renderRouter(
+  {
+    _layout: () => <Providers><Slot /></Providers>,  // QueryClient{% if variables.ui_library in ['Tamagui', 'Gluestack UI'] %}, {{ variables.ui_library }} provider{% endif %}{% if variables.state_library in ['Redux Toolkit', 'Jotai', 'MobX'] %}, {{ variables.state_library }} store{% endif %}
+
+    'items/index': ItemsScreen,
+    'items/[id]': ItemDetailScreen,
+  },
+  { initialUrl: '/items' }
+);
+await fireEvent.press(await screen.findByText('First item'));
+expect(screen).toHavePathname('/items/1');
 ```
+
+Only a component test that just calls `router.push` mocks it, in that file:
+`jest.mock('expo-router', () => ({ ...jest.requireActual('expo-router'), router: { push: jest.fn() } }))`.
+
+### 5. Await Everything (RNTL v14+)
+
+`render`, `renderHook`, `fireEvent` and `act` return Promises in React Native Testing
+Library v14 (the version `expo-router/testing-library` needs). Await them, and use
+`findBy*` / `waitFor` for results that arrive later.
+
+```typescript
+await render(<TransactionCard transaction={tx} />);
+await fireEvent.press(screen.getByText('Grocery shopping'));
+expect(await screen.findByText('Transaction 1')).toBeOnTheScreen();
+```
+
+Assert text, roles, labels and callbacks; never style objects{% if variables.ui_library != 'StyleSheet' %} ({{ variables.ui_library }} styles don't resolve to stable style objects in Jest){% endif %}.
 
 ### 6. Mock i18next
 
@@ -199,7 +205,8 @@ catalogs must match it key-for-key. See the parity test pattern below.
 ### Component Test
 
 ```typescript
-import { render, fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, screen } from '@testing-library/react-native';
+import { renderWithProviders } from '../test-utils'; // providers + fresh QueryClient (see /test references)
 import { TransactionCard } from '@/components/lists/TransactionCard';
 
 const mockTransaction = {
@@ -209,17 +216,17 @@ const mockTransaction = {
 };
 
 describe('TransactionCard', () => {
-  it('renders transaction description and amount', () => {
-    render(<TransactionCard transaction={mockTransaction} />);
-    expect(screen.getByText('Grocery shopping')).toBeTruthy();
-    expect(screen.getByText('-$45.99')).toBeTruthy();
+  it('renders transaction description and amount', async () => {
+    await renderWithProviders(<TransactionCard transaction={mockTransaction} />);
+    expect(screen.getByText('Grocery shopping')).toBeOnTheScreen();
+    expect(screen.getByText('-$45.99')).toBeOnTheScreen();
   });
 
-  it('calls onPress when tapped', () => {
+  it('calls onPress when tapped', async () => {
     const onPress = jest.fn();
-    render(<TransactionCard transaction={mockTransaction} onPress={onPress} />);
-    fireEvent.press(screen.getByText('Grocery shopping'));
-    expect(onPress).toHaveBeenCalledTimes(1);
+    await renderWithProviders(<TransactionCard transaction={mockTransaction} onPress={onPress} />);
+    await fireEvent.press(screen.getByText('Grocery shopping'));
+    expect(onPress).toHaveBeenCalledWith('1');
   });
 });
 ```
@@ -286,7 +293,7 @@ describe('useTransactions', () => {
   it('fetches transactions successfully', async () => {
     (getTransactions as jest.Mock).mockResolvedValue([{ id: '1' }]);
 
-    const { result } = renderHook(() => useTransactions(), {
+    const { result } = await renderHook(() => useTransactions(), {
       wrapper: createWrapper(),
     });
 
@@ -353,6 +360,36 @@ describe.each(translated)('locale catalog parity: %s', (locale) => {
 ```
 {% endraw %}
 
+## E2E with Maestro
+
+Jest can't cover real native behaviour (keyboard, permissions, deep links, the actual
+navigation stack). Critical user flows get a Maestro flow in `.maestro/` (the scaffold
+has `.maestro/smoke.yaml`). Run them against a development or preview build on a
+simulator/emulator: `make e2e APP_ID=<bundle id>` (= `maestro test -e APP_ID=... .maestro/`).
+
+```yaml
+# .maestro/add-transaction.yaml
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "add-transaction-button"
+- inputText: "Coffee"            # types into the focused field
+- tapOn:
+    id: "amount-input"
+- inputText: "4.50"
+- tapOn:
+    id: "save-button"
+- assertVisible: "Coffee"
+```
+
+- Select by `testID` (`id:`) -- text changes with the locale ({{ variables.locale_count }} locales here)
+- One flow per user journey; `clearState: true` so flows don't depend on each other
+- Flows are not part of `npm test` (Jest ignores `.maestro/`); run them before a release
+  and when a change touches navigation, auth or native modules
+- `maestro studio` helps find selectors interactively
+
 ## Test File Organisation
 
 ```
@@ -381,6 +418,9 @@ __tests__/                   # at the project root (or src/__tests__/), not in s
     useTransactions.test.ts
   i18n/
     catalog-parity.test.ts
+  test-utils.tsx             # renderWithProviders, createTestQueryClient
+.maestro/                    # Maestro E2E flows (YAML), outside Jest
+  smoke.yaml
 ```
 
 ## Completion Checklist

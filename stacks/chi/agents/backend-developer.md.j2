@@ -233,7 +233,7 @@ func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.GetUser(r.Context(), id)
 	if err != nil {
-		handleError(w, err)
+		handleError(w, r, err)
 		return
 	}
 
@@ -250,7 +250,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.CreateUser(r.Context(), input.ToServiceInput())
 	if err != nil {
-		handleError(w, err)
+		handleError(w, r, err)
 		return
 	}
 
@@ -312,6 +312,21 @@ func respondJSON(w http.ResponseWriter, status int, data any) {
 
 func respondError(w http.ResponseWriter, status int, message string) {
 	respondJSON(w, status, map[string]string{"error": message})
+}
+
+// handleError maps service errors to fixed, client-safe messages; never err.Error().
+func handleError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, apperror.ErrNotFound):
+		respondError(w, http.StatusNotFound, "resource not found")
+	case errors.Is(err, apperror.ErrValidation):
+		respondError(w, http.StatusBadRequest, "validation failed")
+	case errors.Is(err, apperror.ErrUnauthorized):
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+	default:
+		slog.ErrorContext(r.Context(), "unhandled error", "err", err)
+		respondError(w, http.StatusInternalServerError, "internal server error")
+	}
 }
 ```
 

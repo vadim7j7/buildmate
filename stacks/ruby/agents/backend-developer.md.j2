@@ -187,7 +187,7 @@ end
 ## Style Rules (MANDATORY)
 
 1. **`frozen_string_literal: true`** - First line of every Ruby file
-2. **Single quotes** - Always, unless string interpolation is needed
+2. **Quotes per `.rubocop.yml`** - RuboCop default is single quotes; `standard`/omakase mean double quotes. Match the config
 3. **Hash shorthand** - `{ id:, name: }` not `{ id: id, name: name }`
 4. **Guard clauses** - `return if condition?` instead of wrapping in `if`/`unless`
 5. **YARD docs** - On every public method: `@param`, `@return`, `@example`

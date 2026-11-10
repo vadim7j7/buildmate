@@ -139,6 +139,10 @@ class StackConfig:
     # Installed like patterns, but agents read them only when relevant
     # (security, testing, pitfalls, logging...), not before every task
     reference_patterns: list[str] = field(default_factory=list)
+    # Pattern/style path in stack.yaml -> file name installed in .claude/
+    # (prefixed with the stack name when another stack has a different file
+    # of the same name)
+    installed_names: dict[str, str] = field(default_factory=dict)
     extends: str | None = None
     parent_stack_path: Path | None = None
     # Self-verification settings (enabled, dev_server: {command, port, health_check})
@@ -774,6 +778,8 @@ def compose_stacks(
     # Determine default model
     final_default_model = force_model or default_model or stacks[0].default_model
 
+    all_patterns, all_styles = _assign_installed_names(stacks)
+
     return ComposedConfig(
         stacks=stacks,
         all_agents=list(agent_map.values()),
@@ -785,6 +791,65 @@ def compose_stacks(
         default_model=final_default_model,
         selected_options=selected_options,
     )
+
+
+def _resolve_stack_file(stack: StackConfig, rel: str) -> Path | None:
+    """Find a stack's pattern/style file in the stack or its parent."""
+    path = stack.stack_path / rel
+    if not path.exists() and stack.parent_stack_path:
+        path = stack.parent_stack_path / rel
+    return path if path.exists() else None
+
+
+def _assign_installed_names(
+    stacks: list[StackConfig],
+) -> tuple[dict[str, Path], dict[str, Path]]:
+    """
+    Decide the installed file name of every pattern and style.
+
+    Files are installed flat in .claude/patterns and .claude/styles. When two
+    stacks bring *different* files with the same name (rails and nextjs both
+    have patterns/testing.md), each is installed as ``<stack>-<name>`` so one
+    does not silently replace the other. The chosen names are stored in
+    ``stack.installed_names`` for the templates. Base patterns are added
+    unless a stack already provides that name.
+
+    Args:
+        stacks: Composed stacks (patterns/styles already include options)
+
+    Returns:
+        (patterns, styles): installed file name -> source path
+    """
+    result: dict[str, dict[str, Path]] = {"patterns": {}, "styles": {}}
+    entries: list[tuple[str, StackConfig, str, Path]] = []
+    for stack in stacks:
+        stack.installed_names = {}
+        for kind, rels in (
+            ("patterns", stack.patterns + stack.reference_patterns),
+            ("styles", stack.styles),
+        ):
+            for rel in rels:
+                path = _resolve_stack_file(stack, rel)
+                if path:
+                    entries.append((kind, stack, rel, path))
+
+    sources: dict[tuple[str, str], set[Path]] = {}
+    for kind, _stack, _rel, path in entries:
+        sources.setdefault((kind, path.name), set()).add(path.resolve())
+
+    for kind, stack, rel, path in entries:
+        name = path.name
+        if len(sources[(kind, name)]) > 1:
+            name = f"{stack.name}-{name}"
+        stack.installed_names[rel] = name
+        result[kind][name] = path
+
+    base_patterns_dir = BASE_DIR / "patterns"
+    if base_patterns_dir.is_dir():
+        for base_pattern in sorted(base_patterns_dir.glob("*.md")):
+            result["patterns"].setdefault(base_pattern.name, base_pattern)
+
+    return result["patterns"], result["styles"]
 
 
 def parse_stack_arg(stack_arg: str) -> list[str]:

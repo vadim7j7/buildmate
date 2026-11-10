@@ -291,3 +291,85 @@ class TestPatternInstall:
         (stack / "skills" / "x" / "SKILL.md.j2").write_text("x")
         errors, _ = check_stack_files(stack, {"name": "demo", "skills": ["x"]})
         assert errors == []
+
+
+class TestRenderedReferences:
+    """Everything the generated setup tells Claude to use must be installed."""
+
+    @staticmethod
+    def _outputs(with_config=False):
+        from lib.config import (
+            list_available_profiles,
+            list_available_stacks,
+            load_profile,
+        )
+
+        configs = [(name, compose_stacks([name])) for name in list_available_stacks()]
+        for name in list_available_profiles():
+            profile = load_profile(name)
+            configs.append(
+                (
+                    name,
+                    compose_stacks(
+                        profile.stacks, options=profile.options, profile=profile
+                    ),
+                )
+            )
+        for name, composed in configs:
+            output = render_all(composed)
+            yield (name, output, composed) if with_config else (name, output)
+
+    def test_subagent_types_exist(self):
+        import re
+
+        pattern = re.compile(r'subagent_type: "([a-z0-9-]+)"')
+        for name, output in self._outputs():
+            installed = {f[:-3] for f in output.agents}
+            texts = list(output.skill_files.values()) + [output.claude_md]
+            for text in texts:
+                for agent in pattern.findall(text):
+                    assert agent in installed, (name, agent)
+
+    def test_pattern_and_style_paths_exist(self):
+        import re
+
+        pattern = re.compile(r"\.claude/(patterns|styles)/([A-Za-z0-9_.-]+\.md)")
+        for name, output, composed in self._outputs(with_config=True):
+            installed = {"patterns": set(output.patterns), "styles": set(output.styles)}
+            # Skills copied as-is may say "if you chose X, read <X's pattern>"
+            for stack in composed.stacks:
+                for option in stack.options.values():
+                    for choice in option.choices.values():
+                        installed["patterns"] |= {Path(f).name for f in choice.patterns}
+                        installed["styles"] |= {Path(f).name for f in choice.styles}
+            texts = list(output.agents.values()) + list(output.skill_files.values())
+            for skill_dir in output.skills.values():
+                texts += [f.read_text() for f in skill_dir.rglob("*.md")]
+            for text in texts:
+                for kind, filename in pattern.findall(text):
+                    assert filename in installed[kind], (name, kind, filename)
+
+
+class TestNameCollisions:
+    """Same-named files from two stacks must not replace each other."""
+
+    def test_both_testing_patterns_installed(self):
+        composed = compose_stacks(["rails", "nextjs"])
+        output = render_all(composed)
+
+        assert "rails-testing.md" in output.patterns
+        assert "nextjs-testing.md" in output.patterns
+        assert (
+            output.patterns["rails-testing.md"] != output.patterns["nextjs-testing.md"]
+        )
+
+    def test_each_stack_reads_its_own(self):
+        output = render_all(compose_stacks(["rails", "nextjs"]))
+
+        assert "rails-security.md" in output.agents["backend-reviewer.md"]
+        assert "nextjs-security.md" not in output.agents["backend-reviewer.md"]
+
+    def test_single_stack_keeps_plain_names(self):
+        output = render_all(compose_stacks(["rails"]))
+        assert "testing.md" in output.patterns
+        assert "rails-testing.md" not in output.patterns
