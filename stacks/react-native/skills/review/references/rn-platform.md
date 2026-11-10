@@ -39,7 +39,7 @@ export default function ItemsScreen() {
         }}
       />
 
-      <FlashList data={items} renderItem={renderItem} estimatedItemSize={72} />
+      <FlashList data={items} renderItem={renderItem}/>
 
       {/* Android: FAB for primary action */}
       {Platform.OS === 'android' && (
@@ -136,7 +136,7 @@ Shadows work differently on iOS and Android. Always use platform-specific shadow
 constants.
 
 ```typescript
-// constants/shadows.ts
+// src/constants/shadows.ts
 import { Platform, StyleSheet } from 'react-native';
 
 export const shadows = StyleSheet.create({
@@ -320,7 +320,7 @@ For components with significant platform differences, use platform-specific
 file extensions:
 
 ```
-components/
+src/components/
   DatePicker.ios.tsx    # iOS-specific implementation
   DatePicker.android.tsx # Android-specific implementation
   DatePicker.tsx        # Shared types/interface (re-export)

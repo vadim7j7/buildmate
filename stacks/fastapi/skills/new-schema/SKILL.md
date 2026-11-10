@@ -31,7 +31,6 @@ type annotations, and docstrings.
    - `blog_post` becomes `BlogPostBase`, `BlogPostCreate`, `BlogPostUpdate`, `BlogPostRead`
 
 3. **Generate the schema file.** Create the schema module with:
-   - `from __future__ import annotations`
    - `ProjectBase` with shared required fields
    - `ProjectCreate` inheriting from Base
    - `ProjectUpdate` with all optional fields

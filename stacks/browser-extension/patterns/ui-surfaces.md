@@ -83,7 +83,7 @@ state stays consistent and a change in one surface reflects live in others (via
 ## 7. Theming
 
 Respect the user's color scheme with `color-scheme: light dark` and CSS variables, or read
-a stored `theme` setting and apply a class. Keep theme in `wxt/storage` so every surface
+a stored `theme` setting and apply a class. Keep theme in `wxt/utils/storage` so every surface
 shares it.
 
 ## Checklist
@@ -92,4 +92,4 @@ shares it.
 - [ ] Shared UI in `components/`, data access in `hooks/`
 - [ ] Side panel opened from a user gesture; cross-browser keys handled
 - [ ] Injected page UI uses a shadow root
-- [ ] Theme/state shared via `wxt/storage` watchers
+- [ ] Theme/state shared via `wxt/utils/storage` watchers

@@ -1,267 +1,161 @@
 ---
 name: new-navigation
-description: Generate tab, stack, or drawer navigation with screens
+description: Generate expo-router tab, stack, or drawer layouts with typed routes
 ---
 
 # /new-navigation
 
 ## What This Does
 
-Creates React Navigation configuration for tab, stack, or drawer navigation
-patterns. Generates typed navigation components, screen definitions, and
-navigation utilities.
+Creates expo-router file-based navigation: `_layout.tsx` files that render a
+`Stack`, `Tabs`, or `Drawer` navigator, the route files inside them, route groups,
+and dynamic routes. Navigation is **always** expo-router — never render a
+`NavigationContainer` or call `createXNavigator()` from React Navigation directly
+(the reviewer treats that as a BLOCKER).
 
 ## Usage
 
 ```
-/new-navigation tabs                    # Bottom tab navigation
-/new-navigation stack Home              # Stack navigator for Home
-/new-navigation drawer                  # Drawer navigation
-/new-navigation tabs --screens=Home,Profile,Settings
+/new-navigation tabs                          # (tabs) group with a Tabs layout
+/new-navigation stack items                   # src/app/items/ stack with list + [id]
+/new-navigation drawer                        # (drawer) group with a Drawer layout
+/new-navigation tabs --screens=index,profile,settings
 ```
 
 ## How It Works
 
 ### 1. Determine Navigation Type
 
-Based on the argument, create:
-- **tabs**: Bottom tab navigation with icons
-- **stack [name]**: Stack navigator for a section
-- **drawer**: Side drawer navigation
+- **tabs**: `src/app/(tabs)/_layout.tsx` with `<Tabs>` + one file per tab
+- **stack [name]**: `src/app/<name>/_layout.tsx` with `<Stack>`, `index.tsx`, `[id].tsx`
+- **drawer**: `src/app/(drawer)/_layout.tsx` with `<Drawer>` from `expo-router/drawer`
+  (needs `npx expo install @react-navigation/drawer react-native-gesture-handler react-native-reanimated`)
+
+Parenthesised folders such as `(tabs)` are **route groups**: they organise layouts
+without adding a URL segment (`src/app/(tabs)/profile.tsx` is `/profile`).
 
 ### 2. Read Existing Patterns
 
 Before generating, read:
 - `patterns/mobile-patterns.md` for conventions
 - `skills/new-navigation/references/navigation-examples.md` for examples
-- Existing navigation in `navigation/` for project patterns
+- The existing `src/app/` tree (especially `src/app/_layout.tsx`) — never add a
+  second root layout
 
 ### 3. Generate Files
 
-#### Root Navigator: `navigation/RootNavigator.tsx`
+#### Root layout: `src/app/_layout.tsx`
 
-```typescript
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+```tsx
+import { Stack } from 'expo-router';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-
-export function RootNavigator() {
+export default function RootLayout() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        {/* Screens */}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(modals)" options={{ presentation: 'modal' }} />
+    </Stack>
   );
 }
 ```
 
-#### Types: `navigation/types.ts`
+#### Tabs layout: `src/app/(tabs)/_layout.tsx`
 
-```typescript
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+```tsx
+import { Tabs } from 'expo-router';
+import { Home, User } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
-export type RootStackParamList = {
-  Home: undefined;
-  Details: { id: string };
-};
-
-export type RootStackScreenProps<T extends keyof RootStackParamList> =
-  NativeStackScreenProps<RootStackParamList, T>;
+export default function TabsLayout() {
+  const { t } = useTranslation();
+  return (
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: t('tabs.home'),
+          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: t('tabs.profile'),
+          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+        }}
+      />
+    </Tabs>
+  );
+}
 ```
 
-### 4. Verify
+#### Dynamic route: `src/app/items/[id].tsx`
 
-Run type checking:
+```tsx
+import { Stack, useLocalSearchParams } from 'expo-router';
+
+export default function ItemDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  // load with a React Query hook, e.g. useItem(id)
+  return <Stack.Screen options={{ title: `#${id}` }} />;
+}
+```
+
+#### Navigating
+
+```tsx
+import { Link, router } from 'expo-router';
+
+<Link href={{ pathname: '/items/[id]', params: { id: item.id } }}>Open</Link>;
+
+router.push({ pathname: '/items/[id]', params: { id } });
+router.replace('/login');
+router.back();
+```
+
+### 4. Typed Routes
+
+Enable typed routes once in `app.json` so `href`/`router.push` are type-checked:
+
+```json
+{ "expo": { "experiments": { "typedRoutes": true } } }
+```
+
+Expo generates the route types into `.expo/types` when the dev server starts
+(`npx expo start`); make sure `tsconfig.json` includes `".expo/types/**/*.ts"` and
+`"expo-env.d.ts"`.
+
+### 5. Verify
+
 ```bash
 npx tsc --noEmit
 ```
 
 ## Rules
 
-- Always type navigation with ParamList
-- Use native stack navigator for performance
-- Keep navigation configuration centralized
-- Use typed navigation props in screens
-- Consider deep linking requirements
-- Handle authentication state changes
+- Navigators are `_layout.tsx` files: `Stack` / `Tabs` from `expo-router`, `Drawer`
+  from `expo-router/drawer`. No `NavigationContainer`, no `createXNavigator()`.
+- Every file in `src/app/` is a route; put components, hooks and tests elsewhere.
+- Read params with `useLocalSearchParams<...>()` (or `useGlobalSearchParams` when a
+  layout must react to child params); never pass data through navigation props.
+- Pass ids in params, not objects — load the record from React Query in the screen.
+- Use `<Link>` for declarative navigation and `router` for imperative navigation;
+  keep typed routes on so a broken `href` fails `tsc`.
+- Auth gating: use `Stack.Protected guard={...}` (or a `<Redirect>` in a group's
+  `_layout.tsx`) rather than conditionally rendering navigators.
+- Screen titles come from `t('...')`, never hardcoded strings.
 
 ## Generated Files
 
 ```
-navigation/RootNavigator.tsx
-navigation/types.ts
-navigation/<NavigatorName>.tsx (for nested navigators)
+src/app/_layout.tsx                 (only if missing)
+src/app/(tabs)/_layout.tsx          (tabs)
+src/app/(tabs)/<screen>.tsx
+src/app/<name>/_layout.tsx          (stack)
+src/app/<name>/index.tsx
+src/app/<name>/[id].tsx
+src/app/(drawer)/_layout.tsx        (drawer)
 ```
 
-## Example Output
-
-For `/new-navigation tabs`:
-
-**Tab Navigator:** `navigation/TabNavigator.tsx`
-```typescript
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, User, Settings } from 'lucide-react-native';
-import { HomeScreen } from '@/screens/HomeScreen';
-import { ProfileScreen } from '@/screens/ProfileScreen';
-import { SettingsScreen } from '@/screens/SettingsScreen';
-import type { TabParamList } from './types';
-
-const Tab = createBottomTabNavigator<TabParamList>();
-
-export function TabNavigator() {
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8E8E93',
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: '#E5E5EA',
-        },
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: 'Settings',
-          tabBarIcon: ({ color, size }) => <Settings color={color} size={size} />,
-        }}
-      />
-    </Tab.Navigator>
-  );
-}
-```
-
-**Types:** `navigation/types.ts`
-```typescript
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
-
-// Root stack (auth flow)
-export type RootStackParamList = {
-  Auth: undefined;
-  Main: NavigatorScreenParams<TabParamList>;
-};
-
-// Tab navigator
-export type TabParamList = {
-  Home: undefined;
-  Profile: undefined;
-  Settings: undefined;
-};
-
-// Screen props
-export type RootStackScreenProps<T extends keyof RootStackParamList> =
-  NativeStackScreenProps<RootStackParamList, T>;
-
-export type TabScreenProps<T extends keyof TabParamList> = CompositeScreenProps<
-  BottomTabScreenProps<TabParamList, T>,
-  RootStackScreenProps<keyof RootStackParamList>
->;
-
-// Type for useNavigation hook
-declare global {
-  namespace ReactNavigation {
-    interface RootParamList extends RootStackParamList {}
-  }
-}
-```
-
-For `/new-navigation stack Home`:
-
-**Stack Navigator:** `navigation/HomeStack.tsx`
-```typescript
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { HomeScreen } from '@/screens/HomeScreen';
-import { DetailsScreen } from '@/screens/DetailsScreen';
-import { CreateScreen } from '@/screens/CreateScreen';
-import type { HomeStackParamList } from './types';
-
-const Stack = createNativeStackNavigator<HomeStackParamList>();
-
-export function HomeStack() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: true,
-        headerBackTitleVisible: false,
-        headerTintColor: '#007AFF',
-      }}
-    >
-      <Stack.Screen
-        name="HomeList"
-        component={HomeScreen}
-        options={{ title: 'Home' }}
-      />
-      <Stack.Screen
-        name="Details"
-        component={DetailsScreen}
-        options={({ route }) => ({
-          title: route.params.title ?? 'Details',
-        })}
-      />
-      <Stack.Screen
-        name="Create"
-        component={CreateScreen}
-        options={{
-          title: 'Create New',
-          presentation: 'modal',
-        }}
-      />
-    </Stack.Navigator>
-  );
-}
-```
-
-**Root Navigator:** `navigation/RootNavigator.tsx`
-```typescript
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '@/hooks/useAuth';
-import { TabNavigator } from './TabNavigator';
-import { AuthNavigator } from './AuthNavigator';
-import type { RootStackParamList } from './types';
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
-
-export function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <SplashScreen />;
-  }
-
-  return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <Stack.Screen name="Main" component={TabNavigator} />
-        ) : (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
-}
-```
+See `references/navigation-examples.md` for full tabs, stack, drawer, modal,
+auth-gated and deep-link examples.

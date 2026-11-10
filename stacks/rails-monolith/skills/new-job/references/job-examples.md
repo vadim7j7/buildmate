@@ -1,7 +1,9 @@
-# Sidekiq Job Examples
+# Background Job Examples (ActiveJob)
 
 Production-ready background job examples demonstrating queue configuration, retry
-behavior, error handling, and service delegation.
+behavior, error handling, and service delegation. They use only the ActiveJob API
+(`queue_as`, `retry_on`, `discard_on`), so they run unchanged on Sidekiq, Solid Queue
+and GoodJob. Sidekiq-only options are at the end, under "If you use Sidekiq".
 
 ---
 
@@ -18,7 +20,6 @@ module Sync
   #   Sync::AirtableImportJob.perform_later(import.id)
   class AirtableImportJob < ApplicationJob
     queue_as :default
-    sidekiq_options retry: 3, backtrace: true
 
     retry_on ActiveRecord::Deadlocked, wait: 5.seconds, attempts: 3
     retry_on Faraday::TimeoutError, wait: :polynomially_longer, attempts: 5
@@ -59,8 +60,8 @@ module Notifications
   #   Notifications::SendJob.perform_later(user_id: 1, type: 'profile_viewed', metadata: { viewer_id: 2 })
   class SendJob < ApplicationJob
     queue_as :notifications
-    sidekiq_options retry: 2
 
+    retry_on Net::OpenTimeout, Net::ReadTimeout, wait: 30.seconds, attempts: 2
     discard_on ActiveRecord::RecordNotFound
 
     # @param user_id [Integer] the user to notify
@@ -89,13 +90,15 @@ end
 
 module Maintenance
   # Processes stale profiles in batches, archiving those inactive for 90+ days.
-  # Designed to run on a schedule via Sidekiq-Cron.
+  # Designed to run on a schedule (config/recurring.yml with Solid Queue,
+  # GoodJob cron, or sidekiq-cron with Sidekiq).
   #
   # @example
   #   Maintenance::ArchiveStaleProfilesJob.perform_later
   class ArchiveStaleProfilesJob < ApplicationJob
     queue_as :low_priority
-    sidekiq_options retry: 1, lock: :until_executed
+
+    retry_on ActiveRecord::Deadlocked, wait: 1.minute, attempts: 2
 
     BATCH_SIZE = 500
     STALE_THRESHOLD = 90.days
@@ -138,7 +141,6 @@ module Enrichment
   #   Enrichment::CompanyDataJob.perform_later(company_id: 123)
   class CompanyDataJob < ApplicationJob
     queue_as :enrichment
-    sidekiq_options retry: 5
 
     retry_on Faraday::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
     retry_on Faraday::ConnectionFailed, wait: 10.seconds, attempts: 3
@@ -155,7 +157,7 @@ module Enrichment
       Rails.logger.error(
         "Enrichment failed for company #{company_id}: #{e.class} - #{e.message}"
       )
-      raise # Re-raise to trigger Sidekiq retry
+      raise # Re-raise so retry_on / the adapter retries the job
     end
   end
 end
@@ -239,3 +241,23 @@ end
 | `enrichment`   | External API data enrichment       | Low      |
 | `low_priority`  | Maintenance, cleanup, reporting    | Lowest   |
 | `critical`     | Payment processing, auth           | Highest  |
+
+---
+
+## If You Use Sidekiq
+
+Only when `config.active_job.queue_adapter = :sidekiq` (the `--jobs=sidekiq` option).
+`sidekiq_options` is defined by the Sidekiq gem; with Solid Queue, GoodJob or the
+async adapter it raises `NoMethodError` when the class loads.
+
+```ruby
+class ArchiveStaleProfilesJob < ApplicationJob
+  queue_as :low_priority
+  sidekiq_options backtrace: true, lock: :until_executed # lock: needs sidekiq-unique-jobs
+end
+```
+
+- Keep retry counts in `retry_on ... attempts:`. Sidekiq's own `retry:` only applies
+  after `retry_on` gives up and re-raises.
+- Uniqueness without Sidekiq: Solid Queue has `limits_concurrency to: 1, key: ->(*) { 'archive' }`,
+  GoodJob has `good_job_control_concurrency_with`.

@@ -32,7 +32,6 @@ custom headers. Also generates the corresponding test file.
    - File path (e.g., `src/app/middleware/timing.py`)
 
 3. **Generate the middleware file.** Create the middleware with:
-   - `from __future__ import annotations`
    - `BaseHTTPMiddleware` or pure ASGI implementation
    - Async `dispatch` or `__call__` method
    - Proper type annotations
@@ -77,19 +76,13 @@ For `/new-middleware timing`:
 ```python
 """Request timing middleware for performance monitoring."""
 
-from __future__ import annotations
-
 import time
-from typing import TYPE_CHECKING
-
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from starlette.types import ASGIApp
+from collections.abc import Callable
+from starlette.types import ASGIApp
 
 
 class TimingMiddleware(BaseHTTPMiddleware):
@@ -120,13 +113,8 @@ class TimingMiddleware(BaseHTTPMiddleware):
 ```python
 """Pure ASGI timing middleware for maximum performance."""
 
-from __future__ import annotations
-
 import time
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class TimingMiddleware:

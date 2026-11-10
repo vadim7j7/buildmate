@@ -40,7 +40,7 @@ npx expo install expo-notifications expo-device expo-constants
 ## 2. Notification Service
 
 ```typescript
-// services/notifications.ts
+// src/services/notifications.ts
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
@@ -115,7 +115,7 @@ export async function setupAndroidChannel(): Promise<void> {
 ## 3. Notification Hook
 
 ```typescript
-// hooks/useNotifications.ts
+// src/hooks/useNotifications.ts
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
@@ -216,7 +216,7 @@ export function useNotifications() {
 ## 4. Local Notifications
 
 ```typescript
-// services/localNotifications.ts
+// src/services/localNotifications.ts
 import * as Notifications from 'expo-notifications';
 
 export async function scheduleLocalNotification({
@@ -302,7 +302,7 @@ export async function getScheduledNotifications(): Promise<
 ## 5. Badge Management
 
 ```typescript
-// services/badge.ts
+// src/services/badge.ts
 import * as Notifications from 'expo-notifications';
 
 export async function setBadgeCount(count: number): Promise<void> {
@@ -328,7 +328,7 @@ export async function incrementBadge(): Promise<void> {
 ## 6. Notification Preferences
 
 ```typescript
-// hooks/useNotificationPreferences.ts
+// src/hooks/useNotificationPreferences.ts
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/lib/api';
@@ -407,7 +407,7 @@ export function useNotificationPreferences() {
 ## 7. Notification Settings Screen
 
 ```typescript
-// screens/NotificationSettingsScreen.tsx
+// src/app/settings/notifications.tsx
 import { View, Text, StyleSheet, Switch, ActivityIndicator } from 'react-native';
 import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 
@@ -442,7 +442,7 @@ const PREFERENCE_LABELS: Record<string, { title: string; description: string }> 
   },
 };
 
-export function NotificationSettingsScreen() {
+export default function NotificationSettingsScreen() {
   const { preferences, isLoading, updatePreference } = useNotificationPreferences();
 
   if (isLoading) {
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
 ## 8. Backend Integration
 
 ```typescript
-// services/api/notifications.ts
+// src/services/api/notifications.ts
 import { api } from '@/lib/api';
 
 export const notificationsApi = {
@@ -553,7 +553,7 @@ export const notificationsApi = {
 ## 9. Rich Notifications
 
 ```typescript
-// services/richNotifications.ts
+// src/services/richNotifications.ts
 import * as Notifications from 'expo-notifications';
 
 export async function sendRichNotification({
@@ -620,7 +620,7 @@ export async function sendMessageNotification({
 ```typescript
 // __tests__/notifications.test.ts
 import * as Notifications from 'expo-notifications';
-import { registerForPushNotifications } from '../services/notifications';
+import { registerForPushNotifications } from '@/services/notifications';
 
 jest.mock('expo-notifications');
 jest.mock('expo-device', () => ({

@@ -3,7 +3,7 @@
 ## Store Setup
 
 ```typescript
-// store/index.ts
+// src/store/index.ts
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,7 +41,7 @@ export type AppDispatch = typeof store.dispatch;
 ## Slice Definition
 
 ```typescript
-// store/slices/authSlice.ts
+// src/store/slices/authSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
 interface AuthState {
@@ -106,7 +106,7 @@ export default authSlice.reducer;
 ## Typed Hooks
 
 ```typescript
-// store/hooks.ts
+// src/store/hooks.ts
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from './index';
 
@@ -117,7 +117,7 @@ export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 ## Provider Setup
 
 ```typescript
-// app/_layout.tsx
+// src/app/_layout.tsx
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '@/store';
@@ -136,11 +136,11 @@ export default function RootLayout() {
 ## Usage in Components
 
 ```typescript
-// screens/ProfileScreen.tsx
+// src/app/(tabs)/profile.tsx
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logout, updateUser } from '@/store/slices/authSlice';
 
-export function ProfileScreen() {
+export default function ProfileScreen() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const isLoading = useAppSelector((state) => state.auth.status === 'loading');

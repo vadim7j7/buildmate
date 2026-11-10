@@ -7,8 +7,6 @@ Examples of Pydantic v2 schema patterns for FastAPI applications.
 ## Example 1: Basic CRUD Schema Set
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -47,8 +45,6 @@ class ProjectRead(ProjectBase):
 ## Example 2: Schema with Validators
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -111,8 +107,6 @@ class UserRead(UserBase):
 ## Example 3: Nested Schema with Relationships
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -157,8 +151,6 @@ class ProjectWithTasks(BaseModel):
 ## Example 4: Pagination Response
 
 ```python
-from __future__ import annotations
-
 from pydantic import BaseModel
 
 
@@ -186,7 +178,7 @@ class PaginatedProjects(BaseModel):
 
 ## Key Rules
 
-1. **Always use `from __future__ import annotations`**
+1. **No `from __future__ import annotations`** — Pydantic resolves annotations at runtime; keep imports real
 2. **`ConfigDict(from_attributes=True)`** on Read schemas for ORM compatibility
 3. **`str | None`** syntax, not `Optional[str]`
 4. **`list[X]`** syntax, not `List[X]`

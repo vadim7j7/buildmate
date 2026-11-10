@@ -3,7 +3,7 @@
 ## Basic Atoms
 
 ```typescript
-// atoms/auth.ts
+// src/atoms/auth.ts
 import { atom } from 'jotai';
 import { atomWithStorage, createJSONStorage } from 'jotai/utils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,7 +25,7 @@ export const isAuthenticatedAtom = atom((get) => {
 ## Write-Only Atoms (Actions)
 
 ```typescript
-// atoms/auth.ts
+// src/atoms/auth.ts
 export const loginAtom = atom(
   null, // no read value
   async (get, set, { user, token }: { user: User; token: string }) => {
@@ -53,7 +53,7 @@ export const updateUserAtom = atom(
 ## Async Atoms
 
 ```typescript
-// atoms/user.ts
+// src/atoms/user.ts
 import { atom } from 'jotai';
 import { atomWithQuery } from 'jotai-tanstack-query';
 
@@ -72,7 +72,7 @@ export const userProfileAtom = atomWithQuery((get) => ({
 ## Provider Setup
 
 ```typescript
-// app/_layout.tsx
+// src/app/_layout.tsx
 import { Provider } from 'jotai';
 
 export default function RootLayout() {
@@ -87,11 +87,11 @@ export default function RootLayout() {
 ## Usage in Components
 
 ```typescript
-// screens/ProfileScreen.tsx
+// src/app/(tabs)/profile.tsx
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { userAtom, logoutAtom, isAuthenticatedAtom } from '@/atoms/auth';
 
-export function ProfileScreen() {
+export default function ProfileScreen() {
   // Read-only
   const user = useAtomValue(userAtom);
   const isAuthenticated = useAtomValue(isAuthenticatedAtom);
@@ -117,7 +117,7 @@ export function ProfileScreen() {
 ## Atom Families (Dynamic Atoms)
 
 ```typescript
-// atoms/items.ts
+// src/atoms/items.ts
 import { atomFamily } from 'jotai/utils';
 
 // Create atoms dynamically based on ID

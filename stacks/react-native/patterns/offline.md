@@ -7,7 +7,7 @@ Offline-first patterns with synchronization.
 ## 1. Network Status Hook
 
 ```typescript
-// hooks/useNetworkStatus.ts
+// src/hooks/useNetworkStatus.ts
 import { useState, useEffect } from 'react';
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 
@@ -45,7 +45,7 @@ export function useNetworkStatus(): NetworkStatus {
 ## 2. Offline Storage with MMKV
 
 ```typescript
-// lib/storage.ts
+// src/lib/storage.ts
 import { MMKV } from 'react-native-mmkv';
 
 const storage = new MMKV();
@@ -84,7 +84,7 @@ export const offlineStorage = {
 ## 3. Pending Actions Queue
 
 ```typescript
-// lib/syncQueue.ts
+// src/lib/syncQueue.ts
 import { offlineStorage } from './storage';
 
 type PendingAction = {
@@ -138,7 +138,7 @@ export const syncQueue = {
 ## 4. Sync Service
 
 ```typescript
-// services/syncService.ts
+// src/services/syncService.ts
 import { syncQueue } from '@/lib/syncQueue';
 import { api } from '@/lib/api';
 
@@ -199,7 +199,7 @@ async function processAction(action: PendingAction): Promise<void> {
 ## 5. Sync Manager Hook
 
 ```typescript
-// hooks/useSyncManager.ts
+// src/hooks/useSyncManager.ts
 import { useEffect, useCallback, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useNetworkStatus } from './useNetworkStatus';
@@ -276,7 +276,7 @@ export function useSyncManager() {
 ## 6. Offline-First Data Hook
 
 ```typescript
-// hooks/useOfflineData.ts
+// src/hooks/useOfflineData.ts
 import { useState, useEffect, useCallback } from 'react';
 import { useNetworkStatus } from './useNetworkStatus';
 import { offlineStorage } from '@/lib/storage';
@@ -355,7 +355,7 @@ export function useOfflineData<T>({
 ## 7. Optimistic Updates
 
 ```typescript
-// hooks/useOptimisticMutation.ts
+// src/hooks/useOptimisticMutation.ts
 import { useState, useCallback } from 'react';
 import { useNetworkStatus } from './useNetworkStatus';
 import { syncQueue } from '@/lib/syncQueue';
@@ -430,7 +430,7 @@ function useCreatePost() {
 ## 8. Conflict Resolution
 
 ```typescript
-// lib/conflictResolver.ts
+// src/lib/conflictResolver.ts
 type ConflictStrategy = 'client-wins' | 'server-wins' | 'merge' | 'manual';
 
 type ConflictResult<T> = {
@@ -483,7 +483,7 @@ export function resolveConflict<T extends { updatedAt: string }>(
 ## 9. Offline Indicator Component
 
 ```typescript
-// components/OfflineIndicator.tsx
+// src/components/OfflineIndicator.tsx
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSyncManager } from '@/hooks/useSyncManager';
@@ -557,8 +557,8 @@ const styles = StyleSheet.create({
 ```typescript
 // __tests__/offline.test.ts
 import { renderHook, act } from '@testing-library/react-native';
-import { useOfflineData } from '../hooks/useOfflineData';
-import { offlineStorage } from '../lib/storage';
+import { useOfflineData } from '@/hooks/useOfflineData';
+import { offlineStorage } from '@/lib/storage';
 
 // Mock NetInfo
 jest.mock('@react-native-community/netinfo', () => ({

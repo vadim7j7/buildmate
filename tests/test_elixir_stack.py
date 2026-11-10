@@ -31,7 +31,8 @@ class TestLoadElixirStack:
 
         assert "format" in config.quality_gates
         assert "lint" in config.quality_gates
-        assert "dialyzer" in config.quality_gates
+        assert "typecheck" in config.quality_gates
+        assert "dialyzer" not in config.quality_gates  # needs a dep phx.new lacks
         assert "tests" in config.quality_gates
 
         assert "patterns/backend-patterns.md" in config.patterns
@@ -42,8 +43,8 @@ class TestLoadElixirStack:
         config = load_stack("elixir")
 
         assert config.variables["framework"] == "Elixir"
-        assert config.variables["language"] == "Elixir 1.16+"
-        assert config.variables["runtime"] == "BEAM/OTP 26+"
+        assert config.variables["language"] == "Elixir 1.18+"
+        assert config.variables["runtime"] == "BEAM/OTP 27+"
         assert config.variables["test_framework"] == "ExUnit"
         assert config.variables["orm"] == "Ecto"
         assert config.variables["linter"] == "Credo"
@@ -111,7 +112,8 @@ class TestLoadPhoenix:
 
         assert "format" in config.quality_gates
         assert "lint" in config.quality_gates
-        assert "dialyzer" in config.quality_gates
+        assert "typecheck" in config.quality_gates
+        assert "dialyzer" not in config.quality_gates  # needs a dep phx.new lacks
         assert "tests" in config.quality_gates
         assert config.quality_gates["format"].command == "mix format --check-formatted"
 
@@ -167,9 +169,9 @@ class TestLoadPhoenix:
         """Phoenix should override framework but inherit language from elixir."""
         config = load_stack("phoenix")
 
-        assert config.variables["framework"] == "Phoenix 1.7+"
-        assert config.variables["language"] == "Elixir 1.16+"
-        assert config.variables["runtime"] == "BEAM/OTP 26+"
+        assert config.variables["framework"] == "Phoenix 1.8+"
+        assert config.variables["language"] == "Elixir 1.18+"
+        assert config.variables["runtime"] == "BEAM/OTP 27+"
         assert config.variables["orm"] == "Ecto"
         assert config.variables["template_engine"] == "HEEx"
         assert config.variables["realtime"] == "Phoenix.PubSub"

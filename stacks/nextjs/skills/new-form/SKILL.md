@@ -89,6 +89,12 @@ Run `npx tsc --noEmit` to verify the form compiles.
 ## Rules
 
 - All forms use `'use client'` directive
+- The submit handler is a **Server Action** (`src/lib/actions/`) — either passed in as
+  `onSubmit` by the server page or bound with `useActionState(action, initialState)`
+  where `action(prevState, formData)`. The action authenticates, authorizes and
+  re-validates with Zod; client validation is only for UX
+- Edit forms receive `initialValues` fetched by the server page, never fetch them in `useEffect`
+- Labels, placeholders and messages come from `useTranslations` (next-intl), not literals
 - Use the project's form handling library (see style guides)
 - Validation rules defined in the form configuration
 - Async submission via IIFE pattern

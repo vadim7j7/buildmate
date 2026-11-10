@@ -7,8 +7,6 @@ Patterns for Celery tasks with retry configuration, error handling, and logging.
 ## Example 1: Basic Task with Retry
 
 ```python
-from __future__ import annotations
-
 import logging
 
 from celery import shared_task
@@ -42,8 +40,6 @@ def sync_external_data(self, resource_id: int) -> dict:
 ## Example 2: Email Notification Task
 
 ```python
-from __future__ import annotations
-
 import logging
 
 from celery import shared_task
@@ -89,8 +85,6 @@ def send_notification_email(
 ## Example 3: Batch Processing Task
 
 ```python
-from __future__ import annotations
-
 import logging
 
 from celery import shared_task
@@ -146,8 +140,6 @@ def process_csv_import(self, import_id: int) -> dict:
 ## Example 4: Periodic Task
 
 ```python
-from __future__ import annotations
-
 import logging
 
 from celery import shared_task
@@ -176,8 +168,6 @@ def cleanup_expired_sessions() -> dict:
 
 ```python
 # src/app/celery_app.py
-from __future__ import annotations
-
 from celery import Celery
 
 from app.config import settings
@@ -208,8 +198,6 @@ celery_app.autodiscover_tasks(["app.tasks"])
 ## Test Patterns
 
 ```python
-from __future__ import annotations
-
 from unittest.mock import MagicMock, patch
 
 import pytest

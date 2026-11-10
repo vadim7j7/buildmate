@@ -6,14 +6,18 @@ Services), orchestrated by the project `Makefile`.
 ## Scaffolded files
 
 - `eas.json` — three build profiles: `development` (dev client), `preview` (internal
-  distribution / TestFlight + internal track), `production` (store).
+  distribution: an installable **APK** on Android, an ad-hoc build on iOS for devices
+  registered with `eas device:create`), `production` (store: AAB + App Store build).
+  Only `production` builds are submitted (`eas submit`) — to TestFlight / the Play
+  internal track first, then promoted. An APK or ad-hoc build cannot be submitted.
 - `Makefile` — build / submit / OTA / screenshot targets (`make help` lists them).
 
 ## Common flows
 
 ```
 make build-dev            # development client
-make build-preview-ios    # internal/TestFlight build
+make build-preview-ios    # ad-hoc internal build (registered devices)
+make build-preview-android # sideloadable APK for QA
 make ship-prod-ios        # build + submit production iOS
 make ship-prod-android    # build + submit production Android
 make update-prod MESSAGE="fix: ..."   # OTA JS-only update

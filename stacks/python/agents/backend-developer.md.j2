@@ -54,8 +54,6 @@ Match the existing code style exactly.
 ### Schema Pattern (Pydantic v2)
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -92,8 +90,6 @@ class ResourceRead(ResourceBase):
 ### Model Pattern (SQLAlchemy 2.0)
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import String, Text, func
@@ -119,8 +115,6 @@ class Resource(Base):
 ### Service Pattern
 
 ```python
-from __future__ import annotations
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -155,7 +149,7 @@ class ResourceService:
 
 ## Style Rules (MANDATORY)
 
-1. **`from __future__ import annotations`** - First import in every module
+1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; FastAPI, Pydantic and SQLAlchemy read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead (`Mapped[list["Task"]]`)
 2. **Type annotations** - On all function parameters and return types
 3. **Google-style docstrings** - On all public classes and functions
 4. **PEP 8** - Enforced by Ruff (line length 88)

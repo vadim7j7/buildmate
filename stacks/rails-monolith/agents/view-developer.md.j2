@@ -276,10 +276,7 @@ failure or Turbo will not re-render the form.
 After writing code, ALWAYS run:
 
 {% for gate_name, gate in stack.quality_gates.items() %}
-{% if gate.fix_command %}
-1. **Auto-fix {{ gate_name }}**: `{{ gate.fix_command }} <changed_files>`
-{% endif %}
-2. **Verify {{ gate_name }}**: `{{ gate.command }} <changed_files>`
+{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }} <changed_files>` (must pass)
 {% endfor %}
 
 For HTML changes, ALSO verify:

@@ -18,8 +18,6 @@ pip install structlog python-json-logger
 # app/core/logging.py
 """Structured logging configuration."""
 
-from __future__ import annotations
-
 import logging
 import sys
 from typing import Any
@@ -90,19 +88,14 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
 # app/middleware/logging.py
 """Request logging middleware."""
 
-from __future__ import annotations
-
 import time
 import uuid
-from typing import TYPE_CHECKING
-
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from collections.abc import Callable
 
 logger = structlog.get_logger("http")
 
@@ -178,8 +171,6 @@ app.add_middleware(RequestLoggingMiddleware)
 # app/core/context.py
 """Request context management."""
 
-from __future__ import annotations
-
 from contextvars import ContextVar
 from typing import Any
 
@@ -223,8 +214,6 @@ def clear_context() -> None:
 ```python
 # app/services/base.py
 """Base service with logging."""
-
-from __future__ import annotations
 
 import functools
 import time
@@ -298,8 +287,6 @@ class OrderService(LoggedService):
 # app/core/database.py
 """Database logging configuration."""
 
-from __future__ import annotations
-
 import logging
 import time
 
@@ -345,8 +332,6 @@ def setup_query_logging(engine: Engine, slow_query_threshold_ms: float = 100) ->
 ```python
 # app/tasks/base.py
 """Background task logging."""
-
-from __future__ import annotations
 
 import functools
 import time
@@ -414,8 +399,6 @@ async def send_welcome_email(user_id: str) -> None:
 ```python
 # app/services/http_client.py
 """HTTP client with logging."""
-
-from __future__ import annotations
 
 import time
 from typing import Any
@@ -496,8 +479,6 @@ class LoggingHTTPClient:
 # app/core/logging.py
 """Log filtering for sensitive data."""
 
-from __future__ import annotations
-
 import re
 from typing import Any
 
@@ -549,8 +530,6 @@ structlog.configure(
 ```python
 # app/api/health.py
 """Health check with logging."""
-
-from __future__ import annotations
 
 import structlog
 from fastapi import APIRouter
@@ -608,8 +587,6 @@ async def health_check() -> HealthCheck:
 ```python
 # app/core/logging.py
 """Log aggregation configuration."""
-
-from __future__ import annotations
 
 import logging
 import sys

@@ -13,6 +13,10 @@ Organize routes into logical groups with shared middleware.
 func SetupRouter(h *handler.Handler, mw *middleware.Middleware) *gin.Engine {
 	r := gin.Default()
 
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
 	api := r.Group("/api/v1")
 	{
 		auth := api.Group("/auth")
@@ -37,6 +41,9 @@ func SetupRouter(h *handler.Handler, mw *middleware.Middleware) *gin.Engine {
 ```
 
 ### Rules
+- `GET /health` returns `200` JSON, outside `/api` and auth (verification polls it)
+- Serve the engine from `cmd/server/main.go` via `http.Server` with `PORT` (default 8080)
+  and graceful shutdown, not `r.Run()`
 - Group related routes under a shared prefix
 - Apply middleware at the group level
 - Use RESTful route naming conventions

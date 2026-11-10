@@ -5,7 +5,7 @@
 A versatile card component with variants, shadow support, and theme constants.
 
 ```typescript
-// components/ui/Card.tsx
+// src/components/ui/Card.tsx
 import React from 'react';
 import { View, StyleSheet, ViewStyle, Pressable } from 'react-native';
 import { colors, spacing, borderRadius, shadows } from '@/constants';
@@ -80,7 +80,7 @@ A transaction card component designed for use in FlashList. Wrapped in
 React.memo to prevent unnecessary re-renders.
 
 ```typescript
-// components/lists/TransactionCard.tsx
+// src/components/lists/TransactionCard.tsx
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
 A styled text input with label, error message, and proper accessibility.
 
 ```typescript
-// components/ui/TextInput.tsx
+// src/components/ui/TextInput.tsx
 import React from 'react';
 import {
   View,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
 A small badge component for labels and categories.
 
 ```typescript
-// components/ui/Badge.tsx
+// src/components/ui/Badge.tsx
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography, borderRadius } from '@/constants';
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
 A reusable section wrapper with title and optional action.
 
 ```typescript
-// components/ui/Section.tsx
+// src/components/ui/Section.tsx
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from '@/constants';
@@ -433,7 +433,7 @@ A floating action button that only renders on Android, following Material
 Design patterns.
 
 ```typescript
-// components/ui/FloatingActionButton.tsx
+// src/components/ui/FloatingActionButton.tsx
 import React from 'react';
 import { Pressable, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { WxtVitest } from 'wxt/testing';
+import { WxtVitest } from 'wxt/testing/vitest-plugin';
 
 // WxtVitest() polyfills import.meta.env, the unified `browser` global (fakeBrowser),
 // and in-memory storage so extension code runs under Vitest. See patterns/testing.md

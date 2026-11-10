@@ -5,19 +5,31 @@ Agents must follow these conventions when generating or modifying code.
 
 ---
 
-## 1. Future Annotations
+## 1. Annotations Stay Runtime-Evaluated (no `from __future__ import annotations`)
 
-Every Python module must start with `from __future__ import annotations` as the
-first import. This enables PEP 604 union syntax (`str | None`) and forward references.
+Target Python 3.13: `str | None` and `list[int]` work natively, so the future import
+is not needed. **Do not add `from __future__ import annotations`.** It turns every
+annotation into a string that Pydantic and SQLAlchemy must resolve at runtime, and ruff's
+`TC` (flake8-type-checking) rules then tell you to move the "annotation-only" imports
+into `if TYPE_CHECKING:` blocks. Those imports are needed at runtime, so the app fails
+at startup (`NameError`, `PydanticUndefinedAnnotation`, unresolved `Mapped[...]`).
+
+Never move an import into `if TYPE_CHECKING:` when the name is used by a Pydantic model field, a SQLAlchemy `Mapped[]` column or a function whose signature is inspected at runtime.
+Quote forward references to classes defined later or in another module:
 
 ```python
 # CORRECT
+from datetime import datetime
+
+from pydantic import BaseModel
+
+
+class Event(BaseModel):
+    at: datetime  # datetime must be a real import
+    parent: "Event | None" = None  # forward reference: quote it
+
+# WRONG - stringifies annotations; ruff TC then moves runtime imports away
 from __future__ import annotations
-
-from pydantic import BaseModel
-
-# WRONG - missing future annotations
-from pydantic import BaseModel
 ```
 
 ---
@@ -99,8 +111,6 @@ Imports are ordered in three groups, separated by blank lines:
 Ruff's isort rules enforce this automatically.
 
 ```python
-from __future__ import annotations
-
 import logging
 from datetime import datetime
 
@@ -243,8 +253,6 @@ result = await service.list_for_user(user_id=current_user.id, \
 Use the standard `logging` module with module-level loggers:
 
 ```python
-from __future__ import annotations
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -294,7 +302,7 @@ Standard `pyproject.toml` configuration:
 
 ```toml
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 line-length = 88
 
 [tool.ruff.lint]
@@ -307,17 +315,25 @@ select = [
     "UP",   # pyupgrade
     "B",    # flake8-bugbear
     "SIM",  # flake8-simplify
-    "TCH",  # flake8-type-checking
+    "TC",   # flake8-type-checking (safe: no future import, see section 1)
     "RUF",  # ruff-specific rules
 ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
+[tool.ruff.lint.flake8-type-checking]
+# Safety net: never move imports that these classes resolve at runtime
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "sqlalchemy.orm.DeclarativeBase",
+    "app.database.Base",  # the project's own DeclarativeBase subclass
+]
+
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 strict = true
-plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+plugins = ["pydantic.mypy"]  # SQLAlchemy 2.0 `Mapped[]` needs no plugin
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

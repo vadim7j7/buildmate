@@ -288,7 +288,6 @@ the ViewComponent itself.
 module Sync
   class ImportJob < ApplicationJob
     queue_as :default
-    sidekiq_options retry: 3
 
     retry_on Net::ReadTimeout, wait: :polynomially_longer, attempts: 5
     discard_on ActiveJob::DeserializationError
@@ -307,11 +306,18 @@ end
 
 Rules:
 - Namespaced under a domain module
-- Configure `queue_as` and `sidekiq_options retry:`
-- Use `retry_on` for transient errors
+- Configure `queue_as` (ActiveJob API: works on Sidekiq, Solid Queue and GoodJob)
+- Use `retry_on` for transient errors; it sets the retry count
 - Use `discard_on` for unrecoverable errors
 - Delegate to a service for complex logic
 - Guard against already-processed records
+
+> **If you use Sidekiq** (`--jobs=sidekiq`): Sidekiq-only settings such as
+> `sidekiq_options backtrace: 10` or `sidekiq_options lock: :until_executed` (sidekiq-unique-jobs)
+> go in the job class. `sidekiq_options` exists only when the Sidekiq gem is loaded and
+> raises `NoMethodError` with Solid Queue, GoodJob or the async adapter, so never use it
+> on other adapters. Keep retries in `retry_on` either way: with ActiveJob, Sidekiq's own
+> `retry:` count only applies after `retry_on` gives up.
 
 ---
 

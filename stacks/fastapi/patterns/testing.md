@@ -35,8 +35,7 @@ tests/
 # tests/conftest.py
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.main import app
@@ -50,18 +49,12 @@ engine = create_async_engine(
     TEST_DATABASE_URL,
     poolclass=NullPool,  # Disable pooling for tests
 )
-TestingSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+TestingSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests."""
-    import asyncio
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# No custom `event_loop` fixture: pytest-asyncio 1.x removed it. Set
+# asyncio_default_fixture_loop_scope / asyncio_default_test_loop_scope = "session"
+# in [tool.pytest.ini_options] when fixtures share an engine across tests.
 
 
 @pytest.fixture(scope="function")

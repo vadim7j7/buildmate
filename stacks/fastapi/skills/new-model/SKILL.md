@@ -32,7 +32,6 @@ table naming, and standard timestamp columns. Optionally generates an Alembic mi
    - `blog_post` becomes `BlogPost` class, `blog_posts` table
 
 3. **Generate the model file.** Create the model with:
-   - `from __future__ import annotations`
    - `Base` import from `app.database`
    - `Mapped[]` type annotations for all columns
    - `mapped_column()` for column definitions

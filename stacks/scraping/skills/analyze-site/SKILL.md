@@ -1,3 +1,8 @@
+---
+name: analyze-site
+description: Analyze a whole site (sitemap, page types, anti-bot measures, rate limits) to plan a large-scale scrape
+---
+
 # /analyze-site
 
 Comprehensive site-wide analysis for large-scale scraping projects.

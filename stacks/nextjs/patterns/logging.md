@@ -226,12 +226,12 @@ export const createUser = withActionLogging('createUser', createUserAction);
 ## 4. Middleware Logging
 
 ```typescript
-// middleware.ts
+// src/proxy.ts (named middleware.ts before Next.js 16)
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { logger } from '@/lib/logger';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const requestId = crypto.randomUUID();
   const startTime = Date.now();
 

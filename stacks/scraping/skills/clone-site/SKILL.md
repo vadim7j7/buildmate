@@ -1,3 +1,8 @@
+---
+name: clone-site
+description: Crawl and analyze a multi-page site and, after user confirmation, generate a full-stack app reproducing it
+---
+
 # /clone-site
 
 Analyze an entire website and generate a full-stack application with all pages, shared components, and complete backend.

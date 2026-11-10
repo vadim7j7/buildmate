@@ -25,7 +25,8 @@ RSpec tests using Rack::Test for HTTP testing and FactoryBot for test data.
 - Rack::Test for Sinatra route testing
 - FactoryBot (factories, traits, sequences)
 - Test doubles (mocks, stubs, spies)
-- ActiveRecord testing (if using AR with Sinatra)
+- {{ variables.orm }} model testing (FactoryBot needs `to_create(&:save)` for Sequel models;
+  wrap examples in `DB.transaction(rollback: :always, auto_savepoint: true)`)
 
 ## Before Writing Tests
 
@@ -52,7 +53,7 @@ RSpec.describe 'Articles API' do
   include Rack::Test::Methods
 
   def app
-    Sinatra::Application
+    App # the modular class App < Sinatra::Base
   end
 
   describe 'GET /articles' do

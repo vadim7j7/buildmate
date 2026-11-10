@@ -235,6 +235,22 @@ Rules:
 
 Identical to API Rails — read `patterns/rails-monolith-patterns.md` for full details.
 The monolith does NOT change how models, jobs, or migrations are written.
+Jobs use ActiveJob's `retry_on` / `discard_on` / `queue_as` on every adapter;
+{% if (variables.job_adapter | default('sidekiq')) == 'sidekiq' %}
+`sidekiq_options` is available because the adapter is Sidekiq, but prefer the ActiveJob API.
+{% else %}
+never call `sidekiq_options` (it raises `NoMethodError` on {{ variables.background_jobs }}).
+{% endif %}
+
+### Health Route
+
+Auto-verify polls `GET /health` on port {{ variables.dev_port }} (started with `bin/dev`).
+A fresh Rails 8 app only routes `/up`, so keep this alias in `config/routes.rb`:
+
+```ruby
+get 'up' => 'rails/health#show', as: :rails_health_check
+get 'health' => 'rails/health#show', as: :health_check
+```
 
 ## Style Rules (MANDATORY)
 
@@ -254,10 +270,7 @@ The monolith does NOT change how models, jobs, or migrations are written.
 After writing code, ALWAYS run:
 
 {% for gate_name, gate in stack.quality_gates.items() %}
-{% if gate.fix_command %}
-1. **Auto-fix {{ gate_name }}**: `{{ gate.fix_command }} <changed_files>`
-{% endif %}
-2. **Verify {{ gate_name }}**: `{{ gate.command }} <changed_files>` (must pass)
+{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }} <changed_files>` (must pass)
 {% endfor %}
 
 For controller changes, also verify the HTML path actually renders:

@@ -230,7 +230,7 @@ export function ProjectListContainer() {
 import { notFound } from 'next/navigation';
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>; // a Promise since Next.js 15; sync access removed in 16
 };
 
 async function getProject(id: string) {
@@ -241,13 +241,15 @@ async function getProject(id: string) {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const project = await getProject(params.id);
+  const { id } = await params;
+  const project = await getProject(id);
   if (!project) return { title: 'Not Found' };
   return { title: project.name, description: project.description };
 }
 
 export default async function ProjectPage({ params }: PageProps) {
-  const project = await getProject(params.id);
+  const { id } = await params;
+  const project = await getProject(id);
   if (!project) notFound();
   return <ProjectDetail project={project} />;
 }
@@ -278,10 +280,11 @@ export const metadata: Metadata = {
 ```typescript
 import { Metadata } from 'next';
 
-type PageProps = { params: { id: string } };
+type PageProps = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const project = await getProject(params.id);
+  const { id } = await params;
+  const project = await getProject(id);
   return {
     title: project?.name ?? 'Not Found',
     description: project?.description ?? '',
@@ -345,10 +348,11 @@ export async function POST(request: NextRequest) {
 // src/app/api/projects/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-type RouteParams = { params: { id: string } };
+type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const project = await db.project.findUnique({ where: { id: params.id } });
+  const { id } = await params;
+  const project = await db.project.findUnique({ where: { id } });
   if (!project) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
@@ -356,10 +360,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
   const body = await request.json();
   try {
     const project = await db.project.update({
-      where: { id: params.id },
+      where: { id },
       data: body,
     });
     return NextResponse.json(project);
@@ -369,8 +374,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
   try {
-    await db.project.delete({ where: { id: params.id } });
+    await db.project.delete({ where: { id } });
     return new NextResponse(null, { status: 204 });
   } catch {
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });

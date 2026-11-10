@@ -58,16 +58,19 @@ Match the existing code style exactly.
 // src/routes/projects.ts
 import { Router } from 'express';
 import { ProjectController } from '@/controllers/project-controller';
-import { validate } from '@/middleware/validate';
+import { validateBody } from '@/middleware/validate';
+import { authenticate } from '@/middleware/auth';
 import { createProjectSchema, updateProjectSchema } from '@/schemas/project';
 
 const router = Router();
 const controller = new ProjectController();
 
+router.use(authenticate);
+
 router.get('/', controller.list);
-router.post('/', validate(createProjectSchema), controller.create);
+router.post('/', validateBody(createProjectSchema), controller.create);
 router.get('/:id', controller.getById);
-router.patch('/:id', validate(updateProjectSchema), controller.update);
+router.patch('/:id', validateBody(updateProjectSchema), controller.update);
 router.delete('/:id', controller.delete);
 
 export { router as projectRouter };
@@ -75,83 +78,73 @@ export { router as projectRouter };
 
 ### Controller Pattern
 
+{{ variables.framework }} forwards errors thrown in (or promises rejected by) `async`
+handlers to the error handler. No `try/catch` + `next(error)` boilerplate.
+
 ```typescript
 // src/controllers/project-controller.ts
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response } from 'express';
 import { ProjectService } from '@/services/project-service';
 import { NotFoundError } from '@/lib/errors';
+import { listProjectsQuerySchema, projectIdSchema } from '@/schemas/project';
 
 export class ProjectController {
   private service = new ProjectService();
 
-  list = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { skip = '0', limit = '20' } = req.query;
-      const projects = await this.service.list({
-        skip: Number(skip),
-        limit: Number(limit),
-      });
-      res.json(projects);
-    } catch (error) {
-      next(error);
-    }
+  list = async (req: Request, res: Response) => {
+    // req.query is a read-only getter in Express 5: parse into a new variable.
+    const query = listProjectsQuerySchema.parse(req.query);
+    const projects = await this.service.list(req.user.id, query);
+    res.json(projects);
   };
 
-  create = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const project = await this.service.create(req.body);
-      res.status(201).json(project);
-    } catch (error) {
-      next(error);
-    }
+  create = async (req: Request, res: Response) => {
+    const project = await this.service.create(req.user.id, req.body);
+    res.status(201).json(project);
   };
 
-  getById = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const project = await this.service.getById(req.params.id);
-      if (!project) throw new NotFoundError('Project', req.params.id);
-      res.json(project);
-    } catch (error) {
-      next(error);
-    }
+  getById = async (req: Request, res: Response) => {
+    const id = projectIdSchema.parse(req.params.id);
+    const project = await this.service.getById(req.user.id, id);
+    if (!project) throw new NotFoundError('Project', id);
+    res.json(project);
   };
 
-  update = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const project = await this.service.update(req.params.id, req.body);
-      if (!project) throw new NotFoundError('Project', req.params.id);
-      res.json(project);
-    } catch (error) {
-      next(error);
-    }
+  update = async (req: Request, res: Response) => {
+    const id = projectIdSchema.parse(req.params.id);
+    const project = await this.service.update(req.user.id, id, req.body);
+    if (!project) throw new NotFoundError('Project', id);
+    res.json(project);
   };
 
-  delete = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await this.service.delete(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      next(error);
-    }
+  delete = async (req: Request, res: Response) => {
+    const id = projectIdSchema.parse(req.params.id);
+    const deleted = await this.service.delete(req.user.id, id);
+    if (!deleted) throw new NotFoundError('Project', id);
+    res.status(204).send();
   };
 }
 ```
+
+`req.user` is set by the auth middleware and typed via declaration merging
+(`declare global { namespace Express { interface Request { user: AuthUser } } }`).
 
 ### Middleware Pattern
 
 ```typescript
 // src/middleware/validate.ts
 import type { Request, Response, NextFunction } from 'express';
-import type { ZodSchema } from 'zod';
+import { z } from 'zod';
 
-export function validate(schema: ZodSchema) {
+export function validateBody(schema: z.ZodType) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(422).json({ errors: result.error.flatten().fieldErrors });
+      // Zod 4: z.flattenError() replaces the deprecated error.flatten()
+      res.status(422).json({ errors: z.flattenError(result.error).fieldErrors });
       return;
     }
-    req.body = result.data;
+    req.body = result.data; // body is writable; req.query is NOT in Express 5
     next();
   };
 }
@@ -162,67 +155,99 @@ export function validate(schema: ZodSchema) {
 ```typescript
 // src/middleware/error-handler.ts
 import type { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 
 export function errorHandler(
-  err: Error,
+  err: unknown,
   _req: Request,
   res: Response,
   _next: NextFunction,
 ) {
+  if (err instanceof z.ZodError) {
+    res.status(422).json({ errors: z.flattenError(err).fieldErrors });
+    return;
+  }
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ error: err.message, code: err.code });
     return;
   }
 
-  logger.error('Unhandled error', { error: err.message, stack: err.stack });
+  logger.error('Unhandled error', { error: err });
   res.status(500).json({ error: 'Internal server error' });
 }
 ```
 
 ### Service Pattern
 
+Queries are scoped by the current user, so an ID from the client cannot reach
+someone else's data.
+
 ```typescript
 // src/services/project-service.ts
 import { prisma } from '@/lib/db';
 import type { Project } from '@prisma/client';
+import type { CreateProjectInput, ListProjectsQuery, UpdateProjectInput } from '@/schemas/project';
 
 export class ProjectService {
-  async list(options: { skip?: number; limit?: number } = {}): Promise<Project[]> {
-    const { skip = 0, limit = 20 } = options;
-    return prisma.project.findMany({ skip, take: limit, orderBy: { updatedAt: 'desc' } });
+  async list(ownerId: string, { skip, limit }: ListProjectsQuery): Promise<Project[]> {
+    return prisma.project.findMany({ where: { ownerId }, skip, take: limit, orderBy: { updatedAt: 'desc' } });
   }
 
-  async getById(id: string): Promise<Project | null> {
-    return prisma.project.findUnique({ where: { id } });
+  async getById(ownerId: string, id: string): Promise<Project | null> {
+    return prisma.project.findFirst({ where: { id, ownerId } });
   }
 
-  async create(data: { name: string; description?: string }): Promise<Project> {
-    return prisma.project.create({ data });
+  async create(ownerId: string, data: CreateProjectInput): Promise<Project> {
+    return prisma.project.create({ data: { ...data, ownerId } });
   }
 
-  async update(id: string, data: Partial<{ name: string; description: string }>): Promise<Project | null> {
-    return prisma.project.update({ where: { id }, data });
+  async update(ownerId: string, id: string, data: UpdateProjectInput): Promise<Project | null> {
+    const { count } = await prisma.project.updateMany({ where: { id, ownerId }, data });
+    return count === 0 ? null : prisma.project.findUnique({ where: { id } });
   }
 
-  async delete(id: string): Promise<void> {
-    await prisma.project.delete({ where: { id } });
+  async delete(ownerId: string, id: string): Promise<boolean> {
+    const { count } = await prisma.project.deleteMany({ where: { id, ownerId } });
+    return count > 0;
   }
 }
 ```
+
+### Server Entry (port)
+
+The app reads its port from `PORT`; the dev server runs with
+`PORT={{ variables.dev_port }} npm run dev`
+(port {{ variables.dev_port }}, because frontends own 3000). Keep `src/app.ts` (exported for Supertest)
+separate from `src/server.ts` (listens):
+
+```typescript
+// src/server.ts
+import { app } from '@/app';
+
+const port = Number(process.env.PORT ?? {{ variables.dev_port }});
+
+app.listen(port, (error) => {
+  if (error) throw error; // Express 5 passes listen errors (e.g. EADDRINUSE) here
+  console.log(`API listening on http://localhost:${port}`);
+});
+```
+
+The app must expose `GET /health` returning 200 (used by verification).
 
 ## Style Rules (MANDATORY)
 
 1. **TypeScript strict mode** - No `any` types, use `unknown` with type guards
 2. **`type` for type definitions** - Not `interface` (unless extending third-party)
 3. **Named exports** - No `export default`
-4. **Arrow functions for handlers** - `list = async (req, res, next) => {}`
+4. **Arrow functions for handlers** - `list = async (req, res) => {}`
 5. **Zod validation** - For all request bodies and query params
 6. **Service layer** - Controllers delegate to services, services access DB
-7. **Error middleware** - All errors passed to `next(error)`
-8. **`@/` imports** - Absolute imports for internal modules
-9. **Prisma for DB** - Use Prisma client, never raw SQL
+7. **Error middleware** - Let errors propagate from `async` handlers (Express 5 forwards them); no `try/catch` + `next(error)` boilerplate
+8. **`req.query` is read-only** - Parse it into a new variable (`const query = schema.parse(req.query)`)
+9. **`@/` imports** - Absolute imports for internal modules
+10. **Prisma for DB** - Use Prisma client, never raw SQL
 
 ## Completion Checklist
 

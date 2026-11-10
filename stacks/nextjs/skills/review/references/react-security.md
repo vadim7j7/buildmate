@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
 
   if (!result.success) {
     return NextResponse.json(
-      { error: 'Validation failed', details: result.error.flatten() },
+      { error: 'Validation failed', details: z.flattenError(result.error) },
       { status: 400 }
     );
   }
@@ -249,11 +249,14 @@ export async function POST(request: NextRequest) {
 
 ```typescript
 // Check resource ownership
+type RouteParams = { params: Promise<{ id: string }> };
+
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const session = await requireAuth();
   if (session instanceof NextResponse) return session;
 
-  const project = await db.project.findUnique({ where: { id: params.id } });
+  const { id } = await params;
+  const project = await db.project.findUnique({ where: { id } });
   if (!project) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
@@ -263,7 +266,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  await db.project.delete({ where: { id: params.id } });
+  await db.project.delete({ where: { id } });
   return new NextResponse(null, { status: 204 });
 }
 ```
@@ -275,11 +278,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 ### Next.js Middleware CSP
 
 ```typescript
-// src/middleware.ts
+// src/proxy.ts (named middleware.ts before Next.js 16)
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   response.headers.set(

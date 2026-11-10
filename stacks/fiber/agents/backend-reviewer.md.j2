@@ -31,7 +31,9 @@ performance, and adherence to idiomatic Go and Fiber conventions.
 ### Fiber Conventions
 
 - [ ] Handlers return `error` (not void)
-- [ ] Request parsing uses `c.BodyParser()` with proper error handling
+- [ ] Request parsing uses `c.Bind().Body()` (v3) with proper error handling
+- [ ] Values from `c.Params()`/`c.Query()`/`c.Get()`/`c.Body()` are not kept past the handler without `strings.Clone` (or `Immutable: true`)
+- [ ] `cmd/server/main.go` reads `PORT` (default 8080), serves `GET /health`, and shuts down gracefully
 - [ ] Responses use `c.JSON()`, `c.Status().JSON()`
 - [ ] Middleware uses `c.Next()` correctly
 - [ ] Route groups used for shared middleware

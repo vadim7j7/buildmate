@@ -3,7 +3,7 @@
 ## Store Definition
 
 ```typescript
-// stores/useAuthStore.ts
+// src/stores/useAuthStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>()(
 ## UI State Store (Non-Persisted)
 
 ```typescript
-// stores/useUIStore.ts
+// src/stores/useUIStore.ts
 import { create } from 'zustand';
 
 interface UIState {
@@ -74,7 +74,7 @@ export const useUIStore = create<UIState>((set) => ({
 ## Selector Hooks
 
 ```typescript
-// stores/useAuthStore.ts - add selectors
+// src/stores/useAuthStore.ts - add selectors
 export const useUser = () => useAuthStore((state) => state.user);
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 export const useToken = () => useAuthStore((state) => state.token);
@@ -83,10 +83,10 @@ export const useToken = () => useAuthStore((state) => state.token);
 ## Usage in Components
 
 ```typescript
-// screens/ProfileScreen.tsx
+// src/app/(tabs)/profile.tsx
 import { useUser, useAuthStore } from '@/stores/useAuthStore';
 
-export function ProfileScreen() {
+export default function ProfileScreen() {
   // Use selector for derived state (prevents unnecessary re-renders)
   const user = useUser();
 

@@ -14,9 +14,9 @@ called from React Query hooks.
 ## Usage
 
 ```
-/new-db-query getTransactions    # db/queries/transactions.ts
-/new-db-query getBudgets         # db/queries/budgets.ts
-/new-db-query getCategories      # db/queries/categories.ts
+/new-db-query getTransactions    # src/db/queries/transactions.ts
+/new-db-query getBudgets         # src/db/queries/budgets.ts
+/new-db-query getCategories      # src/db/queries/categories.ts
 ```
 
 ## Arguments
@@ -34,12 +34,12 @@ and converting to lowercase.
 
 Place the query module at:
 ```
-db/queries/<entity>.ts
+src/db/queries/<entity>.ts
 ```
 
 ### 2. Check for Schema
 
-Look for the table definition in `db/schema.ts`. If the table does not exist,
+Look for the table definition in `src/db/schema.ts`. If the table does not exist,
 inform the user it needs to be added first.
 
 ### 3. Generate Query Functions
@@ -64,7 +64,7 @@ npx tsc --noEmit
 
 ### Location
 
-All database query functions MUST live in `db/queries/`. They must NOT be defined
+All database query functions MUST live in `src/db/queries/`. They must NOT be defined
 inside React Query hooks, components, or stores.
 
 ### Function Signature

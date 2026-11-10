@@ -7,8 +7,6 @@ Complete CRUD router examples with service integration.
 ## Example 1: Basic CRUD Router
 
 ```python
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,8 +88,6 @@ async def delete_project(
 ## Example 2: Router with Authentication and Filtering
 
 ```python
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -138,8 +134,6 @@ async def create_task(
 ## Example 3: Router Registration in main.py
 
 ```python
-from __future__ import annotations
-
 from fastapi import FastAPI
 
 from app.routers import projects, tasks, users

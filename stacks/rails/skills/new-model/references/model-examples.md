@@ -104,7 +104,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class CreateProfiles < ActiveRecord::Migration[7.1]
+class CreateProfiles < ActiveRecord::Migration[8.0]
   def change
     create_table :profiles do |t|
       t.references :user, null: false, foreign_key: true, index: true
@@ -160,7 +160,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class CreateProfileSkills < ActiveRecord::Migration[7.1]
+class CreateProfileSkills < ActiveRecord::Migration[8.0]
   def change
     create_table :profile_skills do |t|
       t.references :profile, null: false, foreign_key: true
@@ -221,7 +221,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class CreateActivities < ActiveRecord::Migration[7.1]
+class CreateActivities < ActiveRecord::Migration[8.0]
   def change
     create_table :activities do |t|
       t.references :user, null: false, foreign_key: true

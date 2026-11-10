@@ -212,7 +212,101 @@ func getDuration(key string, fallback time.Duration) time.Duration {
 
 ---
 
-## 6. Testing Patterns
+## 6. HTTP Server (net/http, Go 1.22+ routing)
+
+The standard library router supports method and path-parameter patterns, so a
+plain `net/http` service needs no third-party router. The entry point lives in
+`cmd/server/main.go`, reads `PORT` (default `8080`), serves `GET /health`, and
+shuts down gracefully on SIGINT/SIGTERM.
+
+```go
+// cmd/server/main.go
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)
+
+func main() {
+	if err := run(); err != nil {
+		slog.Error("server stopped", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+	mux.HandleFunc("GET /users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		writeJSON(w, http.StatusOK, map[string]string{"id": id})
+	})
+
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		slog.Info("listening", "addr", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return srv.Shutdown(shutdownCtx)
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		slog.Error("encode response", "err", err)
+	}
+}
+```
+
+### Server Rules
+
+- One binary entry point: `cmd/server/main.go`; everything else under `internal/`
+- `PORT` env var, default `8080`; `GET /health` returns `200` with a JSON body
+- Route with method patterns (`"GET /users/{id}"`, `"POST /users"`) and read
+  path parameters with `r.PathValue("id")`
+- Always set `ReadHeaderTimeout` (or `ReadTimeout`) on `http.Server`
+- Graceful shutdown: `signal.NotifyContext` + `srv.Shutdown(ctx)` with a timeout
+
+---
+
+## 7. Testing Patterns
 
 ### Table-Driven Test
 

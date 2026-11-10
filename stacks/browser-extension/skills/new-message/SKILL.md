@@ -108,7 +108,7 @@ For no-arg messages, pass `undefined` as the data argument.
 ### 5. Verify
 
 ```bash
-npx wxt prepare && npx tsc --noEmit
+npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
 npx vitest run
 ```
 
@@ -130,4 +130,4 @@ match the `ProtocolMap` — fix the map, not the call site.
 - [ ] `onMessage(name, handler)` registered in `defineBackground`
 - [ ] At least one typed caller wired via `sendMessage`
 - [ ] No-arg callers pass `undefined`
-- [ ] `tsc --noEmit` and `vitest run` pass
+- [ ] `npm run compile` and `vitest run` pass

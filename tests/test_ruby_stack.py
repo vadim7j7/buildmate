@@ -40,7 +40,7 @@ class TestLoadRubyStack:
         config = load_stack("ruby")
 
         assert config.variables["framework"] == "Ruby"
-        assert config.variables["language"] == "Ruby 3.2+"
+        assert config.variables["language"] == "Ruby 3.4+"
         assert config.variables["test_framework"] == "RSpec"
         assert config.variables["orm"] == "Sequel"
 
@@ -178,8 +178,8 @@ class TestLoadRailsRefactored:
         """Rails should override framework but inherit language."""
         config = load_stack("rails")
 
-        assert config.variables["framework"] == "Rails 7+"
-        assert config.variables["language"] == "Ruby"
+        assert config.variables["framework"] == "Rails 8+"
+        assert config.variables["language"] == "Ruby 3.4+"
         assert config.variables["orm"] == "ActiveRecord"
         assert config.variables["test_framework"] == "RSpec"
 
@@ -266,7 +266,7 @@ class TestLoadSinatra:
         config = load_stack("sinatra")
 
         assert config.variables["framework"] == "Sinatra 4+"
-        assert config.variables["language"] == "Ruby 3.2+"
+        assert config.variables["language"] == "Ruby 3.4+"
         assert config.variables["test_framework"] == "RSpec"
 
     def test_validate_sinatra_stack(self):

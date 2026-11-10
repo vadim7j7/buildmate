@@ -89,10 +89,10 @@ quality_gates:
     description: Elixir code formatting
   lint:
     command: mix credo --strict
-    description: Credo static analysis
-  dialyzer:
-    command: mix dialyzer
-    description: Dialyzer type checking
+    description: Credo static analysis (needs the :credo dep, see backend-developer setup)
+  typecheck:
+    command: mix compile --warnings-as-errors
+    description: Compile with warnings as errors (includes Elixir 1.18+ type checks)
   tests:
     command: mix test
     description: ExUnit test suite
@@ -109,8 +109,8 @@ setup:
 
 variables:
   framework: Elixir
-  language: Elixir 1.16+
-  runtime: BEAM/OTP 26+
+  language: Elixir 1.18+
+  runtime: BEAM/OTP 27+
   test_framework: ExUnit
   linter: Credo
   orm: Ecto

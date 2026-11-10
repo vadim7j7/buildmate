@@ -42,7 +42,7 @@ Review each changed file against the checklist below.
 
 ### FastAPI Conventions
 
-- [ ] `from __future__ import annotations` at the top of every module
+- [ ] No `from __future__ import annotations` (annotations must stay runtime-resolvable for FastAPI/Pydantic/SQLAlchemy); forward references are quoted; no runtime-needed import moved into `if TYPE_CHECKING:`
 - [ ] Routers use `APIRouter` with `prefix` and `tags`
 - [ ] Route handlers have `response_model` annotations
 - [ ] Route handlers have return type annotations

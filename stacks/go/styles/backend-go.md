@@ -191,5 +191,26 @@ golangci-lint run --fix ./...
 
 All code MUST pass `golangci-lint run ./...` before it can be committed.
 
-Recommended linters: `errcheck`, `govet`, `staticcheck`, `unused`, `gosimple`,
-`ineffassign`, `gocritic`, `gofumpt`.
+Use the golangci-lint v2 config format (`.golangci.yml`). In v2, `gosimple`
+and `stylecheck` are merged into `staticcheck`, and formatters (`gofmt`,
+`gofumpt`, `goimports`) live in their own `formatters:` section, not `linters:`:
+
+```yaml
+version: "2"
+
+linters:
+  default: standard   # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - gocritic
+    - revive
+    - bodyclose
+    - errorlint
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+```
+
+Run `golangci-lint fmt` to apply the formatters; `golangci-lint run` reports
+both lint issues and unformatted files.

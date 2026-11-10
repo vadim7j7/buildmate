@@ -72,6 +72,6 @@ verification:
   auto_verify: true
   max_retries: 3
   dev_server:
-    command: bundle exec ruby app.rb
+    command: bundle exec rackup -p 4567
     port: 4567
     health_check: /health

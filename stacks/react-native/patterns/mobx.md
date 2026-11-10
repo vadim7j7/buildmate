@@ -3,7 +3,7 @@
 ## Store Definition
 
 ```typescript
-// stores/AuthStore.ts
+// src/stores/AuthStore.ts
 import { makeAutoObservable, runInAction } from 'mobx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -61,7 +61,7 @@ export const authStore = new AuthStore();
 ## Root Store Pattern
 
 ```typescript
-// stores/RootStore.ts
+// src/stores/RootStore.ts
 import { authStore } from './AuthStore';
 import { uiStore } from './UIStore';
 import { createContext, useContext } from 'react';
@@ -79,7 +79,7 @@ export const useStores = () => useContext(StoreContext);
 ## Provider Setup
 
 ```typescript
-// app/_layout.tsx
+// src/app/_layout.tsx
 import { StoreContext, rootStore } from '@/stores/RootStore';
 
 export default function RootLayout() {
@@ -94,11 +94,11 @@ export default function RootLayout() {
 ## Usage with observer
 
 ```typescript
-// screens/ProfileScreen.tsx
+// src/app/(tabs)/profile.tsx
 import { observer } from 'mobx-react-lite';
 import { useStores } from '@/stores/RootStore';
 
-export const ProfileScreen = observer(() => {
+const ProfileScreen = observer(() => {
   const { authStore } = useStores();
 
   const handleLogout = async () => {
@@ -114,6 +114,8 @@ export const ProfileScreen = observer(() => {
     </View>
   );
 });
+
+export default ProfileScreen;
 ```
 
 ## Key Patterns

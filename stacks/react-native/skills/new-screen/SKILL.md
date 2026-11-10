@@ -14,10 +14,10 @@ platform-specific UI patterns.
 ## Usage
 
 ```
-/new-screen Settings                   # Tab screen at app/(tabs)/settings.tsx
-/new-screen TransactionDetail          # Detail screen at app/(tabs)/transactions/[id].tsx
-/new-screen AddTransaction --modal     # Modal screen at app/(modals)/add-transaction.tsx
-/new-screen Login --auth               # Auth screen at app/(auth)/login.tsx
+/new-screen Settings                   # Tab screen at src/app/(tabs)/settings.tsx
+/new-screen TransactionDetail          # Detail screen at src/app/(tabs)/transactions/[id].tsx
+/new-screen AddTransaction --modal     # Modal screen at src/app/(modals)/add-transaction.tsx
+/new-screen Login --auth               # Auth screen at src/app/(auth)/login.tsx
 /new-screen BudgetList --type=list     # List screen with FlashList
 /new-screen BudgetForm --type=form     # Form screen with KeyboardAvoidingView
 /new-screen BudgetDetail --type=detail # Detail screen with ScrollView
@@ -28,8 +28,8 @@ platform-specific UI patterns.
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `name`   | Yes      | Screen name in PascalCase (e.g., `Settings`, `TransactionDetail`) |
-| `--modal` | No | Place in `app/(modals)/` instead of `app/(tabs)/` |
-| `--auth` | No | Place in `app/(auth)/` instead of `app/(tabs)/` |
+| `--modal` | No | Place in `src/app/(modals)/` instead of `src/app/(tabs)/` |
+| `--auth` | No | Place in `src/app/(auth)/` instead of `src/app/(tabs)/` |
 | `--type` | No | Screen type: `list`, `form`, or `detail`. Default: `list` |
 
 ## How It Works
@@ -37,16 +37,16 @@ platform-specific UI patterns.
 ### 1. Determine Screen Location
 
 Based on the arguments:
-- Default: `app/(tabs)/<kebab-name>.tsx`
-- `--modal`: `app/(modals)/<kebab-name>.tsx`
-- `--auth`: `app/(auth)/<kebab-name>.tsx`
+- Default: `src/app/(tabs)/<kebab-name>.tsx`
+- `--modal`: `src/app/(modals)/<kebab-name>.tsx`
+- `--auth`: `src/app/(auth)/<kebab-name>.tsx`
 
 Convert PascalCase to kebab-case for the filename:
 - `TransactionDetail` -> `transaction-detail.tsx`
 - `AddTransaction` -> `add-transaction.tsx`
 
 If the screen needs a dynamic route parameter (detail screens), use `[id].tsx`:
-- `TransactionDetail` -> `app/(tabs)/transactions/[id].tsx`
+- `TransactionDetail` -> `src/app/(tabs)/transactions/[id].tsx`
 
 ### 2. Generate the Screen File
 
@@ -63,8 +63,8 @@ See `references/screen-examples.md` for complete templates.
 ### 3. Generate Supporting Files
 
 Based on the screen's needs, also create:
-- React Query hook in `queries/use<Entity>.ts` (if it doesn't exist)
-- Drizzle query functions in `db/queries/<entity>.ts` (if it doesn't exist)
+- React Query hook in `src/queries/use<Entity>.ts` (if it doesn't exist)
+- Drizzle query functions in `src/db/queries/<entity>.ts` (if it doesn't exist)
 - i18n keys in `locales/en.json` (append to existing file)
 
 ### 4. Verify
@@ -80,7 +80,7 @@ npx tsc --noEmit
 ### List Screen
 
 Key features:
-- FlashList with `estimatedItemSize`
+- FlashList (v2 — no `estimatedItemSize`; add `getItemType` for mixed rows)
 - React Query hook for data loading
 - Pull-to-refresh via `onRefresh`
 - Empty state component

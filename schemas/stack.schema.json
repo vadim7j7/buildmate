@@ -18,6 +18,11 @@
       "pattern": "^[a-z][a-z0-9-]*$",
       "description": "Parent stack to inherit from (single-level only)"
     },
+    "inherit_agents": {
+      "type": "boolean",
+      "default": true,
+      "description": "With extends: inherit the parent's agents (default). Set false when the child defines its own, different set (e.g. frontend children of a parent with backend agents)."
+    },
     "display_name": {
       "type": "string",
       "description": "Human-readable name for the stack"

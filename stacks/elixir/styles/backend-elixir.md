@@ -189,7 +189,8 @@ end
 
 ## 8. Credo Rules
 
-Credo enforces style consistency:
+Credo enforces style consistency. It is not part of `mix new` / `mix phx.new`:
+add `{:credo, "~> 1.7", only: [:dev, :test], runtime: false}` to `mix.exs` first.
 
 ```bash
 # Check style
@@ -224,7 +225,15 @@ def list_users(opts \\ []) do
 end
 ```
 
-Run Dialyzer to verify:
+The required type check is the compiler (Elixir 1.18+ infers and checks types
+during compilation):
+
+```bash
+mix compile --warnings-as-errors
+```
+
+Dialyzer is optional. If the project includes
+`{:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}`, also run:
 
 ```bash
 mix dialyzer

@@ -1,547 +1,303 @@
-# React Navigation Examples
+# expo-router Navigation Examples
 
-Reference examples for generating navigation configurations.
+Reference examples for generating navigation with expo-router. Routes live in
+`src/app/`; the `@/` alias maps to `src/`. Never use `NavigationContainer` or
+`createXNavigator()` from React Navigation directly.
 
-## Type Definitions
+## File Tree
 
-```typescript
-// navigation/types.ts
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { DrawerScreenProps } from '@react-navigation/drawer';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
-
-// Root stack (handles auth state)
-export type RootStackParamList = {
-  Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: NavigatorScreenParams<TabParamList>;
-  Onboarding: undefined;
-};
-
-// Auth stack
-export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-  ResetPassword: { token: string };
-};
-
-// Tab navigator
-export type TabParamList = {
-  HomeTab: NavigatorScreenParams<HomeStackParamList>;
-  SearchTab: undefined;
-  NotificationsTab: undefined;
-  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
-};
-
-// Home stack (nested in tab)
-export type HomeStackParamList = {
-  Home: undefined;
-  Details: { id: string; title?: string };
-  Create: undefined;
-};
-
-// Profile stack (nested in tab)
-export type ProfileStackParamList = {
-  Profile: undefined;
-  EditProfile: undefined;
-  Settings: undefined;
-};
-
-// Screen props types
-export type RootStackScreenProps<T extends keyof RootStackParamList> =
-  NativeStackScreenProps<RootStackParamList, T>;
-
-export type AuthStackScreenProps<T extends keyof AuthStackParamList> =
-  CompositeScreenProps<
-    NativeStackScreenProps<AuthStackParamList, T>,
-    RootStackScreenProps<keyof RootStackParamList>
-  >;
-
-export type TabScreenProps<T extends keyof TabParamList> =
-  CompositeScreenProps<
-    BottomTabScreenProps<TabParamList, T>,
-    RootStackScreenProps<keyof RootStackParamList>
-  >;
-
-export type HomeStackScreenProps<T extends keyof HomeStackParamList> =
-  CompositeScreenProps<
-    NativeStackScreenProps<HomeStackParamList, T>,
-    TabScreenProps<'HomeTab'>
-  >;
-
-// Type for useNavigation hook
-declare global {
-  namespace ReactNavigation {
-    interface RootParamList extends RootStackParamList {}
-  }
-}
+```
+src/app/
+  _layout.tsx               # root Stack (+ providers, migrations, fonts)
+  +not-found.tsx            # unmatched routes
+  (auth)/
+    _layout.tsx             # Stack for sign-in flow
+    login.tsx               # /login
+  (tabs)/
+    _layout.tsx             # Tabs
+    index.tsx               # /
+    search.tsx              # /search
+    profile.tsx             # /profile
+  items/
+    _layout.tsx             # Stack inside the items section
+    index.tsx               # /items
+    [id].tsx                # /items/42
+    [id]/edit.tsx           # /items/42/edit
+  (modals)/
+    new-item.tsx            # /new-item, presented as a modal by the root Stack
 ```
 
-## Root Navigator
+## Root Layout (providers + auth gate)
 
-```typescript
-// navigation/RootNavigator.tsx
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '@/hooks/useAuth';
-import { SplashScreen } from '@/screens/SplashScreen';
-import { OnboardingScreen } from '@/screens/OnboardingScreen';
-import { TabNavigator } from './TabNavigator';
-import { AuthNavigator } from './AuthNavigator';
-import { linking } from './linking';
-import type { RootStackParamList } from './types';
+```tsx
+// src/app/_layout.tsx
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Stack } from 'expo-router';
+import { queryClient } from '@/queries/queryClient';
+import { useSession } from '@/hooks/useSession';
+import '@/i18n';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-
-export function RootNavigator() {
-  const { isAuthenticated, isLoading, hasCompletedOnboarding } = useAuth();
-
-  if (isLoading) {
-    return <SplashScreen />;
-  }
+export default function RootLayout() {
+  const { isSignedIn } = useSession();
 
   return (
-    <NavigationContainer linking={linking}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isAuthenticated ? (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-        ) : !hasCompletedOnboarding ? (
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        ) : (
-          <Stack.Screen name="Main" component={TabNavigator} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <QueryClientProvider client={queryClient}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={isSignedIn}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="items" />
+          <Stack.Screen
+            name="(modals)/new-item"
+            options={{ presentation: 'modal', headerShown: true }}
+          />
+        </Stack.Protected>
+        <Stack.Protected guard={!isSignedIn}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+      </Stack>
+    </QueryClientProvider>
   );
 }
 ```
 
-## Tab Navigator
+`Stack.Protected` removes the guarded screens when `guard` is false and redirects
+to the first available screen. On older expo-router versions, use a `<Redirect>`
+inside the group's `_layout.tsx` instead:
 
-```typescript
-// navigation/TabNavigator.tsx
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, Search, Bell, User } from 'lucide-react-native';
-import { HomeStack } from './HomeStack';
-import { SearchScreen } from '@/screens/SearchScreen';
-import { NotificationsScreen } from '@/screens/NotificationsScreen';
-import { ProfileStack } from './ProfileStack';
-import type { TabParamList } from './types';
+```tsx
+// src/app/(tabs)/_layout.tsx (redirect variant)
+import { Redirect, Tabs } from 'expo-router';
+import { useSession } from '@/hooks/useSession';
 
-const Tab = createBottomTabNavigator<TabParamList>();
+export default function TabsLayout() {
+  const { isSignedIn } = useSession();
+  if (!isSignedIn) return <Redirect href="/login" />;
+  return <Tabs />;
+}
+```
 
-export function TabNavigator() {
+## Tabs
+
+```tsx
+// src/app/(tabs)/_layout.tsx
+import { Tabs } from 'expo-router';
+import { Home, Search, User } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import { colors } from '@/constants';
+
+export default function TabsLayout() {
+  const { t } = useTranslation();
+
   return (
-    <Tab.Navigator
+    <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8E8E93',
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: '#E5E5EA',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-        },
-        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
       }}
     >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeStack}
+      <Tabs.Screen
+        name="index"
         options={{
-          tabBarLabel: 'Home',
+          title: t('tabs.home'),
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
         }}
       />
-      <Tab.Screen
-        name="SearchTab"
-        component={SearchScreen}
+      <Tabs.Screen
+        name="search"
         options={{
-          tabBarLabel: 'Search',
+          title: t('tabs.search'),
           tabBarIcon: ({ color, size }) => <Search color={color} size={size} />,
         }}
       />
-      <Tab.Screen
-        name="NotificationsTab"
-        component={NotificationsScreen}
+      <Tabs.Screen
+        name="profile"
         options={{
-          tabBarLabel: 'Notifications',
-          tabBarIcon: ({ color, size }) => <Bell color={color} size={size} />,
-          tabBarBadge: 3, // Dynamic badge count
-        }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileStack}
-        options={{
-          tabBarLabel: 'Profile',
+          title: t('tabs.profile'),
           tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
       />
-    </Tab.Navigator>
+    </Tabs>
   );
 }
 ```
 
-## Stack Navigator
+## Stack Section with a Dynamic Route
 
-```typescript
-// navigation/HomeStack.tsx
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { HomeScreen } from '@/screens/HomeScreen';
-import { DetailsScreen } from '@/screens/DetailsScreen';
-import { CreateScreen } from '@/screens/CreateScreen';
-import type { HomeStackParamList } from './types';
+```tsx
+// src/app/items/_layout.tsx
+import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
-const Stack = createNativeStackNavigator<HomeStackParamList>();
-
-export function HomeStack() {
+export default function ItemsLayout() {
+  const { t } = useTranslation();
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: true,
-        headerBackTitleVisible: false,
-        headerTintColor: '#007AFF',
-        headerStyle: {
-          backgroundColor: '#FFFFFF',
-        },
-        headerShadowVisible: false,
-      }}
-    >
-      <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          title: 'Home',
-          headerLargeTitle: true,
-        }}
-      />
-      <Stack.Screen
-        name="Details"
-        component={DetailsScreen}
-        options={({ route }) => ({
-          title: route.params.title ?? 'Details',
-        })}
-      />
-      <Stack.Screen
-        name="Create"
-        component={CreateScreen}
-        options={{
-          title: 'Create New',
-          presentation: 'modal',
-          headerLeft: () => null,
-        }}
-      />
-    </Stack.Navigator>
+    <Stack>
+      <Stack.Screen name="index" options={{ title: t('items.title') }} />
+      <Stack.Screen name="[id]" options={{ title: '' }} />
+      <Stack.Screen name="[id]/edit" options={{ presentation: 'modal' }} />
+    </Stack>
   );
 }
 ```
 
-## Drawer Navigator
+```tsx
+// src/app/items/[id].tsx
+import { Stack, useLocalSearchParams, router } from 'expo-router';
+import { Button, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useItem } from '@/queries/useItems';
 
-```typescript
-// navigation/DrawerNavigator.tsx
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { Home, Settings, HelpCircle, LogOut } from 'lucide-react-native';
-import { CustomDrawerContent } from '@/components/navigation/CustomDrawerContent';
-import { HomeScreen } from '@/screens/HomeScreen';
-import { SettingsScreen } from '@/screens/SettingsScreen';
-import { HelpScreen } from '@/screens/HelpScreen';
-import type { DrawerParamList } from './types';
-
-const Drawer = createDrawerNavigator<DrawerParamList>();
-
-export function DrawerNavigator() {
-  return (
-    <Drawer.Navigator
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
-      screenOptions={{
-        drawerActiveTintColor: '#007AFF',
-        drawerInactiveTintColor: '#8E8E93',
-        drawerLabelStyle: {
-          marginLeft: -16,
-          fontSize: 16,
-        },
-        headerShown: true,
-      }}
-    >
-      <Drawer.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          title: 'Home',
-          drawerIcon: ({ color, size }) => <Home color={color} size={size} />,
-        }}
-      />
-      <Drawer.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          title: 'Settings',
-          drawerIcon: ({ color, size }) => <Settings color={color} size={size} />,
-        }}
-      />
-      <Drawer.Screen
-        name="Help"
-        component={HelpScreen}
-        options={{
-          title: 'Help & Support',
-          drawerIcon: ({ color, size }) => <HelpCircle color={color} size={size} />,
-        }}
-      />
-    </Drawer.Navigator>
-  );
-}
-```
-
-## Custom Drawer Content
-
-```typescript
-// components/navigation/CustomDrawerContent.tsx
-import {
-  DrawerContentScrollView,
-  DrawerItemList,
-  type DrawerContentComponentProps,
-} from '@react-navigation/drawer';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
-import { LogOut } from 'lucide-react-native';
-import { useAuth } from '@/hooks/useAuth';
-
-export function CustomDrawerContent(props: DrawerContentComponentProps) {
-  const { user, logout } = useAuth();
+export default function ItemDetailScreen() {
+  const { t } = useTranslation();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: item } = useItem(id);
 
   return (
-    <DrawerContentScrollView {...props}>
-      {/* User profile section */}
-      <View style={styles.profileSection}>
-        <Image source={{ uri: user?.avatarUrl }} style={styles.avatar} />
-        <Text style={styles.userName}>{user?.name}</Text>
-        <Text style={styles.userEmail}>{user?.email}</Text>
-      </View>
-
-      {/* Navigation items */}
-      <DrawerItemList {...props} />
-
-      {/* Logout button */}
-      <Pressable style={styles.logoutButton} onPress={logout}>
-        <LogOut color="#FF3B30" size={20} />
-        <Text style={styles.logoutText}>Logout</Text>
-      </Pressable>
-    </DrawerContentScrollView>
-  );
-}
-
-const styles = StyleSheet.create({
-  profileSection: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-    marginBottom: 8,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginBottom: 8,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  logoutText: {
-    marginLeft: 16,
-    fontSize: 16,
-    color: '#FF3B30',
-  },
-});
-```
-
-## Deep Linking
-
-```typescript
-// navigation/linking.ts
-import { type LinkingOptions } from '@react-navigation/native';
-import * as Linking from 'expo-linking';
-import type { RootStackParamList } from './types';
-
-const prefix = Linking.createURL('/');
-
-export const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [prefix, 'myapp://', 'https://myapp.com'],
-  config: {
-    screens: {
-      Auth: {
-        screens: {
-          Login: 'login',
-          Register: 'register',
-          ForgotPassword: 'forgot-password',
-          ResetPassword: 'reset-password/:token',
-        },
-      },
-      Main: {
-        screens: {
-          HomeTab: {
-            screens: {
-              Home: 'home',
-              Details: 'details/:id',
-            },
-          },
-          SearchTab: 'search',
-          NotificationsTab: 'notifications',
-          ProfileTab: {
-            screens: {
-              Profile: 'profile',
-              EditProfile: 'profile/edit',
-              Settings: 'settings',
-            },
-          },
-        },
-      },
-    },
-  },
-};
-```
-
-## Navigation Utilities
-
-```typescript
-// navigation/utils.ts
-import { createNavigationContainerRef } from '@react-navigation/native';
-import type { RootStackParamList } from './types';
-
-export const navigationRef = createNavigationContainerRef<RootStackParamList>();
-
-/**
- * Navigate from outside React components.
- * Useful for push notifications, deep links, etc.
- */
-export function navigate<RouteName extends keyof RootStackParamList>(
-  name: RouteName,
-  params?: RootStackParamList[RouteName]
-) {
-  if (navigationRef.isReady()) {
-    navigationRef.navigate(name, params);
-  }
-}
-
-/**
- * Reset navigation state.
- * Useful after logout.
- */
-export function resetToAuth() {
-  if (navigationRef.isReady()) {
-    navigationRef.reset({
-      index: 0,
-      routes: [{ name: 'Auth' }],
-    });
-  }
-}
-
-/**
- * Get current route name.
- */
-export function getCurrentRouteName(): string | undefined {
-  if (navigationRef.isReady()) {
-    return navigationRef.getCurrentRoute()?.name;
-  }
-  return undefined;
-}
-```
-
-## Typed Screen Component
-
-```typescript
-// screens/DetailsScreen.tsx
-import { View, Text, StyleSheet } from 'react-native';
-import type { HomeStackScreenProps } from '@/navigation/types';
-
-type Props = HomeStackScreenProps<'Details'>;
-
-export function DetailsScreen({ route, navigation }: Props) {
-  const { id, title } = route.params;
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{title ?? 'Details'}</Text>
-      <Text style={styles.id}>ID: {id}</Text>
+    <View>
+      {/* Set the title from data once it loads */}
+      <Stack.Screen options={{ title: item?.title ?? '' }} />
+      <Text>{item?.description}</Text>
+      <Button
+        title={t('common.edit')}
+        onPress={() =>
+          router.push({ pathname: '/items/[id]/edit', params: { id } })
+        }
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  id: {
-    fontSize: 16,
-    color: '#666',
-  },
-});
 ```
 
-## Using useNavigation Hook
+## Drawer
 
-```typescript
-// components/ItemCard.tsx
-import { Pressable, Text, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { HomeStackParamList } from '@/navigation/types';
+```bash
+npx expo install @react-navigation/drawer react-native-gesture-handler react-native-reanimated
+```
 
-type NavigationProp = NativeStackNavigationProp<HomeStackParamList>;
+```tsx
+// src/app/(drawer)/_layout.tsx
+import { Drawer } from 'expo-router/drawer';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useTranslation } from 'react-i18next';
 
-type ItemCardProps = {
-  id: string;
-  title: string;
-};
-
-export function ItemCard({ id, title }: ItemCardProps) {
-  const navigation = useNavigation<NavigationProp>();
-
-  const handlePress = () => {
-    navigation.navigate('Details', { id, title });
-  };
-
+export default function DrawerLayout() {
+  const { t } = useTranslation();
   return (
-    <Pressable style={styles.card} onPress={handlePress}>
-      <Text style={styles.title}>{title}</Text>
-    </Pressable>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Drawer>
+        <Drawer.Screen name="index" options={{ title: t('drawer.home') }} />
+        <Drawer.Screen name="settings" options={{ title: t('drawer.settings') }} />
+      </Drawer>
+    </GestureHandlerRootView>
   );
 }
+```
 
-const styles = StyleSheet.create({
-  card: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
+Custom drawer content still uses the drawer's own components, passed through the
+`drawerContent` prop:
+
+```tsx
+import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
+import { Drawer } from 'expo-router/drawer';
+
+<Drawer
+  drawerContent={(props) => (
+    <DrawerContentScrollView {...props}>
+      <DrawerItemList {...props} />
+    </DrawerContentScrollView>
+  )}
+/>;
+```
+
+## Navigating
+
+```tsx
+import { Link, router, useLocalSearchParams, useRouter } from 'expo-router';
+
+// Declarative — typed when experiments.typedRoutes is on
+<Link href="/profile">Profile</Link>;
+<Link href={{ pathname: '/items/[id]', params: { id: item.id } }} asChild>
+  <Pressable>{/* row */}</Pressable>
+</Link>;
+
+// Imperative
+router.push('/search');
+router.push({ pathname: '/items/[id]', params: { id } });
+router.replace('/login');     // no back entry (e.g. after sign-out)
+router.back();
+router.dismissAll();          // close every modal on the stack
+
+// Inside components that prefer a hook
+const r = useRouter();
+
+// Params (always strings; parse numbers yourself)
+const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
+```
+
+## Typed Routes
+
+```json
+// app.json
+{ "expo": { "experiments": { "typedRoutes": true } } }
+```
+
+```json
+// tsconfig.json (paths + generated route types)
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": { "strict": true, "paths": { "@/*": ["./src/*"] } },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}
+```
+
+With typed routes on, `router.push('/itmes/1')` or a missing `params.id` fails
+`npx tsc --noEmit`.
+
+## Deep Linking
+
+expo-router derives deep links from the file tree — no linking config. Set the
+scheme in `app.json` and every route is reachable:
+
+```json
+{ "expo": { "scheme": "myapp" } }
+```
+
+`myapp://items/42` opens `src/app/items/[id].tsx` with `id = "42"`. Universal links
+/ App Links use the same paths once `ios.associatedDomains` and
+`android.intentFilters` are configured.
+
+## Not Found
+
+```tsx
+// src/app/+not-found.tsx
+import { Link, Stack } from 'expo-router';
+import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+
+export default function NotFoundScreen() {
+  const { t } = useTranslation();
+  return (
+    <View>
+      <Stack.Screen options={{ title: t('notFound.title') }} />
+      <Text>{t('notFound.message')}</Text>
+      <Link href="/">{t('notFound.home')}</Link>
+    </View>
+  );
+}
+```
+
+## Testing Navigation
+
+```tsx
+// src/__tests__/app/navigation.test.tsx
+import { renderRouter, screen } from 'expo-router/testing-library';
+import ItemDetailScreen from '@/app/items/[id]';
+
+it('opens an item from a deep link', () => {
+  renderRouter(
+    { index: () => null, 'items/[id]': ItemDetailScreen },
+    { initialUrl: '/items/42' }
+  );
+  expect(screen).toHavePathname('/items/42');
 });
 ```

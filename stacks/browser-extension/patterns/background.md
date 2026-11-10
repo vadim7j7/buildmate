@@ -17,10 +17,10 @@ export default defineBackground(() => {
 });
 ```
 
-CORRECT — persist with `wxt/storage`:
+CORRECT — persist with `wxt/utils/storage`:
 
 ```typescript
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 const clicks = storage.defineItem<number>('local:clicks', { fallback: 0 });
 
 export default defineBackground(() => {

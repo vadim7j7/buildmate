@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 // Example offline-first table. Replace with your domain models, then run
-// `npx drizzle-kit generate` to produce a migration in ./migrations.
+// `npx drizzle-kit generate` to produce a migration in src/db/migrations.
 export const items = sqliteTable("items", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),

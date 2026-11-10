@@ -1,3 +1,8 @@
+---
+name: clone-page
+description: Analyze a web page and, after user confirmation, generate frontend and backend code that reproduces it
+---
+
 # /clone-page
 
 Analyze a webpage and generate full-stack code (frontend + backend) with user confirmation.

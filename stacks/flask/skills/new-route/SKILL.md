@@ -27,7 +27,6 @@ validation with Pydantic, service call delegation, and error handling.
 2. **Locate the blueprint.** Find the existing blueprint file for the specified resource.
 
 3. **Generate the route function.** Create a route with:
-   - `from __future__ import annotations`
    - Route decorator (`@bp.get()`, `@bp.post()`, etc.)
    - Request body parsing with `request.get_json()` (for POST/PATCH/PUT)
    - Pydantic validation on input
@@ -55,11 +54,13 @@ validation with Pydantic, service call delegation, and error handling.
 
 ```python
 @bp.post("/search")
-async def search_projects():
+def search_projects() -> Response:
     """Search projects by criteria."""
     data = ProjectSearch.model_validate(request.get_json())
-    async with db.session() as session:
-        service = ProjectService(session)
-        results = await service.search(data)
-    return jsonify([ProjectRead.model_validate(p).model_dump() for p in results])
+    results = ProjectService().search(data)  # sync service, uses db.session
+    return jsonify([ProjectRead.model_validate(p).model_dump(mode="json") for p in results])
 ```
+
+Views and services are synchronous: no `async def`, `await` or
+`async with db.session()` (Flask-SQLAlchemy's session is sync). Boolean query flags
+use `parse_bool` from `patterns/flask-patterns.md`, never `type=bool`.

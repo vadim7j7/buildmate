@@ -38,11 +38,11 @@ Based on the hook name, identify the category:
 Before generating, read:
 - `patterns/mobile-patterns.md` for conventions
 - `skills/new-hook/references/hook-examples.md` for examples
-- Existing hooks in `hooks/` for project patterns
+- Existing hooks in `src/hooks/` for project patterns
 
 ### 3. Generate Files
 
-#### Hook: `hooks/<hookName>.ts`
+#### Hook: `src/hooks/<hookName>.ts`
 
 ```typescript
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -74,7 +74,7 @@ export function use<Name>(options: Use<Name>Options = {}): Use<Name>Return {
 
 ```typescript
 import { renderHook, act } from '@testing-library/react-native';
-import { use<Name> } from '../../hooks/<hookName>';
+import { use<Name> } from '@/hooks/<hookName>';
 
 describe('use<Name>', () => {
   it('should initialize correctly', () => {
@@ -116,7 +116,7 @@ npm test -- --testPathPattern=<hookName>
 ## Generated Files
 
 ```
-hooks/<hookName>.ts
+src/hooks/<hookName>.ts
 __tests__/hooks/<hookName>.test.ts
 ```
 
@@ -124,7 +124,7 @@ __tests__/hooks/<hookName>.test.ts
 
 For `/new-hook useAppState`:
 
-**Hook:** `hooks/useAppState.ts`
+**Hook:** `src/hooks/useAppState.ts`
 ```typescript
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
@@ -237,7 +237,7 @@ export function useAppState(options: UseAppStateOptions = {}): UseAppStateReturn
 
 For `/new-hook useKeyboard`:
 
-**Hook:** `hooks/useKeyboard.ts`
+**Hook:** `src/hooks/useKeyboard.ts`
 ```typescript
 import { useState, useEffect } from 'react';
 import { Keyboard, Platform, type KeyboardEvent } from 'react-native';

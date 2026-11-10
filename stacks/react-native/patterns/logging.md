@@ -7,7 +7,7 @@ Structured logging patterns for React Native applications.
 ## 1. Logger Setup
 
 ```typescript
-// lib/logger.ts
+// src/lib/logger.ts
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogEntry {
@@ -143,7 +143,7 @@ export const logger = new Logger();
 ## 2. Log Transports
 
 ```typescript
-// lib/logger/transports.ts
+// src/lib/logger/transports.ts
 import { LogEntry } from './types';
 
 export interface LogTransport {
@@ -250,37 +250,14 @@ export class FileTransport implements LogTransport {
 ## 3. Navigation Logging
 
 ```typescript
-// lib/logger/navigation.ts
+// src/lib/logger/navigation.ts
+// expo-router owns navigation state: log route changes from the pathname and
+// params instead of a NavigationContainer onStateChange callback.
+import { useEffect } from 'react';
+import { useGlobalSearchParams, usePathname } from 'expo-router';
 import { logger } from './logger';
 
-export function createNavigationLogger() {
-  const navLogger = logger.child({ component: 'navigation' });
-
-  return {
-    onStateChange: (state: any) => {
-      const currentRoute = getCurrentRoute(state);
-
-      navLogger.info('Screen changed', {
-        screen: currentRoute.name,
-        params: sanitizeParams(currentRoute.params),
-      });
-    },
-
-    onReady: () => {
-      navLogger.info('Navigation ready');
-    },
-  };
-}
-
-function getCurrentRoute(state: any): { name: string; params?: object } {
-  if (!state) return { name: 'unknown' };
-
-  const route = state.routes[state.index];
-  if (route.state) {
-    return getCurrentRoute(route.state);
-  }
-  return { name: route.name, params: route.params };
-}
+const navLogger = logger.child({ component: 'navigation' });
 
 function sanitizeParams(params?: object): object | undefined {
   if (!params) return undefined;
@@ -291,21 +268,25 @@ function sanitizeParams(params?: object): object | undefined {
   return sanitized;
 }
 
-// Usage in App.tsx
-import { NavigationContainer } from '@react-navigation/native';
-import { createNavigationLogger } from '@/lib/logger/navigation';
+export function useNavigationLogging() {
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
 
-const navigationLogger = createNavigationLogger();
+  useEffect(() => {
+    navLogger.info('Screen changed', {
+      screen: pathname,
+      params: sanitizeParams(params),
+    });
+  }, [pathname, params]);
+}
 
-export function App() {
-  return (
-    <NavigationContainer
-      onStateChange={navigationLogger.onStateChange}
-      onReady={navigationLogger.onReady}
-    >
-      {/* ... */}
-    </NavigationContainer>
-  );
+// Usage in src/app/_layout.tsx
+import { Stack } from 'expo-router';
+import { useNavigationLogging } from '@/lib/logger/navigation';
+
+export default function RootLayout() {
+  useNavigationLogging();
+  return <Stack />;
 }
 ```
 
@@ -314,7 +295,7 @@ export function App() {
 ## 4. API Request Logging
 
 ```typescript
-// lib/api/logging.ts
+// src/lib/api/logging.ts
 import { logger } from '@/lib/logger';
 
 const apiLogger = logger.child({ component: 'api' });
@@ -384,7 +365,7 @@ function sanitizeUrl(url: string): string {
 ## 5. Performance Logging
 
 ```typescript
-// lib/logger/performance.ts
+// src/lib/logger/performance.ts
 import { logger } from './logger';
 
 const perfLogger = logger.child({ component: 'performance' });
@@ -453,7 +434,7 @@ const user = await measureAsync(
 ## 6. User Action Logging
 
 ```typescript
-// lib/logger/analytics.ts
+// src/lib/logger/analytics.ts
 import { logger } from './logger';
 
 const analyticsLogger = logger.child({ component: 'analytics' });
@@ -512,7 +493,7 @@ function ProductScreen() {
 ## 7. Error Boundary Logging
 
 ```typescript
-// components/LoggingErrorBoundary.tsx
+// src/components/LoggingErrorBoundary.tsx
 import React, { Component, ReactNode } from 'react';
 import { View, Text, Button } from 'react-native';
 import { logger } from '@/lib/logger';
@@ -566,7 +547,7 @@ export class LoggingErrorBoundary extends Component<Props, State> {
 ## 8. Network Status Logging
 
 ```typescript
-// hooks/useNetworkLogging.ts
+// src/hooks/useNetworkLogging.ts
 import { useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { logger } from '@/lib/logger';
@@ -593,7 +574,7 @@ export function useNetworkLogging() {
 ## 9. Storage Logging
 
 ```typescript
-// lib/storage/logged-storage.ts
+// src/lib/storage/logged-storage.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '@/lib/logger';
 
@@ -638,7 +619,7 @@ export const loggedStorage = {
 ## 10. Debug Tools
 
 ```typescript
-// lib/logger/debug.ts
+// src/lib/logger/debug.ts
 import { logger } from './logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';

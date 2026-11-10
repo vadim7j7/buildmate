@@ -25,7 +25,7 @@ applications using the Fiber HTTP framework with its Express-inspired API.
 - {{ variables.language }} (interfaces, goroutines, channels, generics)
 - {{ variables.validation }} (struct tag validation)
 - {{ variables.orm }} with {{ variables.database }}
-- {{ variables.test_framework }} (table-driven tests, fiber.Test)
+- {{ variables.test_framework }} (table-driven tests, `app.Test`)
 
 ## Before Writing Any Code
 
@@ -49,14 +49,126 @@ Grep for existing routes: internal/router/ or cmd/
 
 Match the existing code style exactly.
 
+## Fiber Version
+
+This stack targets **Fiber v3** (`github.com/gofiber/fiber/v3`; v3.6+ needs Go 1.26).
+If `go.mod` still requires `github.com/gofiber/fiber/v2`, keep writing v2 code in that
+project (`*fiber.Ctx`, `c.BodyParser`, `c.UserContext()`) and do not mix majors.
+
+Key v3 differences from v2:
+
+| v2 | v3 |
+|----|----|
+| `func(c *fiber.Ctx) error` | `func(c fiber.Ctx) error` (`fiber.Ctx` is an interface) |
+| `c.BodyParser(&in)` | `c.Bind().Body(&in)` (runs `Config.StructValidator` if set) |
+| `c.UserContext()` | pass `c` itself: `fiber.Ctx` implements `context.Context` |
+| `c.Locals("k")` type assertions | `fiber.Locals[T](c, "k")` |
+| `c.ParamsInt("id")` | `fiber.Params[int](c, "id")` |
+| `app.Listen(":8080")` | `app.Listen(":8080", fiber.ListenConfig{...})` |
+
+**Zero-copy rule (v2 and v3):** strings returned by `c.Params()`, `c.Query()`,
+`c.Get()`, `c.Body()` etc. point into a buffer Fiber reuses after the handler returns.
+They are only valid inside the handler. Before storing one (struct field, map, cache,
+channel, goroutine), copy it with `strings.Clone(v)` (or `utils.CopyString`), or set
+`fiber.Config{Immutable: true}` app-wide.
+
+## Project Layout
+
+```
+cmd/server/main.go        # entry point: config, wiring, /health, graceful shutdown
+internal/router/          # SetupRoutes
+internal/handler/         # HTTP handlers
+internal/middleware/      # app middleware
+internal/service/         # business logic
+internal/repository/      # data access
+```
+
+The dev server is started with `PORT=8080 go run ./cmd/server` and checked with
+`GET /health`, so `cmd/server/main.go` must exist, read `PORT` (default `8080`),
+and serve `GET /health` returning `200` with a JSON body.
+
 ## Code Patterns
+
+### Server Entry Point (`cmd/server/main.go`)
+
+```go
+package main
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/logger"
+	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
+)
+
+type structValidator struct{ v *validator.Validate }
+
+func (s structValidator) Validate(out any) error { return s.v.Struct(out) }
+
+func main() {
+	if err := run(); err != nil {
+		slog.Error("server stopped", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	app := fiber.New(fiber.Config{
+		ErrorHandler:    handler.ErrorHandler,
+		StructValidator: structValidator{v: validator.New()},
+		ReadTimeout:     5 * time.Second,
+		WriteTimeout:    10 * time.Second,
+		StrictRouting:   true,
+		CaseSensitive:   true,
+	})
+
+	app.Use(requestid.New(), logger.New(), recoverer.New())
+
+	app.Get("/health", func(c fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
+
+	router.SetupRoutes(app, h, mw) // h, mw built from config/services above
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- app.Listen(":"+port, fiber.ListenConfig{DisableStartupMessage: true})
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return app.ShutdownWithContext(shutdownCtx)
+}
+```
 
 ### Route Group Pattern
 
 ```go
 package router
 
-import "github.com/gofiber/fiber/v2"
+import "github.com/gofiber/fiber/v3"
 
 func SetupRoutes(app *fiber.App, h *handler.Handler, mw *middleware.Middleware) {
 	api := app.Group("/api/v1")
@@ -81,13 +193,11 @@ func SetupRoutes(app *fiber.App, h *handler.Handler, mw *middleware.Middleware) 
 ```go
 package middleware
 
-import (
-	"github.com/gofiber/fiber/v2"
-)
+import "github.com/gofiber/fiber/v3"
 
 // Auth returns JWT authentication middleware.
 func (m *Middleware) Auth() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		token := c.Get("Authorization")
 		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -102,7 +212,7 @@ func (m *Middleware) Auth() fiber.Handler {
 			})
 		}
 
-		c.Locals("user_id", claims.UserID)
+		fiber.Locals[string](c, "user_id", claims.UserID)
 		return c.Next()
 	}
 }
@@ -113,7 +223,11 @@ func (m *Middleware) Auth() fiber.Handler {
 ```go
 package handler
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"strings"
+
+	"github.com/gofiber/fiber/v3"
+)
 
 // UserHandler handles user-related HTTP requests.
 type UserHandler struct {
@@ -125,22 +239,23 @@ func NewUserHandler(svc service.UserService) *UserHandler {
 	return &UserHandler{svc: svc}
 }
 
-// Create handles POST /users.
-func (h *UserHandler) Create(c *fiber.Ctx) error {
-	var input CreateUserRequest
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
-	}
+// CreateUserRequest is validated by Config.StructValidator during Bind().
+type CreateUserRequest struct {
+	Name  string `json:"name" validate:"required,min=1,max=100"`
+	Email string `json:"email" validate:"required,email"`
+}
 
-	if err := validate.Struct(&input); err != nil {
+// Create handles POST /users.
+func (h *UserHandler) Create(c fiber.Ctx) error {
+	var input CreateUserRequest
+	if err := c.Bind().Body(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
-	user, err := h.svc.CreateUser(c.UserContext(), input.ToServiceInput())
+	// fiber.Ctx is a context.Context: pass c to the service layer.
+	user, err := h.svc.CreateUser(c, input.ToServiceInput())
 	if err != nil {
 		return handleError(c, err)
 	}
@@ -149,10 +264,12 @@ func (h *UserHandler) Create(c *fiber.Ctx) error {
 }
 
 // Get handles GET /users/:id.
-func (h *UserHandler) Get(c *fiber.Ctx) error {
-	id := c.Params("id")
+func (h *UserHandler) Get(c fiber.Ctx) error {
+	// Copy: c.Params is only valid until the handler returns, and the
+	// service may cache or log it asynchronously.
+	id := strings.Clone(c.Params("id"))
 
-	user, err := h.svc.GetUser(c.UserContext(), id)
+	user, err := h.svc.GetUser(c, id)
 	if err != nil {
 		return handleError(c, err)
 	}
@@ -169,10 +286,10 @@ package handler
 import (
 	"errors"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func handleError(c *fiber.Ctx, err error) error {
+func handleError(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, apperror.ErrNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -192,37 +309,15 @@ func handleError(c *fiber.Ctx, err error) error {
 		})
 	}
 }
-```
 
-### App Configuration
-
-```go
-package main
-
-import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-)
-
-func main() {
-	app := fiber.New(fiber.Config{
-		ErrorHandler:  customErrorHandler,
-		ReadTimeout:   5 * time.Second,
-		WriteTimeout:  10 * time.Second,
-		StrictRouting: true,
-		CaseSensitive: true,
-	})
-
-	app.Use(recover.New())
-	app.Use(logger.New())
-	app.Use(cors.New())
-
-	// Setup routes
-	router.SetupRoutes(app, handler, mw)
-
-	log.Fatal(app.Listen(":3000"))
+// ErrorHandler is the app-wide fiber.Config.ErrorHandler.
+func ErrorHandler(c fiber.Ctx, err error) error {
+	code := fiber.StatusInternalServerError
+	var e *fiber.Error
+	if errors.As(err, &e) {
+		code = e.Code
+	}
+	return c.Status(code).JSON(fiber.Map{"error": err.Error()})
 }
 ```
 
@@ -230,14 +325,15 @@ func main() {
 
 1. **gofmt** - All code must be formatted with `gofmt`
 2. **Return errors** - Fiber handlers return `error`; use `return c.Status().JSON()`
-3. **fiber.Ctx** - Use `c.Params()`, `c.Query()`, `c.BodyParser()`, `c.Locals()`
-4. **fiber.Map** - Use `fiber.Map{}` for simple JSON responses
-5. **c.UserContext()** - Pass user context to service layer
-6. **Route groups** - Organize with `app.Group()` for shared prefix/middleware
-7. **fiber.Handler** - Middleware returns `fiber.Handler` (alias for `func(*fiber.Ctx) error`)
-8. **Error responses** - Consistent JSON format: `{"error": "message"}`
-9. **Status constants** - Use `fiber.StatusOK`, `fiber.StatusNotFound`, etc.
-10. **BodyParser** - Use for JSON, XML, form parsing
+3. **fiber.Ctx (v3)** - Handlers take `c fiber.Ctx` (interface, no pointer)
+4. **Bind** - Parse bodies with `c.Bind().Body(&in)`; validation runs via `Config.StructValidator`
+5. **Context** - Pass `c` (a `context.Context`) to the service layer
+6. **Zero-copy** - Never keep `c.Params/Query/Get/Body` values past the handler; `strings.Clone` them or use `Immutable: true`
+7. **Route groups** - Organize with `app.Group()` for shared prefix/middleware
+8. **fiber.Handler** - Middleware returns `fiber.Handler` (`func(fiber.Ctx) error`)
+9. **Error responses** - Consistent JSON format: `{"error": "message"}`
+10. **Status constants** - Use `fiber.StatusOK`, `fiber.StatusNotFound`, etc.
+11. **Entry point** - `cmd/server/main.go`, `PORT` env (default 8080), `GET /health`, graceful shutdown
 
 ## Completion Checklist
 

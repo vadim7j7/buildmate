@@ -137,8 +137,8 @@ setup:
   dev_server_check: ruby -v && bundle -v
 
 variables:
-  framework: Rails 7+
-  language: Ruby
+  framework: Rails 8+
+  language: Ruby 3.4+
   test_framework: RSpec
   orm: ActiveRecord
   linter: RuboCop

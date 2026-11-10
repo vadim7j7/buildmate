@@ -39,7 +39,7 @@ export async function createPost(input: CreatePostInput): Promise<CreatePostResu
     return {
       success: false,
       error: 'Validation failed',
-      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]>,
     };
   }
 
@@ -100,7 +100,7 @@ export async function updatePost(input: UpdatePostInput): Promise<UpdatePostResu
     return {
       success: false,
       error: 'Validation failed',
-      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]>,
     };
   }
 
@@ -227,7 +227,7 @@ export async function submitContact(
     return {
       success: false,
       error: 'Validation failed',
-      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]>,
     };
   }
 
@@ -455,8 +455,9 @@ describe('createPost', () => {
 ```typescript
 'use client';
 
-import { useActionState, useFormStatus } from 'react';
-import { createPost } from '@/actions/createPost';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
+import { createPost } from '@/lib/actions/createPost';
 
 function SubmitButton() {
   const { pending } = useFormStatus();

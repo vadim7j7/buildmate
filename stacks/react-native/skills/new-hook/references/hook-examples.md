@@ -427,9 +427,9 @@ export function useDebounce<T>(value: T, delay = 500): T {
 import { renderHook, act } from '@testing-library/react-native';
 import { AppState, Keyboard, BackHandler } from 'react-native';
 
-import { useAppState } from '../hooks/useAppState';
-import { useKeyboard } from '../hooks/useKeyboard';
-import { useBackHandler } from '../hooks/useBackHandler';
+import { useAppState } from '@/hooks/useAppState';
+import { useKeyboard } from '@/hooks/useKeyboard';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 // Mock React Native modules
 jest.mock('react-native', () => ({

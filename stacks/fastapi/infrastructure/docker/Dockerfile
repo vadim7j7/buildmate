@@ -2,7 +2,7 @@
 
 # Multi-stage build for FastAPI
 
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.13
 FROM python:${PYTHON_VERSION}-slim AS base
 
 WORKDIR /app

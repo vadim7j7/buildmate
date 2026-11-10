@@ -15,7 +15,6 @@ import { FlashList } from '@shopify/flash-list';
 <FlashList
   data={items}
   renderItem={({ item }) => <ItemCard item={item} />}
-  estimatedItemSize={72}     // REQUIRED - measure your average item height
   keyExtractor={(item) => item.id}
 />
 
@@ -33,17 +32,28 @@ import { FlashList } from '@shopify/flash-list';
 />
 ```
 
-### estimatedItemSize
+### FlashList v2 (no size estimates)
 
-Always provide `estimatedItemSize`. Measure the average rendered height of your
-list items and use that value. A wrong estimate still performs better than no
-estimate, but an accurate one is best.
+FlashList v2 (the version current Expo SDKs ship) measures items itself and
+**removed `estimatedItemSize`** (also `estimatedListSize` and
+`estimatedFirstItemOffset`). Do not pass them — they are ignored and flagged.
+
+- `getItemType` is still the main lever for mixed lists: return a stable type per
+  row shape so cells are only recycled into rows of the same shape.
+- `maintainVisibleContentPosition` is on by default; use it (with
+  `startRenderingFromBottom`) for chat-style lists instead of `inverted`.
+- Masonry layouts use the `masonry` prop on `FlashList`
+  (`<FlashList masonry numColumns={2} … />`); `MasonryFlashList` is deprecated.
+- `overrideItemLayout` only sets `span` now (sizes are not estimated).
+- FlashList v2 requires the New Architecture (the only one current Expo supports).
 
 ```typescript
-// Measure once, set accurately
-<FlashList estimatedItemSize={72} />  // Typical card item
-<FlashList estimatedItemSize={48} />  // Simple single-line item
-<FlashList estimatedItemSize={120} /> // Complex multi-line card
+<FlashList
+  data={rows}
+  renderItem={renderRow}
+  getItemType={(row) => row.kind}   // 'header' | 'item' | 'ad' ...
+  keyExtractor={(row) => row.id}
+/>
 ```
 
 ### Extract renderItem Components
@@ -58,7 +68,6 @@ const MemoizedItemCard = React.memo(ItemCard);
 <FlashList
   data={items}
   renderItem={({ item }) => <MemoizedItemCard item={item} />}
-  estimatedItemSize={72}
 />
 
 // EVEN BETTER - Named renderItem function
@@ -70,7 +79,6 @@ const renderItem = useCallback(
 <FlashList
   data={items}
   renderItem={renderItem}
-  estimatedItemSize={72}
 />
 
 // WRONG - Anonymous function defined inline

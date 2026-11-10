@@ -73,10 +73,16 @@ chrome.tabs.query({ active: true }, (tabs) => { /* ... */ });
 ```
 {% endraw %}
 
+`wxt/browser` is the native browser object since WXT 0.20 (no `webextension-polyfill`;
+types from `@types/chrome` via the `Browser` namespace). Raw `runtime.onMessage` listeners
+must reply with `sendResponse` + `return true`, not a returned Promise. Import storage from
+`wxt/utils/storage` and testing helpers from `wxt/testing/vitest-plugin` /
+`wxt/testing/fake-browser` (the old `wxt/storage` / `wxt/testing` paths are gone).
+
 ### Background service worker is event-driven
 
 In Manifest V3 the background is a service worker that is **killed when idle**. Never store
-state in module-level variables expecting it to survive. Persist with `wxt/storage`; schedule
+state in module-level variables expecting it to survive. Persist with `wxt/utils/storage`; schedule
 work with `browser.alarms`, never `setTimeout`/`setInterval` for anything long-lived.
 
 {% raw %}
@@ -145,7 +151,7 @@ export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>(
 {% raw %}
 ```typescript
 // utils/storage.ts
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 
 export const settings = storage.defineItem<{ theme: 'light' | 'dark' }>('local:settings', {
   fallback: { theme: 'light' },

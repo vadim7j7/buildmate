@@ -15,8 +15,8 @@ inconsistent behaviour, and platform-specific bugs.
 
 ```
 /platform-check                   # Check all source files
-/platform-check app/              # Check only screen files
-/platform-check components/       # Check only components
+/platform-check src/app/              # Check only screen files
+/platform-check src/components/       # Check only components
 ```
 
 ## How It Works
@@ -27,22 +27,22 @@ Search the codebase for platform-specific patterns:
 
 ```bash
 # Find Platform.OS usage
-grep -rn "Platform\.OS" app/ components/ hooks/ --include="*.tsx" --include="*.ts"
+grep -rn "Platform\.OS" src/app/ src/components/ src/hooks/ --include="*.tsx" --include="*.ts"
 
 # Find Platform.select usage
-grep -rn "Platform\.select" app/ components/ hooks/ --include="*.tsx" --include="*.ts"
+grep -rn "Platform\.select" src/app/ src/components/ src/hooks/ --include="*.tsx" --include="*.ts"
 
 # Find platform-specific file extensions
 find . -name "*.ios.tsx" -o -name "*.android.tsx" | head -50
 
 # Find SafeAreaView usage
-grep -rn "SafeAreaView\|useSafeAreaInsets" app/ components/ --include="*.tsx"
+grep -rn "SafeAreaView\|useSafeAreaInsets" src/app/ src/components/ --include="*.tsx"
 
 # Find KeyboardAvoidingView without platform check
-grep -rn "KeyboardAvoidingView" app/ components/ --include="*.tsx"
+grep -rn "KeyboardAvoidingView" src/app/ src/components/ --include="*.tsx"
 
 # Find shadow styles (different on iOS vs Android)
-grep -rn "shadowColor\|shadowOffset\|elevation" app/ components/ constants/ --include="*.tsx" --include="*.ts"
+grep -rn "shadowColor\|shadowOffset\|elevation" src/app/ src/components/ src/constants/ --include="*.tsx" --include="*.ts"
 ```
 
 ### 2. Verify Platform Completeness
@@ -68,7 +68,7 @@ For each platform-specific pattern found, verify:
 
 #### Shadows
 - [ ] No direct `shadowColor`/`shadowOffset` without platform check
-- [ ] Shadow constants from `constants/shadows.ts` are used
+- [ ] Shadow constants from `src/constants/shadows.ts` are used
 - [ ] Android uses `elevation` property
 - [ ] iOS uses `shadowColor`, `shadowOffset`, `shadowOpacity`, `shadowRadius`
 
@@ -93,15 +93,15 @@ For each platform-specific pattern found, verify:
 - **Issues found:** N (X critical, Y warning)
 
 ### Critical Issues (Must Fix)
-1. `app/(tabs)/items.tsx:45` - KeyboardAvoidingView missing platform-specific
+1. `src/app/(tabs)/items.tsx:45` - KeyboardAvoidingView missing platform-specific
    behavior prop. Currently hardcoded to 'padding' which breaks on Android.
-2. `components/ui/Card.tsx:22` - Shadow styles use iOS-only properties without
+2. `src/components/ui/Card.tsx:22` - Shadow styles use iOS-only properties without
    Android elevation fallback.
 
 ### Warnings
-1. `app/(tabs)/dashboard.tsx` - No FAB on Android for the "add" action.
+1. `src/app/(tabs)/dashboard.tsx` - No FAB on Android for the "add" action.
    iOS has a header button but Android has no equivalent.
-2. `components/forms/SearchBar.tsx` - No android_ripple on Pressable.
+2. `src/components/forms/SearchBar.tsx` - No android_ripple on Pressable.
 
 ### Platform Coverage Matrix
 

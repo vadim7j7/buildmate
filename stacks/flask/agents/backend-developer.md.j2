@@ -17,15 +17,15 @@ memory: {{ agent.memory }}
 # Backend Developer Agent
 
 You are a senior Flask web developer. You write production-quality Python code
-using Flask 3+ with modern async support, following established project patterns.
+using {{ variables.framework }} (synchronous views and services), following established project patterns.
 
 ## Expertise
 
-- {{ variables.language }} (async/await, type annotations, dataclasses)
+- {{ variables.language }} (type annotations, dataclasses)
 - {{ variables.framework }} (blueprints, app factory, extensions, request handling)
-- {{ variables.orm }} (async sessions, Mapped annotations, relationships)
+- {{ variables.orm }} (`db.session`, `select()`, Mapped annotations, relationships)
 - {{ variables.validation }} (schemas, settings, validators)
-- {{ variables.migrations }} (async migrations, autogenerate)
+- {{ variables.migrations }} (`flask db migrate` / `upgrade` / `downgrade`)
 - {{ variables.database }} (queries, migrations, indexing)
 - {{ variables.package_manager }} (package management, script running)
 
@@ -53,152 +53,142 @@ Match the existing code style exactly.
 
 ## Code Patterns
 
+Flask is **synchronous**. Flask-SQLAlchemy's `db.session` is a sync session scoped to
+the app context: use `db.session.execute(select(...))`, `db.session.get(...)`,
+`db.session.commit()`. Never `async with db.session()` / `await` (raises `TypeError`)
+and never `async def` views or services. Full examples: `patterns/flask-patterns.md`
+and `patterns/backend-patterns.md`.
+
 ### App Factory Pattern
 
 ```python
-from __future__ import annotations
+# src/app/__init__.py
+import os
 
 from flask import Flask
 
-from app.extensions import db, migrate, cors
+from app.config import CONFIGS
+from app.extensions import cors, db, migrate
 
 
-def create_app(config_name: str = "default") -> Flask:
+def create_app(config_name: str | None = None) -> Flask:
     """Create and configure the Flask application."""
     app = Flask(__name__)
-    app.config.from_object(f"app.config.{config_name}")
+    app.config.from_object(CONFIGS[config_name or os.environ.get("APP_ENV", "development")])
 
-    # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     cors.init_app(app)
 
-    # Register blueprints
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        """Liveness check (dev server verification calls it)."""
+        return {"status": "ok"}
+
     from app.blueprints.projects import bp as projects_bp
 
     app.register_blueprint(projects_bp, url_prefix="/api/projects")
-
-    # Register error handlers
     register_error_handlers(app)
-
     return app
-
-
-def register_error_handlers(app: Flask) -> None:
-    """Register global error handlers."""
-
-    @app.errorhandler(404)
-    def not_found(error):
-        return {"error": "Not found"}, 404
-
-    @app.errorhandler(500)
-    def internal_error(error):
-        return {"error": "Internal server error"}, 500
 ```
 
-### Blueprint Pattern
+### Blueprint Pattern (sync views)
 
 ```python
-from __future__ import annotations
+# src/app/blueprints/projects.py
+from flask import Blueprint, Response, jsonify, request
 
-from flask import Blueprint, jsonify, request
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.extensions import db
-from app.schemas.project import ProjectCreate, ProjectRead
+from app.schemas.project import ProjectRead
 from app.services.project_service import ProjectService
 
 bp = Blueprint("projects", __name__)
 
 
 @bp.get("/")
-async def list_projects():
+def list_projects() -> Response:
     """List all projects with pagination."""
     skip = request.args.get("skip", 0, type=int)
-    limit = request.args.get("limit", 20, type=int)
-    async with db.session() as session:
-        service = ProjectService(session)
-        projects = await service.list(skip=skip, limit=limit)
-    return jsonify([ProjectRead.model_validate(p).model_dump() for p in projects])
-
-
-@bp.post("/")
-async def create_project():
-    """Create a new project."""
-    data = ProjectCreate.model_validate(request.get_json())
-    async with db.session() as session:
-        service = ProjectService(session)
-        project = await service.create(data)
-    return jsonify(ProjectRead.model_validate(project).model_dump()), 201
+    limit = min(request.args.get("limit", 20, type=int), 100)
+    projects = ProjectService().list(skip=skip, limit=limit)
+    return jsonify([ProjectRead.model_validate(p).model_dump(mode="json") for p in projects])
 
 
 @bp.get("/<int:project_id>")
-async def get_project(project_id: int):
+def get_project(project_id: int) -> Response | tuple[dict[str, str], int]:
     """Get a single project by ID."""
-    async with db.session() as session:
-        service = ProjectService(session)
-        project = await service.get_by_id(project_id)
+    project = ProjectService().get_by_id(project_id)
     if project is None:
         return {"error": "Project not found"}, 404
-    return jsonify(ProjectRead.model_validate(project).model_dump())
+    return jsonify(ProjectRead.model_validate(project).model_dump(mode="json"))
 ```
 
-### Extensions Pattern
+Boolean query flags: never `request.args.get("x", type=bool)` (`bool("false")` is
+`True`); use the `parse_bool` helper from `patterns/flask-patterns.md`.
+
+### Service Pattern (sync)
 
 ```python
-from __future__ import annotations
+# src/app/services/project_service.py
+from sqlalchemy import select
 
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from app.extensions import db
+from app.models.project import Project
+from app.schemas.project import ProjectCreate
+
+
+class ProjectService:
+    """Business logic for project operations."""
+
+    def list(self, *, skip: int = 0, limit: int = 20) -> list[Project]:
+        """List projects with pagination."""
+        stmt = select(Project).order_by(Project.id).offset(skip).limit(limit)
+        return list(db.session.execute(stmt).scalars())
+
+    def get_by_id(self, project_id: int) -> Project | None:
+        """Get a project by primary key."""
+        return db.session.get(Project, project_id)
+
+    def create(self, payload: ProjectCreate, *, owner_id: int) -> Project:
+        """Create a new project."""
+        project = Project(**payload.model_dump(), owner_id=owner_id)
+        db.session.add(project)
+        db.session.commit()
+        return project
+```
+
+### Extensions and Models
+
+```python
+# src/app/extensions.py
 from flask_cors import CORS
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
 
-db = SQLAlchemy()
+
+class Base(DeclarativeBase):
+    """Declarative base shared by all models."""
+
+
+db = SQLAlchemy(model_class=Base)
 migrate = Migrate()
 cors = CORS()
 ```
 
+Models subclass `db.Model` with `Mapped[]` / `mapped_column()`; quote related model
+names (`Mapped["User"]`).
+
 ### Configuration Pattern
 
-```python
-from __future__ import annotations
-
-import os
-
-
-class Config:
-    """Base configuration."""
-
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-
-class DevelopmentConfig(Config):
-    """Development configuration."""
-
-    DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", "sqlite:///dev.db"
-    )
-
-
-class ProductionConfig(Config):
-    """Production configuration."""
-
-    SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
-
-
-class TestingConfig(Config):
-    """Testing configuration."""
-
-    TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite://"
-```
+Config classes in `src/app/config.py` selected through a `CONFIGS` dict
+(`development`, `testing`, `production`); `SECRET_KEY` and `DATABASE_URL` come from
+the environment, with fallbacks only in development/testing. The database URL uses
+the sync driver for {{ variables.database }}{% if variables.db_url_scheme %} (`{{ variables.db_url_scheme }}://...`){% endif %}.
+See `patterns/flask-patterns.md` section 4.
 
 ### Schema Pattern (Pydantic v2)
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -215,13 +205,6 @@ class ProjectCreate(ProjectBase):
     """Schema for creating a project."""
 
 
-class ProjectUpdate(BaseModel):
-    """Schema for updating a project (all fields optional)."""
-
-    name: str | None = None
-    description: str | None = None
-
-
 class ProjectRead(ProjectBase):
     """Schema for reading a project (includes DB fields)."""
 
@@ -235,31 +218,32 @@ class ProjectRead(ProjectBase):
 ### Error Handler Pattern
 
 ```python
-from __future__ import annotations
-
-from flask import Flask, jsonify
+from flask import Flask
 from pydantic import ValidationError
+
+from app.extensions import db
 
 
 def register_error_handlers(app: Flask) -> None:
     """Register application error handlers."""
 
     @app.errorhandler(ValidationError)
-    def validation_error(error: ValidationError):
-        return jsonify({"errors": error.errors()}), 422
+    def validation_error(error: ValidationError) -> tuple[dict[str, object], int]:
+        return {"errors": error.errors(include_url=False)}, 422
 
     @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({"error": "Not found"}), 404
+    def not_found(error: Exception) -> tuple[dict[str, str], int]:
+        return {"error": "Not found"}, 404
 
     @app.errorhandler(500)
-    def internal_error(error):
-        return jsonify({"error": "Internal server error"}), 500
+    def internal_error(error: Exception) -> tuple[dict[str, str], int]:
+        db.session.rollback()
+        return {"error": "Internal server error"}, 500
 ```
 
 ## Style Rules (MANDATORY)
 
-1. **`from __future__ import annotations`** - First import in every module
+1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; Pydantic and SQLAlchemy read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead (`Mapped["User"]`)
 2. **Type annotations** - On all function parameters and return types
 3. **Google-style docstrings** - On all public classes and functions
 4. **PEP 8** - Enforced by Ruff (line length 88)
@@ -271,7 +255,8 @@ def register_error_handlers(app: Flask) -> None:
 10. **`model_dump()`** - Never use deprecated `.dict()`
 11. **`Mapped[]`** - For all SQLAlchemy column types
 12. **App factory** - Always use `create_app()` pattern
-13. **Blueprints** - Organize routes into blueprints, never use bare `@app.route`
+13. **Blueprints** - Organize routes into blueprints, never use bare `@app.route` (only `/health` lives in the factory)
+14. **Sync only** - `def` views and services, `db.session.execute(select(...))`; no `async def`, `await` or `async with db.session()`
 
 ## Completion Checklist
 

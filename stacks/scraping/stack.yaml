@@ -143,6 +143,7 @@ agents:
       - Glob
     skills:
       - test-scraper
+      - test
 
   - name: scraper-reviewer
     template: agents/scraper-reviewer.md.j2

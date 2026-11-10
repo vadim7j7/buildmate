@@ -106,7 +106,7 @@ export default defineContentScript({
 ### 4. Verify
 
 ```bash
-npx wxt prepare && npx tsc --noEmit
+npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
 npx wxt build
 ```
 
@@ -130,4 +130,4 @@ invalidated" errors in the console).
 - [ ] `ctx.isValid` guard after every `await`
 - [ ] `ctx.onInvalidated` cleanup registered when holding resources
 - [ ] Shadow-root UI used for any injected DOM (with `--ui`)
-- [ ] `wxt prepare && tsc --noEmit` and `wxt build` pass
+- [ ] `npm run compile` and `wxt build` pass

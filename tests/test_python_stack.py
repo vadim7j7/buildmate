@@ -42,7 +42,7 @@ class TestLoadPythonStack:
         config = load_stack("python")
 
         assert config.variables["framework"] == "Python"
-        assert config.variables["language"] == "Python 3.12+"
+        assert config.variables["language"] == "Python 3.13+"
         assert config.variables["test_framework"] == "pytest"
         assert config.variables["package_manager"] == "uv"
 
@@ -203,7 +203,7 @@ class TestLoadFlaskStack:
         config = load_stack("flask")
 
         assert config.variables["framework"] == "Flask 3+"
-        assert config.variables["language"] == "Python 3.12+"
+        assert config.variables["language"] == "Python 3.13+"
         assert config.variables["test_framework"] == "pytest"
         assert config.variables["dev_port"] == 5001
 
@@ -412,7 +412,7 @@ class TestLoadFastapiRefactored:
         config = load_stack("fastapi")
 
         assert config.variables["framework"] == "FastAPI"
-        assert config.variables["language"] == "Python 3.12+"
+        assert config.variables["language"] == "Python 3.13+"
         assert "pytest" in config.variables["test_framework"]
 
     def test_fastapi_inherits_db_option(self):
@@ -505,8 +505,8 @@ class TestLoadDjango:
         """Django should have framework-specific variables."""
         config = load_stack("django")
 
-        assert config.variables["framework"] == "Django 5+"
-        assert config.variables["language"] == "Python 3.12+"  # inherited
+        assert config.variables["framework"] == "Django 5.2+"
+        assert config.variables["language"] == "Python 3.13+"  # inherited
         assert config.variables["orm"] == "Django ORM"
 
     def test_django_inherits_db_option(self):

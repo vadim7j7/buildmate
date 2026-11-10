@@ -13,9 +13,9 @@ Generates a new Zustand store following project conventions. Stores hold
 ## Usage
 
 ```
-/new-store budget            # stores/useBudgetStore.ts
-/new-store transactionFilter # stores/useTransactionFilterStore.ts
-/new-store app               # stores/useAppStore.ts
+/new-store budget            # src/stores/useBudgetStore.ts
+/new-store transactionFilter # src/stores/useTransactionFilterStore.ts
+/new-store app               # src/stores/useAppStore.ts
 ```
 
 ## Arguments
@@ -30,7 +30,7 @@ Generates a new Zustand store following project conventions. Stores hold
 
 Place the store at:
 ```
-stores/use<PascalCaseName>Store.ts
+src/stores/use<PascalCaseName>Store.ts
 ```
 
 ### 2. Generate the Store

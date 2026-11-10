@@ -46,7 +46,7 @@ Read these first:
 ```typescript
 // vitest.config.ts
 import { defineConfig } from 'vitest/config';
-import { WxtVitest } from 'wxt/testing';
+import { WxtVitest } from 'wxt/testing/vitest-plugin';
 
 export default defineConfig({
   plugins: [WxtVitest()],
@@ -54,12 +54,12 @@ export default defineConfig({
 ```
 {% endraw %}
 
-`WxtVitest()` auto-polyfills `import.meta.env`, the `browser` global, and in-memory storage.
+`WxtVitest()` (from `wxt/testing/vitest-plugin`) auto-polyfills `import.meta.env`, the `browser` global, and in-memory storage.
 Reset state between tests:
 
 {% raw %}
 ```typescript
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, it, expect } from 'vitest';
 
 beforeEach(() => {

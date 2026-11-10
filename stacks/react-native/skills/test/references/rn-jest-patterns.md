@@ -13,15 +13,15 @@ module.exports = {
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@shopify/flash-list)',
   ],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
+    '^@/(.*)$': '<rootDir>/src/$1', // @/ -> src/ (matches tsconfig paths)
   },
   collectCoverageFrom: [
-    'components/**/*.{ts,tsx}',
-    'app/**/*.{ts,tsx}',
-    'stores/**/*.{ts,tsx}',
-    'queries/**/*.{ts,tsx}',
-    'db/queries/**/*.{ts,tsx}',
-    'hooks/**/*.{ts,tsx}',
+    'src/components/**/*.{ts,tsx}',
+    'src/app/**/*.{ts,tsx}',
+    'src/stores/**/*.{ts,tsx}',
+    'src/queries/**/*.{ts,tsx}',
+    'src/db/queries/**/*.{ts,tsx}',
+    'src/hooks/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],

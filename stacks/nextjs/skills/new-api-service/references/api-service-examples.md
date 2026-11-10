@@ -1,27 +1,36 @@
 # API Service Examples
 
+These services are **server-only** clients for an external backend API. They are
+called from `cache()`-wrapped data functions in `src/lib/data/` (awaited by async
+Server Component pages) and from Server Actions — never from Client Components.
+Paths are relative to the server env var `API_URL`.
+
 ## Base Request Wrapper
 
 The foundation for all API services. Provides typed HTTP requests with
-consistent error handling.
+consistent error handling and forwards the signed-in user's token.
 
 ```typescript
 // src/services/request.ts
+import 'server-only';
+import { getAccessToken } from '@/lib/session'; // reads the session cookie via next/headers
 
 type RequestOptions = RequestInit & {
   params?: Record<string, string | number | boolean | undefined>;
 };
 
 /**
- * Type-safe HTTP request wrapper.
+ * Type-safe HTTP request wrapper for the backend API (server-only).
  * All API services use this function for consistent request handling.
  */
-export async function request<T>(url: string, options?: RequestOptions): Promise<T> {
+export async function request<T>(path: string, options?: RequestOptions): Promise<T> {
+  const { params, ...fetchOptions } = options ?? {};
+
   // Append query params if provided
-  let fullUrl = url;
-  if (options?.params) {
+  let fullUrl = `${process.env.API_URL}${path}`;
+  if (params) {
     const searchParams = new URLSearchParams();
-    Object.entries(options.params).forEach(([key, value]) => {
+    Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) {
         searchParams.append(key, String(value));
       }
@@ -32,14 +41,15 @@ export async function request<T>(url: string, options?: RequestOptions): Promise
     }
   }
 
-  const { params, ...fetchOptions } = options ?? {};
+  const token = await getAccessToken();
 
   const response = await fetch(fullUrl, {
+    ...fetchOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...fetchOptions?.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...fetchOptions.headers,
     },
-    ...fetchOptions,
   });
 
   if (!response.ok) {
@@ -69,12 +79,38 @@ export class ApiError extends Error {
 }
 ```
 
+### Using a service from a page (read) and an action (write)
+
+```typescript
+// src/lib/data/projects.ts
+import 'server-only';
+import { cache } from 'react';
+import { fetchProjectsApi, fetchProjectApi } from '@/services/projects';
+
+export const getProjects = cache((page = 1) => fetchProjectsApi({ page }));
+export const getProject = cache((id: string) => fetchProjectApi(id));
+```
+
+```typescript
+// src/app/[locale]/projects/page.tsx — async Server Component
+const projects = await getProjects();
+```
+
+```typescript
+// src/lib/actions/projects.ts — mutation: auth + Zod validation, then the service
+'use server';
+// ... const session = await requireSession(); const parsed = schema.safeParse(...);
+await createProjectApi(parsed.data);
+revalidatePath('/[locale]/projects', 'page');
+```
+
 ---
 
 ## Example 1: Projects Service (Full CRUD)
 
 ```typescript
 // src/services/projects.ts
+import 'server-only';
 import { request } from './request';
 
 // --- Types ---
@@ -119,29 +155,29 @@ type PaginatedResponse<T> = {
 
 /** Fetch paginated list of projects with optional filters */
 export const fetchProjectsApi = (params?: ProjectListParams) =>
-  request<PaginatedResponse<Project>>('/api/projects', { params });
+  request<PaginatedResponse<Project>>('/projects', { params });
 
 /** Fetch a single project by ID */
 export const fetchProjectApi = (id: string) =>
-  request<Project>(`/api/projects/${id}`);
+  request<Project>(`/projects/${id}`);
 
 /** Create a new project */
 export const createProjectApi = (data: CreateProjectPayload) =>
-  request<Project>('/api/projects', {
+  request<Project>('/projects', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 /** Update an existing project */
 export const updateProjectApi = (id: string, data: UpdateProjectPayload) =>
-  request<Project>(`/api/projects/${id}`, {
+  request<Project>(`/projects/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 
 /** Delete a project */
 export const deleteProjectApi = (id: string) =>
-  request<void>(`/api/projects/${id}`, {
+  request<void>(`/projects/${id}`, {
     method: 'DELETE',
   });
 
@@ -156,6 +192,7 @@ export const archiveProjectApi = (id: string) =>
 
 ```typescript
 // src/services/users.ts
+import 'server-only';
 import { request } from './request';
 
 type User = {
@@ -180,33 +217,33 @@ type InviteUserPayload = {
 
 /** Fetch the current authenticated user's profile */
 export const fetchCurrentUserApi = () =>
-  request<User>('/api/users/me');
+  request<User>('/users/me');
 
 /** Update the current user's profile */
 export const updateCurrentUserApi = (data: UpdateUserPayload) =>
-  request<User>('/api/users/me', {
+  request<User>('/users/me', {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 
 /** Fetch a user by ID */
 export const fetchUserApi = (id: string) =>
-  request<User>(`/api/users/${id}`);
+  request<User>(`/users/${id}`);
 
 /** Fetch all users in the workspace */
 export const fetchUsersApi = () =>
-  request<User[]>('/api/users');
+  request<User[]>('/users');
 
 /** Invite a new user to the workspace */
 export const inviteUserApi = (data: InviteUserPayload) =>
-  request<User>('/api/users/invite', {
+  request<User>('/users/invite', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 /** Remove a user from the workspace */
 export const removeUserApi = (id: string) =>
-  request<void>(`/api/users/${id}`, {
+  request<void>(`/users/${id}`, {
     method: 'DELETE',
   });
 ```
@@ -215,8 +252,12 @@ export const removeUserApi = (id: string) =>
 
 ## Example 3: Auth Service
 
+Called from Server Actions (login/register forms), which then store the returned
+token in an httpOnly cookie. Never call these from the browser.
+
 ```typescript
 // src/services/auth.ts
+import 'server-only';
 import { request } from './request';
 
 type LoginPayload = {
@@ -250,41 +291,41 @@ type ResetPasswordPayload = {
 
 /** Authenticate with email and password */
 export const loginApi = (data: LoginPayload) =>
-  request<AuthResponse>('/api/auth/login', {
+  request<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 /** Register a new account */
 export const registerApi = (data: RegisterPayload) =>
-  request<AuthResponse>('/api/auth/register', {
+  request<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 /** End the current session */
 export const logoutApi = () =>
-  request<void>('/api/auth/logout', {
+  request<void>('/auth/logout', {
     method: 'POST',
   });
 
 /** Request a password reset email */
 export const forgotPasswordApi = (data: ForgotPasswordPayload) =>
-  request<{ message: string }>('/api/auth/forgot-password', {
+  request<{ message: string }>('/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 /** Reset password with token */
 export const resetPasswordApi = (data: ResetPasswordPayload) =>
-  request<{ message: string }>('/api/auth/reset-password', {
+  request<{ message: string }>('/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 /** Verify email with token */
 export const verifyEmailApi = (token: string) =>
-  request<{ message: string }>('/api/auth/verify-email', {
+  request<{ message: string }>('/auth/verify-email', {
     method: 'POST',
     body: JSON.stringify({ token }),
   });
@@ -303,6 +344,14 @@ import {
   updateProjectApi,
   deleteProjectApi,
 } from './projects';
+
+// `server-only` throws outside a React Server environment; stub it and the session in Jest.
+jest.mock('server-only', () => ({}));
+jest.mock('@/lib/session', () => ({
+  getAccessToken: jest.fn().mockResolvedValue('test-token'),
+}));
+
+process.env.API_URL = 'http://api.test';
 
 // Mock global fetch
 global.fetch = jest.fn();
@@ -331,9 +380,12 @@ describe('projects service', () => {
 
       expect(result).toEqual(data);
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/projects',
+        'http://api.test/projects',
         expect.objectContaining({
-          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer test-token',
+          }),
         })
       );
     });
@@ -359,7 +411,7 @@ describe('projects service', () => {
 
       expect(result).toEqual(project);
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/projects/1',
+        'http://api.test/projects/1',
         expect.any(Object)
       );
     });
@@ -381,7 +433,7 @@ describe('projects service', () => {
 
       expect(result).toEqual(created);
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/projects',
+        'http://api.test/projects',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify(payload),
@@ -398,7 +450,7 @@ describe('projects service', () => {
       await updateProjectApi('1', payload);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/projects/1',
+        'http://api.test/projects/1',
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify(payload),
@@ -419,7 +471,7 @@ describe('projects service', () => {
       await deleteProjectApi('1');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/projects/1',
+        'http://api.test/projects/1',
         expect.objectContaining({ method: 'DELETE' })
       );
     });

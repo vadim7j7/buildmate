@@ -3,23 +3,74 @@
 > **Note:** These examples use plain HTML/JSX for loading and error states.
 > Replace with components from your project's configured UI library as specified
 > in the style guides.
+>
+> **Server-first:** pages are async Server Components that `await` data from
+> `src/lib/data/` (server-only, `cache()`-wrapped). Client Components only wrap
+> interactive parts and receive data as props. Mutations are Server Actions.
+>
+> **i18n:** next-intl is scaffolded, so pages live under `src/app/[locale]/` and all copy
+> comes from `src/messages/<locale>.json` via `getTranslations` / `useTranslations`.
+>
+> **Params:** `params` and `searchParams` are Promises (Next.js 15+; sync access was
+> removed in Next.js 16). Always type them as `Promise<...>` and `await` them.
 
-## Example 1: Static Page with Metadata
-
-A simple page that delegates to a container component.
+## Example 1: List Page with Server Data
 
 ```typescript
-// src/app/projects/page.tsx
-import { Metadata } from 'next';
-import { ProjectListContainer } from '@/containers/ProjectListContainer';
+// src/app/[locale]/projects/page.tsx
+import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getProjects } from '@/lib/data/projects';
+import { ProjectList } from '@/components/projects/ProjectList';
+import { DeleteProjectButton } from '@/components/projects/DeleteProjectButton';
+import { Link } from '@/i18n/navigation';
 
-export const metadata: Metadata = {
-  title: 'Projects',
-  description: 'View and manage your projects',
+type PageProps = {
+  params: Promise<{ locale: string }>;
 };
 
-export default function ProjectsPage() {
-  return <ProjectListContainer />;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'projects' });
+  return { title: t('title'), description: t('description') };
+}
+
+export default async function ProjectsPage({ params }: PageProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations('projects');
+  const projects = await getProjects();
+
+  return (
+    <section className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-bold">{t('title')}</h1>
+        <Link href="/projects/new" className="btn btn-primary">{t('new')}</Link>
+      </div>
+      {projects.length === 0 ? (
+        <p>{t('empty')}</p>
+      ) : (
+        // ProjectList is a Server Component; only the delete button is a client island.
+        <ProjectList
+          projects={projects}
+          renderActions={(project) => <DeleteProjectButton projectId={project.id} />}
+        />
+      )}
+    </section>
+  );
+}
+```
+
+```json
+// src/messages/en.json (add the same keys to every locale file)
+{
+  "projects": {
+    "title": "Projects",
+    "description": "View and manage your projects",
+    "new": "New project",
+    "empty": "No projects yet."
+  }
 }
 ```
 
@@ -27,28 +78,27 @@ export default function ProjectsPage() {
 
 ## Example 2: Dynamic Route with generateMetadata
 
-A page that uses URL params and generates dynamic metadata.
-
 ```typescript
-// src/app/projects/[id]/page.tsx
-import { Metadata } from 'next';
+// src/app/[locale]/projects/[id]/page.tsx
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ProjectDetailContainer } from '@/containers/ProjectDetailContainer';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getProject } from '@/lib/data/projects';
+import { ProjectDetail } from '@/components/projects/ProjectDetail';
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ locale: string; id: string }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const res = await fetch(`${process.env.API_URL}/projects/${params.id}`, {
-    next: { revalidate: 60 },
-  });
+  const { locale, id } = await params;
+  const project = await getProject(id); // cache() dedupes with the page's call
 
-  if (!res.ok) {
-    return { title: 'Project Not Found' };
+  if (!project) {
+    const t = await getTranslations({ locale, namespace: 'projects' });
+    return { title: t('notFound') };
   }
 
-  const project = await res.json();
   return {
     title: project.name,
     description: project.description,
@@ -59,86 +109,95 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default function ProjectDetailPage({ params }: PageProps) {
-  return <ProjectDetailContainer id={params.id} />;
+export default async function ProjectDetailPage({ params }: PageProps) {
+  const { locale, id } = await params;
+  setRequestLocale(locale);
+
+  const project = await getProject(id);
+  if (!project) notFound();
+
+  return <ProjectDetail project={project} />;
 }
 ```
 
 ---
 
-## Example 3: Server-Side Data Fetching Page
-
-A page that fetches data on the server and passes it to a presentational component.
+## Example 3: Authenticated Page with searchParams
 
 ```typescript
-// src/app/dashboard/page.tsx
-import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
+// src/app/[locale]/dashboard/page.tsx
+import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
+import { auth } from '@/auth';
+import { getDashboardData } from '@/lib/data/dashboard';
 import { Dashboard } from '@/components/Dashboard';
 
-export const metadata: Metadata = {
-  title: 'Dashboard',
-  description: 'Your project dashboard',
+type PageProps = {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ range?: string }>;
 };
 
-async function getDashboardData(userId: string) {
-  const res = await fetch(`${process.env.API_URL}/dashboard/${userId}`, {
-    next: { revalidate: 300 },
-  });
-  if (!res.ok) throw new Error('Failed to load dashboard');
-  return res.json();
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'dashboard' });
+  return { title: t('title') };
 }
 
-export default async function DashboardPage() {
-  const session = await getServerSession();
+export default async function DashboardPage({ params, searchParams }: PageProps) {
+  const { locale } = await params;
+  const { range = '30d' } = await searchParams;
+  setRequestLocale(locale);
+
+  const session = await auth();
   if (!session?.user) {
-    redirect('/login');
+    redirect({ href: '/login', locale });
   }
 
-  const data = await getDashboardData(session.user.id);
+  const data = await getDashboardData(session.user.id, range);
   return <Dashboard data={data} user={session.user} />;
 }
 ```
 
----
-
-## Example 4: Page with Loading and Error States
-
-Complete set of files for a route with loading and error handling.
-
 ```typescript
-// src/app/projects/page.tsx
-import { Metadata } from 'next';
-import { ProjectListContainer } from '@/containers/ProjectListContainer';
+// src/lib/data/dashboard.ts
+import 'server-only';
+import { cache } from 'react';
 
-export const metadata: Metadata = {
-  title: 'Projects',
-  description: 'Browse all projects',
-};
-
-export default function ProjectsPage() {
-  return <ProjectListContainer />;
-}
+export const getDashboardData = cache(async (userId: string, range: string) => {
+  const res = await fetch(`${process.env.API_URL}/dashboard/${userId}?range=${range}`, {
+    next: { revalidate: 300 },
+  });
+  if (!res.ok) throw new Error('Failed to load dashboard');
+  return res.json();
+});
 ```
 
+---
+
+## Example 4: Loading and Error States
+
 ```typescript
-// src/app/projects/loading.tsx
-export default function ProjectsLoading() {
+// src/app/[locale]/projects/loading.tsx
+import { getTranslations } from 'next-intl/server';
+
+export default async function ProjectsLoading() {
+  const t = await getTranslations('projects');
   return (
     <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-      <div className="spinner" aria-label="Loading" />
-      <p className="text-gray-500">Loading projects...</p>
+      <div className="spinner" role="status" aria-busy="true" />
+      <p className="text-gray-500">{t('loading')}</p>
     </div>
   );
 }
 ```
 
 ```typescript
-// src/app/projects/error.tsx
+// src/app/[locale]/projects/error.tsx
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 export default function ProjectsError({
   error,
@@ -147,6 +206,8 @@ export default function ProjectsError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations('projects');
+
   useEffect(() => {
     console.error('Projects page error:', error);
   }, [error]);
@@ -154,11 +215,10 @@ export default function ProjectsError({
   return (
     <div className="flex flex-col items-center gap-4 mt-12">
       <div role="alert" className="alert alert-error max-w-lg">
-        <h3>Failed to load projects</h3>
-        <p className="text-sm">{error.message}</p>
+        <h3>{t('loadFailed')}</h3>
       </div>
       <button onClick={reset} className="btn btn-outline">
-        Try again
+        {t('retry')}
       </button>
     </div>
   );
@@ -167,40 +227,60 @@ export default function ProjectsError({
 
 ---
 
-## Example 5: Form Page (Create/Edit)
+## Example 5: Form Pages (Create/Edit)
 
-A page for creating or editing a resource.
+The page is a Server Component; the form is a client island bound to a Server Action.
 
 ```typescript
-// src/app/projects/new/page.tsx
-import { Metadata } from 'next';
-import { CreateProjectContainer } from '@/containers/CreateProjectContainer';
+// src/app/[locale]/projects/new/page.tsx
+import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
 
-export const metadata: Metadata = {
-  title: 'New Project',
-  description: 'Create a new project',
+type PageProps = {
+  params: Promise<{ locale: string }>;
 };
 
-export default function NewProjectPage() {
-  return <CreateProjectContainer />;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'projects' });
+  return { title: t('newTitle') };
+}
+
+export default async function NewProjectPage({ params }: PageProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  return <CreateProjectForm />;
 }
 ```
 
 ```typescript
-// src/app/projects/[id]/edit/page.tsx
-import { Metadata } from 'next';
-import { EditProjectContainer } from '@/containers/EditProjectContainer';
+// src/app/[locale]/projects/[id]/edit/page.tsx
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getProject } from '@/lib/data/projects';
+import { EditProjectForm } from '@/components/projects/EditProjectForm';
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ locale: string; id: string }>;
 };
 
-export const metadata: Metadata = {
-  title: 'Edit Project',
-};
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'projects' });
+  return { title: t('editTitle') };
+}
 
-export default function EditProjectPage({ params }: PageProps) {
-  return <EditProjectContainer id={params.id} />;
+export default async function EditProjectPage({ params }: PageProps) {
+  const { locale, id } = await params;
+  setRequestLocale(locale);
+
+  const project = await getProject(id);
+  if (!project) notFound();
+
+  // Fetched on the server, passed to the client form as props.
+  return <EditProjectForm project={project} />;
 }
 ```
 
@@ -208,30 +288,41 @@ export default function EditProjectPage({ params }: PageProps) {
 
 ## Example 6: Route Group for Authentication
 
-Using route groups to organize auth pages without affecting the URL.
+Route groups organize pages without affecting the URL.
 
 ```typescript
-// src/app/(auth)/login/page.tsx
-import { Metadata } from 'next';
-import { LoginContainer } from '@/containers/LoginContainer';
+// src/app/[locale]/(auth)/login/page.tsx
+import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { LoginForm } from '@/components/auth/LoginForm';
 
-export const metadata: Metadata = {
-  title: 'Sign In',
-  description: 'Sign in to your account',
+type PageProps = {
+  params: Promise<{ locale: string }>;
 };
 
-export default function LoginPage() {
-  return <LoginContainer />;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'auth.login' });
+  return { title: t('title') };
+}
+
+export default async function LoginPage({ params }: PageProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  return <LoginForm />;
 }
 ```
 
 ```typescript
-// src/app/(auth)/layout.tsx
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+// src/app/[locale]/(auth)/layout.tsx
+import { getTranslations } from 'next-intl/server';
+
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const t = await getTranslations('common');
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-[420px] p-8 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center mb-6">My App</h2>
+      <div className="w-full max-w-[420px] p-8 bg-white rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center mb-6">{t('appName')}</h2>
         {children}
       </div>
     </div>
@@ -243,21 +334,19 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
 ## Example 7: Not Found Page
 
-Custom 404 page.
-
 ```typescript
-// src/app/not-found.tsx
-import Link from 'next/link';
+// src/app/[locale]/not-found.tsx
+import { getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getTranslations('notFound');
   return (
     <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
       <h1 className="text-4xl font-bold">404</h1>
-      <p className="text-lg text-gray-500">
-        The page you are looking for does not exist.
-      </p>
+      <p className="text-lg text-gray-500">{t('message')}</p>
       <Link href="/" className="btn btn-outline">
-        Go home
+        {t('home')}
       </Link>
     </div>
   );

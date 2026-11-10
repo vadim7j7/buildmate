@@ -55,13 +55,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// setupApp mirrors cmd/server/main.go: register the same StructValidator,
+// otherwise c.Bind() skips validation and "missing name" returns 201.
 func setupApp(handler *UserHandler) *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		StructValidator: structValidator{v: validator.New()},
+	})
 	app.Get("/users", handler.List)
 	app.Post("/users", handler.Create)
 	app.Get("/users/:id", handler.GetByID)
@@ -127,7 +131,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,7 +150,7 @@ func TestAuthMiddleware(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			app := fiber.New()
 			app.Use(AuthMiddleware())
-			app.Get("/test", func(c *fiber.Ctx) error {
+			app.Get("/test", func(c fiber.Ctx) error {
 				return c.SendStatus(http.StatusOK)
 			})
 
@@ -165,7 +169,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 ## Test Style Rules
 
-1. **`app.Test(req)`** - Use Fiber's built-in test method
+1. **`app.Test(req)`** - Use Fiber's built-in test method (v3 default timeout is 1s; pass `fiber.TestConfig{Timeout: 0}` for slow handlers)
 2. **Table-driven tests** - Use `[]struct` with `t.Run`
 3. **`_test` package** - Use separate test package
 4. **testify/require** - For fatal assertions

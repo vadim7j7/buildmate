@@ -1,3 +1,8 @@
+---
+name: new-scraper
+description: Generate a standalone HTTP or browser-based scraper (Python or Node.js) with extractor, pipeline and tests
+---
+
 # /new-scraper
 
 Generate a standalone scraper for HTTP-based or browser-based data extraction.
@@ -22,7 +27,8 @@ Generate a standalone scraper for HTTP-based or browser-based data extraction.
 
 ## Generated Files
 
-{% if variables.language == 'Python' %}
+**Python:**
+
 ```
 scrapers/
 ├── scrapers/
@@ -142,7 +148,8 @@ class {{ Name }}BrowserScraper:
         """
 ```
 
-{% else %}
+**Node.js:**
+
 ```
 scrapers/
 ├── src/
@@ -257,7 +264,6 @@ export class {{ Name }}BrowserScraper {
   }
 }
 ```
-{% endif %}
 
 ## Implementation Steps
 

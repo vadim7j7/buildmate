@@ -16,9 +16,9 @@ and spacing, and platform-specific considerations.
 ```
 /new-rn-component TransactionCard              # List item component
 /new-rn-component BudgetProgressBar            # UI primitive
-/new-rn-component FilterChip --dir=ui          # In components/ui/
-/new-rn-component CategoryBadge --dir=lists    # In components/lists/
-/new-rn-component LoginForm --dir=forms        # In components/forms/
+/new-rn-component FilterChip --dir=ui          # In src/components/ui/
+/new-rn-component CategoryBadge --dir=lists    # In src/components/lists/
+/new-rn-component LoginForm --dir=forms        # In src/components/forms/
 ```
 
 ## Arguments
@@ -26,7 +26,7 @@ and spacing, and platform-specific considerations.
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `name`   | Yes      | Component name in PascalCase (e.g., `TransactionCard`) |
-| `--dir`  | No       | Subdirectory under `components/`. Default: `ui` |
+| `--dir`  | No       | Subdirectory under `src/components/`. Default: `ui` |
 
 ## How It Works
 
@@ -34,7 +34,7 @@ and spacing, and platform-specific considerations.
 
 Place the component file at:
 ```
-components/<dir>/<ComponentName>.tsx
+src/components/<dir>/<ComponentName>.tsx
 ```
 
 Default directory is `ui`. Common directories:

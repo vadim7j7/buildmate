@@ -94,8 +94,8 @@ def verifier_for(stack: StackConfig) -> str | None:
     Return the verifier agent for a stack, based on its developer agent's role.
 
     A stack whose developer is ``backend-developer`` gets ``backend-verifier``,
-    and so on. Stacks with verification disabled, or whose developer role has
-    no verifier (extension, scraper), get None.
+    and so on. Stacks with verification disabled or no dev server command, or
+    whose developer role has no verifier (extension, scraper), get None.
 
     Args:
         stack: Stack configuration
@@ -104,6 +104,10 @@ def verifier_for(stack: StackConfig) -> str | None:
         Verifier agent name, or None
     """
     if stack.verification.get("enabled") is False:
+        return None
+    # Nothing to verify against without a dev server (e.g. a parent stack
+    # like javascript or python used on its own for a library or CLI)
+    if not (stack.verification.get("dev_server") or {}).get("command"):
         return None
     for agent in stack.agents:
         if agent.name.endswith("-developer"):

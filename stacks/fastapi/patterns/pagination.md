@@ -11,8 +11,6 @@ Pagination patterns for FastAPI with async SQLAlchemy.
 ```python
 """Pagination dependency for list endpoints."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Annotated, Generic, TypeVar
 
@@ -68,8 +66,6 @@ class PaginationMeta(BaseModel):
 
 ```python
 """Posts router with pagination."""
-
-from __future__ import annotations
 
 from typing import Annotated
 
@@ -131,8 +127,6 @@ async def list_posts(
 
 ```python
 """Cursor-based pagination for large datasets."""
-
-from __future__ import annotations
 
 import base64
 import json
@@ -199,8 +193,6 @@ def decode_cursor(cursor: str) -> dict | None:
 
 ```python
 """Posts router with cursor pagination."""
-
-from __future__ import annotations
 
 from typing import Annotated
 
@@ -272,8 +264,6 @@ async def get_feed(
 
 ```python
 """Paginated service for reusable pagination logic."""
-
-from __future__ import annotations
 
 from typing import Generic, TypeVar
 
@@ -355,8 +345,6 @@ async def list_posts(
 ```python
 """Posts router with filtering and pagination."""
 
-from __future__ import annotations
-
 from datetime import date
 from typing import Annotated
 
@@ -422,8 +410,6 @@ async def list_posts(
 ```python
 """Using fastapi-pagination library."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends
 from fastapi_pagination import Page, add_pagination
 from fastapi_pagination.ext.sqlalchemy import paginate
@@ -456,8 +442,6 @@ add_pagination(app)
 
 ```python
 """Pagination with Link headers."""
-
-from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import func, select
@@ -521,8 +505,6 @@ async def list_posts(
 
 ```python
 """Tests for pagination."""
-
-from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient

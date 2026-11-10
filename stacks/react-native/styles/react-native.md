@@ -176,7 +176,6 @@ import { FlashList } from '@shopify/flash-list';
 <FlashList
   data={items}
   renderItem={({ item }) => <ItemCard item={item} />}
-  estimatedItemSize={72}
   onRefresh={refetch}
   refreshing={isRefreshing}
   ListEmptyComponent={<EmptyState message={t('items.empty')} />}
@@ -196,7 +195,7 @@ import { FlashList } from '@shopify/flash-list';
 ```
 
 Rules:
-- **Always** set `estimatedItemSize` (height of a typical item in pixels)
+- FlashList v2: do **not** pass `estimatedItemSize` (removed — v2 measures items); use `getItemType` for mixed rows, the `masonry` prop instead of `MasonryFlashList`
 - Extract `renderItem` into a named component -- no anonymous functions
 - Use `ListEmptyComponent` for empty state (only when not loading)
 - Use `onRefresh` + `refreshing` for pull-to-refresh

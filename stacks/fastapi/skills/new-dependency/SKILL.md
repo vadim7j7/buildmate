@@ -34,7 +34,6 @@ functions and class-based dependencies with `__call__`.
    - Whether it's cacheable or per-request
 
 3. **Generate the dependency file.** Create the dependency with:
-   - `from __future__ import annotations`
    - `Depends` import from FastAPI
    - `Annotated` types for cleaner signatures
    - Generator pattern for cleanup (if needed)
@@ -69,8 +68,6 @@ For `/new-dependency pagination`:
 **Dependency:** `src/app/dependencies/pagination.py`
 ```python
 """Pagination dependency for list endpoints."""
-
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Annotated
@@ -139,17 +136,14 @@ For `/new-dependency current_user`:
 ```python
 """Authentication dependencies for protected routes."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.services.auth_service import AuthService, get_auth_service
 
-if TYPE_CHECKING:
-    from app.models.user import User
+from app.models.user import User
 
 security = HTTPBearer()
 

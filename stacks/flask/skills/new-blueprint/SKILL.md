@@ -31,16 +31,16 @@ service class, Pydantic schemas, and a test file. Registers the blueprint in the
    - `blog/posts` becomes `/api/blog/posts` prefix in `src/app/blueprints/blog/posts.py`
 
 3. **Generate the blueprint file.** Create the blueprint with:
-   - `from __future__ import annotations`
    - `Blueprint` with name
+   - Sync `def` view functions
    - CRUD routes: list, create, get, update, delete
    - Pydantic validation on request bodies
    - Service delegation for business logic
    - Type annotations and docstrings
 
 4. **Generate the service file.** Create the service class with:
-   - Async methods for all CRUD operations
-   - Session injection via constructor
+   - Sync methods for all CRUD operations (no `async def`)
+   - Queries via `db.session.execute(select(...))` / `db.session.get(...)`
    - Type annotations and docstrings
 
 5. **Generate the schema file.** Create Pydantic v2 schemas:

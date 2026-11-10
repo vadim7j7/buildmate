@@ -5,7 +5,7 @@
 A simple store for filter and sort UI state.
 
 ```typescript
-// stores/useTransactionFilterStore.ts
+// src/stores/useTransactionFilterStore.ts
 import { create } from 'zustand';
 
 // 1. Define the state interface (state + actions)
@@ -74,7 +74,7 @@ export const useIsFilterVisible = () =>
 A store for global app state like theme, locale, and onboarding.
 
 ```typescript
-// stores/useAppStore.ts
+// src/stores/useAppStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -142,7 +142,7 @@ export const useHasCompletedOnboarding = () =>
 A store for holding form draft state before submission.
 
 ```typescript
-// stores/useBudgetFormStore.ts
+// src/stores/useBudgetFormStore.ts
 import { create } from 'zustand';
 
 interface BudgetFormState {
@@ -210,7 +210,7 @@ export function validateBudgetForm(state: Pick<BudgetFormState, 'name' | 'amount
 A store for managing multi-select state in a list.
 
 ```typescript
-// stores/useSelectionStore.ts
+// src/stores/useSelectionStore.ts
 import { create } from 'zustand';
 
 interface SelectionState {

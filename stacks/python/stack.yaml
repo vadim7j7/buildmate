@@ -37,8 +37,8 @@ options:
           - patterns/mongodb.md
         variables:
           database: MongoDB
-          db_adapter: motor
-          orm: Motor + Beanie
+          db_adapter: pymongo (AsyncMongoClient)
+          orm: Beanie (on PyMongo Async API)
 
 agents:
   - name: backend-developer
@@ -124,7 +124,7 @@ setup:
 
 variables:
   framework: Python
-  language: Python 3.12+
+  language: Python 3.13+
   test_framework: pytest
   orm: SQLAlchemy 2.0 (async)
   validation: Pydantic v2

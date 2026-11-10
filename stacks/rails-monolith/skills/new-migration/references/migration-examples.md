@@ -10,7 +10,7 @@ and proper use of indices, constraints, and JSONB columns.
 ```ruby
 # frozen_string_literal: true
 
-class AddRoleToProfiles < ActiveRecord::Migration[7.1]
+class AddRoleToProfiles < ActiveRecord::Migration[8.0]
   def change
     add_column :profiles, :role, :integer, default: 0, null: false
     add_index :profiles, :role
@@ -24,7 +24,7 @@ end
 # frozen_string_literal: true
 
 # Role values: member (0), admin (1), owner (2)
-class AddRoleToProfiles < ActiveRecord::Migration[7.1]
+class AddRoleToProfiles < ActiveRecord::Migration[8.0]
   def change
     add_column :profiles, :role, :integer, default: 0, null: false
     add_index :profiles, :role
@@ -39,7 +39,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class CreateExperiences < ActiveRecord::Migration[7.1]
+class CreateExperiences < ActiveRecord::Migration[8.0]
   def change
     create_table :experiences do |t|
       t.references :profile, null: false, foreign_key: true, index: true
@@ -64,7 +64,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class AddIndexToProfilesEmail < ActiveRecord::Migration[7.1]
+class AddIndexToProfilesEmail < ActiveRecord::Migration[8.0]
   def change
     add_index :profiles, :email, unique: true
   end
@@ -76,7 +76,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class AddCompositeIndexToProfileSkills < ActiveRecord::Migration[7.1]
+class AddCompositeIndexToProfileSkills < ActiveRecord::Migration[8.0]
   def change
     add_index :profile_skills, [:profile_id, :skill_id], unique: true
   end
@@ -92,7 +92,7 @@ For tables with millions of rows, add indices concurrently to avoid locking.
 ```ruby
 # frozen_string_literal: true
 
-class AddIndexToProfilesEmailConcurrently < ActiveRecord::Migration[7.1]
+class AddIndexToProfilesEmailConcurrently < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def change
@@ -108,7 +108,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class AddMetadataToCompanies < ActiveRecord::Migration[7.1]
+class AddMetadataToCompanies < ActiveRecord::Migration[8.0]
   def change
     add_column :companies, :metadata, :jsonb, default: {}, null: false
     add_index :companies, :metadata, using: :gin
@@ -123,7 +123,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class AddCompanyToProfiles < ActiveRecord::Migration[7.1]
+class AddCompanyToProfiles < ActiveRecord::Migration[8.0]
   def change
     add_reference :profiles, :company, foreign_key: true, index: true
   end
@@ -137,7 +137,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class RemoveBioFromProfiles < ActiveRecord::Migration[7.1]
+class RemoveBioFromProfiles < ActiveRecord::Migration[8.0]
   def change
     remove_column :profiles, :bio, :text
   end
@@ -160,7 +160,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class RemoveLegacyBioFromProfiles < ActiveRecord::Migration[7.1]
+class RemoveLegacyBioFromProfiles < ActiveRecord::Migration[8.0]
   def change
     safety_assured { remove_column :profiles, :legacy_bio, :text }
   end
@@ -174,7 +174,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class RenameDescriptionToSummaryInExperiences < ActiveRecord::Migration[7.1]
+class RenameDescriptionToSummaryInExperiences < ActiveRecord::Migration[8.0]
   def change
     rename_column :experiences, :description, :summary
   end
@@ -190,7 +190,7 @@ For adding a NOT NULL column to a table with existing data:
 ```ruby
 # frozen_string_literal: true
 
-class AddStatusToImports < ActiveRecord::Migration[7.1]
+class AddStatusToImports < ActiveRecord::Migration[8.0]
   def change
     add_column :imports, :status, :integer
 
@@ -214,7 +214,7 @@ end
 ```ruby
 # frozen_string_literal: true
 
-class CreateProfileSkills < ActiveRecord::Migration[7.1]
+class CreateProfileSkills < ActiveRecord::Migration[8.0]
   def change
     create_table :profile_skills do |t|
       t.references :profile, null: false, foreign_key: true

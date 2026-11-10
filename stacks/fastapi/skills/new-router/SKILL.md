@@ -31,7 +31,6 @@ service class, Pydantic schemas, and a test file.
    - `blog/posts` becomes `/blog/posts` prefix in `src/app/routers/blog/posts.py`
 
 3. **Generate the router file.** Create the router with:
-   - `from __future__ import annotations`
    - `APIRouter` with prefix and tags
    - CRUD endpoints: list, create, get, update, delete
    - Dependency injection for `AsyncSession`

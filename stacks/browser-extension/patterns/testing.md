@@ -9,7 +9,7 @@ up `import.meta.env`, the `browser` global, and in-memory storage, and
 ```typescript
 // vitest.config.ts
 import { defineConfig } from 'vitest/config';
-import { WxtVitest } from 'wxt/testing';
+import { WxtVitest } from 'wxt/testing/vitest-plugin';
 
 export default defineConfig({
   plugins: [WxtVitest()],
@@ -19,7 +19,7 @@ export default defineConfig({
 Reset the fake browser between tests so state never leaks:
 
 ```typescript
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach } from 'vitest';
 
 beforeEach(() => {
@@ -31,7 +31,7 @@ beforeEach(() => {
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { settings } from '@/utils/storage';
 
 describe('settings', () => {
@@ -51,7 +51,7 @@ describe('settings', () => {
 ## 3. Test storage migrations
 
 ```typescript
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 
 it('migrates v1 → v2', async () => {
   await storage.setItem('local:profile', { name: 'Ada', tag: 'admin' }); // v1 shape

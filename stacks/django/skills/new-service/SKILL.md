@@ -21,7 +21,9 @@ Also generates the corresponding test file.
 ## How It Works
 
 1. **Read reference patterns.** Load the service pattern from:
-   - `patterns/django-patterns.md`
+   - `patterns/backend-patterns.md` — section "2. Service Pattern" (plus
+     "3. QuerySets and Managers" and "4. Transactions")
+   - `patterns/django-patterns.md` — project layout
    - `styles/backend-python.md`
 
 2. **Determine service name.** Parse the argument to determine the class name:
@@ -30,10 +32,11 @@ Also generates the corresponding test file.
 3. **Generate the service file.** Create the service with:
    - Type annotations on all methods
    - Constructor with dependency injection
-   - Main `execute()` or `call()` method
+   - Main `execute()` method (sync `def`)
    - Private helper methods
-   - Proper exception handling with custom exceptions
-   - `@transaction.atomic` for database operations
+   - Domain exceptions in `<app>/exceptions.py`
+   - `transaction.atomic()` around multi-write operations; side effects in
+     `transaction.on_commit(...)`
    - Docstrings
 
 4. **Generate the test file.** Create the test with:

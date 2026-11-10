@@ -7,8 +7,6 @@ Patterns for testing FastAPI applications with pytest, pytest-asyncio, and httpx
 ## conftest.py Setup
 
 ```python
-from __future__ import annotations
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -19,11 +17,9 @@ from app.main import create_app
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 
-@pytest.fixture(scope="session")
-def anyio_backend():
-    return "asyncio"
-
-
+# The engine is session-scoped, so every fixture and test must run on the same
+# (session) event loop -- see asyncio_default_*_loop_scope in pyproject.toml below.
+# Otherwise asyncpg raises "attached to a different loop".
 @pytest.fixture(scope="session")
 async def engine():
     """Create a test database engine."""
@@ -68,6 +64,10 @@ async def client(test_db: AsyncSession):
 ```toml
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# pytest-asyncio 1.x: one event loop for the whole session, shared by the
+# session-scoped engine fixture and every test (required for asyncpg)
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
@@ -80,8 +80,6 @@ addopts = "-v --tb=short"
 ## Router Test Pattern (Integration)
 
 ```python
-from __future__ import annotations
-
 import pytest
 from httpx import AsyncClient
 
@@ -172,8 +170,6 @@ class TestProjectRouter:
 ## Service Test Pattern (Unit)
 
 ```python
-from __future__ import annotations
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -230,8 +226,6 @@ class TestProjectService:
 ## Parametrized Test Pattern
 
 ```python
-from __future__ import annotations
-
 import pytest
 from pydantic import ValidationError
 
@@ -265,8 +259,6 @@ class TestProjectCreateValidation:
 ## Async Fixture Patterns
 
 ```python
-from __future__ import annotations
-
 import pytest
 
 

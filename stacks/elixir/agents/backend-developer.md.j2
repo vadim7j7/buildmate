@@ -50,6 +50,26 @@ Grep for existing supervisors: Supervisor
 Match the existing code style exactly. Do not introduce new patterns unless explicitly
 instructed.
 
+## Project Setup (once per project)
+
+The lint gate (`mix credo --strict`) needs Credo, which `mix new` does not add.
+Check `mix.exs`; if it is missing, add it to `deps/0` and run `mix deps.get`:
+
+```elixir
+defp deps do
+  [
+    # ...existing deps
+    {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+    {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+  ]
+end
+```
+
+`dialyxir` is optional: it is not a quality gate (the first PLT build takes
+minutes), but if the project has it, run `mix dialyzer` before finishing work that
+changes `@spec`s. The type-check gate is `mix compile --warnings-as-errors`, which
+includes the Elixir 1.18+ compiler type checks.
+
 ## Code Patterns
 
 ### Module Pattern

@@ -3,6 +3,17 @@
 Reference patterns for Flask web application development. Agents should read this file
 before writing code to ensure consistency across the codebase.
 
+**Flask code is synchronous.** Flask-SQLAlchemy 3.1 gives a scoped, synchronous
+`db.session` bound to the app context: call `db.session.execute(...)`,
+`db.session.get(...)`, `db.session.commit()` directly. Never write
+`async with db.session()` or `await db.session...` (Flask-SQLAlchemy's session is
+not an async context manager — that raises `TypeError`), and do not write
+`async def` views or services that touch the database.
+
+Layout: `src/app/` package (`__init__.py` holds `create_app`), `tests/` at the
+project root. `.flaskenv` sets `FLASK_APP=app` so `flask run` / `flask db` find the
+factory.
+
 ---
 
 ## 1. App Factory Pattern
@@ -10,34 +21,43 @@ before writing code to ensure consistency across the codebase.
 All Flask applications use the factory pattern for testability and flexibility.
 
 ```python
-from __future__ import annotations
+# src/app/__init__.py
+import os
 
 from flask import Flask
+from pydantic import ValidationError
 
-from app.extensions import db, migrate, cors
+from app.config import CONFIGS
+from app.extensions import cors, db, migrate
 
 
-def create_app(config_name: str = "default") -> Flask:
+def create_app(config_name: str | None = None) -> Flask:
     """Create and configure the Flask application.
 
     Args:
-        config_name: Configuration class name to load.
+        config_name: Key in ``CONFIGS`` ("development", "testing", "production").
+            Defaults to the ``APP_ENV`` environment variable, then "development".
 
     Returns:
         Configured Flask application instance.
     """
     app = Flask(__name__)
-    app.config.from_object(f"app.config.{config_name}")
+    app.config.from_object(CONFIGS[config_name or os.environ.get("APP_ENV", "development")])
+    for key in ("SECRET_KEY", "SQLALCHEMY_DATABASE_URI"):
+        if not app.config.get(key):
+            raise RuntimeError(f"{key} is not configured")
 
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     cors.init_app(app)
 
-    # Register blueprints
-    register_blueprints(app)
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        """Liveness check used by the dev server verification."""
+        return {"status": "ok"}
 
-    # Register error handlers
+    register_blueprints(app)
     register_error_handlers(app)
 
     return app
@@ -54,18 +74,18 @@ def register_blueprints(app: Flask) -> None:
 
 def register_error_handlers(app: Flask) -> None:
     """Register global error handlers."""
-    from pydantic import ValidationError
 
     @app.errorhandler(ValidationError)
-    def validation_error(error: ValidationError):
-        return {"errors": error.errors()}, 422
+    def validation_error(error: ValidationError) -> tuple[dict[str, object], int]:
+        return {"errors": error.errors(include_url=False)}, 422
 
     @app.errorhandler(404)
-    def not_found(error):
+    def not_found(error: Exception) -> tuple[dict[str, str], int]:
         return {"error": "Not found"}, 404
 
     @app.errorhandler(500)
-    def internal_error(error):
+    def internal_error(error: Exception) -> tuple[dict[str, str], int]:
+        db.session.rollback()
         return {"error": "Internal server error"}, 500
 ```
 
@@ -73,22 +93,22 @@ def register_error_handlers(app: Flask) -> None:
 
 - Always use `create_app()` — never instantiate `Flask()` at module level
 - Initialize extensions with `ext.init_app(app)`, not in constructors
+- Keep the `/health` route (the dev-server verification calls it)
 - Register blueprints in a dedicated function
 - Register error handlers globally
-- Load config from class-based config objects
+- Load config from the `CONFIGS` mapping of config classes
 
 ---
 
 ## 2. Blueprint Pattern
 
 Blueprints organize routes by resource. Each blueprint lives in its own module.
+Views are plain (sync) functions.
 
 ```python
-from __future__ import annotations
+# src/app/blueprints/projects.py
+from flask import Blueprint, Response, g, jsonify, request
 
-from flask import Blueprint, jsonify, request
-
-from app.extensions import db
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from app.services.project_service import ProjectService
 
@@ -96,56 +116,45 @@ bp = Blueprint("projects", __name__)
 
 
 @bp.get("/")
-async def list_projects():
+def list_projects() -> Response:
     """List all projects with pagination."""
     skip = request.args.get("skip", 0, type=int)
-    limit = request.args.get("limit", 20, type=int)
-    async with db.session() as session:
-        service = ProjectService(session)
-        projects = await service.list(skip=skip, limit=limit)
-    return jsonify([ProjectRead.model_validate(p).model_dump() for p in projects])
+    limit = min(request.args.get("limit", 20, type=int), 100)
+    projects = ProjectService().list(skip=skip, limit=limit)
+    return jsonify([ProjectRead.model_validate(p).model_dump(mode="json") for p in projects])
 
 
 @bp.post("/")
-async def create_project():
+def create_project() -> tuple[Response, int]:
     """Create a new project."""
     data = ProjectCreate.model_validate(request.get_json())
-    async with db.session() as session:
-        service = ProjectService(session)
-        project = await service.create(data)
-    return jsonify(ProjectRead.model_validate(project).model_dump()), 201
+    project = ProjectService().create(data, owner_id=g.user.id)  # g.user set by your auth hook
+    return jsonify(ProjectRead.model_validate(project).model_dump(mode="json")), 201
 
 
 @bp.get("/<int:project_id>")
-async def get_project(project_id: int):
+def get_project(project_id: int) -> Response | tuple[dict[str, str], int]:
     """Get a single project by ID."""
-    async with db.session() as session:
-        service = ProjectService(session)
-        project = await service.get_by_id(project_id)
+    project = ProjectService().get_by_id(project_id)
     if project is None:
         return {"error": "Project not found"}, 404
-    return jsonify(ProjectRead.model_validate(project).model_dump())
+    return jsonify(ProjectRead.model_validate(project).model_dump(mode="json"))
 
 
 @bp.patch("/<int:project_id>")
-async def update_project(project_id: int):
+def update_project(project_id: int) -> Response | tuple[dict[str, str], int]:
     """Update a project by ID (partial update)."""
     data = ProjectUpdate.model_validate(request.get_json())
-    async with db.session() as session:
-        service = ProjectService(session)
-        project = await service.update(project_id, data)
+    project = ProjectService().update(project_id, data)
     if project is None:
         return {"error": "Project not found"}, 404
-    return jsonify(ProjectRead.model_validate(project).model_dump())
+    return jsonify(ProjectRead.model_validate(project).model_dump(mode="json"))
 
 
 @bp.delete("/<int:project_id>")
-async def delete_project(project_id: int):
+def delete_project(project_id: int) -> tuple[str, int] | tuple[dict[str, str], int]:
     """Delete a project by ID."""
-    async with db.session() as session:
-        service = ProjectService(session)
-        deleted = await service.delete(project_id)
-    if not deleted:
+    if not ProjectService().delete(project_id):
         return {"error": "Project not found"}, 404
     return "", 204
 ```
@@ -154,7 +163,9 @@ async def delete_project(project_id: int):
 
 - Use `Blueprint("name", __name__)` — name matches the resource
 - Use decorator shortcuts: `@bp.get()`, `@bp.post()`, `@bp.patch()`, `@bp.delete()`
-- Parse query params with `request.args.get(key, default, type=int)`
+- Views are sync `def` functions (no `async def`, no `await`)
+- Parse numeric query params with `request.args.get(key, default, type=int)`
+- Never use `type=bool` for query params (`bool("false")` is `True`); use `parse_bool` (section 5)
 - Parse JSON body with `request.get_json()`
 - Validate input with Pydantic schemas
 - Delegate business logic to service classes
@@ -163,109 +174,156 @@ async def delete_project(project_id: int):
 
 ---
 
-## 3. Extensions Pattern
+## 3. Extensions and Models
 
-Extensions are initialized as module-level singletons and connected to the app later.
+Extensions are module-level singletons connected to the app later. Flask-SQLAlchemy 3.1
+takes a SQLAlchemy 2.0 `DeclarativeBase`, so models use `Mapped[]` annotations.
 
 ```python
-from __future__ import annotations
-
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+# src/app/extensions.py
 from flask_cors import CORS
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
 
-db = SQLAlchemy()
+
+class Base(DeclarativeBase):
+    """Declarative base shared by all models."""
+
+
+db = SQLAlchemy(model_class=Base)
 migrate = Migrate()
 cors = CORS()
 ```
 
-### Extension Rules
+```python
+# src/app/models/project.py
+from datetime import datetime
+
+from sqlalchemy import ForeignKey, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.extensions import db
+
+
+class Project(db.Model):
+    """A project owned by a user."""
+
+    __tablename__ = "projects"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, default=None)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
+
+    owner: Mapped["User"] = relationship(back_populates="projects")
+
+    def __repr__(self) -> str:
+        return f"<Project {self.id} {self.name!r}>"
+```
+
+### Extension and Model Rules
 
 - Define all extensions in a single `extensions.py` module
-- Instantiate without app: `db = SQLAlchemy()`
+- Instantiate without app: `db = SQLAlchemy(model_class=Base)`
 - Connect in factory: `db.init_app(app)`
-- Import from `app.extensions` everywhere else
+- Models inherit `db.Model` and use `Mapped[]` / `mapped_column()` (never legacy `db.Column`)
+- Quote related model names (`Mapped["User"]`) — they live in other modules
+- Query with `db.session.execute(select(...))`, never the legacy `Model.query`
 
 ---
 
 ## 4. Configuration Pattern
 
-Use class-based configuration with environment variable overrides.
+Class-based configuration; secrets and the database URL come from the environment.
+Database URLs use the sync drivers: `postgresql+psycopg://...` (psycopg 3),
+`mysql+pymysql://...` or `sqlite:///...`.
 
 ```python
-from __future__ import annotations
-
+# src/app/config.py
 import os
 
 
 class Config:
-    """Base configuration."""
+    """Base configuration. Production reads everything from the environment."""
 
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
 
 class DevelopmentConfig(Config):
-    """Development configuration."""
+    """Local development."""
 
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", "sqlite:///dev.db"
-    )
-
-
-class ProductionConfig(Config):
-    """Production configuration."""
-
-    SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-not-secret")
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///dev.db")
 
 
 class TestingConfig(Config):
-    """Testing configuration."""
+    """Test runs."""
 
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    SECRET_KEY = "test-only"
+    SQLALCHEMY_DATABASE_URI = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+
+
+class ProductionConfig(Config):
+    """Production: SECRET_KEY and DATABASE_URL must be set (create_app checks)."""
+
+
+CONFIGS: dict[str, type[Config]] = {
+    "development": DevelopmentConfig,
+    "testing": TestingConfig,
+    "production": ProductionConfig,
+}
 ```
 
 ### Configuration Rules
 
-- Use class inheritance for environment-specific config
-- Read secrets from environment variables
+- Use class inheritance for environment-specific config, selected via `CONFIGS`
+- Read secrets from environment variables; no insecure fallback outside dev/test
+- Never read `os.environ["X"]` at class level (it fails on import in every environment)
 - Never hardcode credentials
-- Use `app.config.from_object()` in the factory
 
 ---
 
 ## 5. Request Handling Pattern
 
 ```python
-from __future__ import annotations
+from flask import Response, jsonify, request
 
-from flask import request
-from pydantic import ValidationError
+from app.schemas.resource import ResourceCreate, ResourceRead
+from app.services.resource_service import ResourceService
+
+TRUE_VALUES = {"1", "true", "yes", "on"}
+
+
+def parse_bool(value: str) -> bool:
+    """Parse a query-string flag: "true"/"1"/"yes"/"on" -> True, anything else False."""
+    return value.strip().lower() in TRUE_VALUES
 
 
 @bp.post("/")
-async def create_resource():
+def create_resource() -> tuple[Response, int]:
     """Create a resource with validated input."""
-    # Parse and validate JSON body
-    try:
-        data = ResourceCreate.model_validate(request.get_json())
-    except ValidationError as e:
-        return {"errors": e.errors()}, 422
+    # Parse and validate JSON body (ValidationError -> 422 via the global handler)
+    data = ResourceCreate.model_validate(request.get_json())
 
-    # Parse query parameters
-    include_details = request.args.get("details", False, type=bool)
+    # Parse query parameters. NOT type=bool: bool("false") is True.
+    include_details = request.args.get("details", default=False, type=parse_bool)
 
     # Parse headers
     api_key = request.headers.get("X-API-Key")
 
-    # Business logic via service
-    async with db.session() as session:
-        service = ResourceService(session)
-        resource = await service.create(data)
+    # Business logic via service (sync, uses db.session)
+    resource = ResourceService().create(data, include_details=include_details)
 
-    return jsonify(ResourceRead.model_validate(resource).model_dump()), 201
+    return jsonify(ResourceRead.model_validate(resource).model_dump(mode="json")), 201
 ```
 
 ---
@@ -273,30 +331,44 @@ async def create_resource():
 ## 6. Testing Pattern
 
 ```python
-from __future__ import annotations
+# tests/conftest.py
+from collections.abc import Iterator
 
 import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 
 from app import create_app
+from app.extensions import db
 
 
 @pytest.fixture
-def app():
-    """Create application for testing."""
+def app() -> Iterator[Flask]:
+    """Create the application with a fresh schema for each test."""
     app = create_app("testing")
-    yield app
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.session.remove()
+        db.drop_all()
 
 
 @pytest.fixture
 def client(app: Flask) -> FlaskClient:
     """Create test client."""
     return app.test_client()
+```
+
+```python
+# tests/blueprints/test_projects.py
+from flask.testing import FlaskClient
 
 
 class TestProjectBlueprint:
     """Tests for the projects blueprint."""
+
+    def test_health(self, client: FlaskClient) -> None:
+        assert client.get("/health").status_code == 200
 
     def test_list_projects(self, client: FlaskClient) -> None:
         response = client.get("/api/projects/")
@@ -304,13 +376,9 @@ class TestProjectBlueprint:
         assert isinstance(response.get_json(), list)
 
     def test_create_project(self, client: FlaskClient) -> None:
-        response = client.post(
-            "/api/projects/",
-            json={"name": "Test Project"},
-        )
+        response = client.post("/api/projects/", json={"name": "Test Project"})
         assert response.status_code == 201
-        data = response.get_json()
-        assert data["name"] == "Test Project"
+        assert response.get_json()["name"] == "Test Project"
 
     def test_get_project_not_found(self, client: FlaskClient) -> None:
         response = client.get("/api/projects/99999")
@@ -319,8 +387,8 @@ class TestProjectBlueprint:
 
 ### Testing Rules
 
-- Use `app.test_client()` for HTTP testing
-- Use `create_app("testing")` with test config
+- Tests are sync `def` functions (no pytest-asyncio needed)
+- Use `create_app("testing")` and `app.test_client()` for HTTP testing
+- Run DB work inside `app.app_context()`
 - Test happy paths and error cases
-- Use fixtures for app and client setup
 - Isolate tests with per-function database state

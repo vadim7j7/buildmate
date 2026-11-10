@@ -7,14 +7,11 @@ Reference examples for generating dependency injection functions.
 ```python
 """Database session dependency."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator
+from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_maker
 
@@ -50,8 +47,6 @@ Database = Annotated[AsyncSession, Depends(get_db)]
 
 ```python
 """Settings dependency with caching."""
-
-from __future__ import annotations
 
 from functools import lru_cache
 from typing import Annotated
@@ -100,8 +95,6 @@ AppSettings = Annotated[Settings, Depends(get_settings)]
 
 ```python
 """Pagination dependency for list endpoints."""
-
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Annotated
@@ -162,15 +155,12 @@ Pagination = Annotated[PaginationParams, Depends(get_pagination)]
 ```python
 """Authentication dependencies for protected routes."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-if TYPE_CHECKING:
-    from app.models.user import User
+from app.models.user import User
 
 from app.services.auth_service import AuthService, get_auth_service
 
@@ -251,8 +241,6 @@ OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 ```python
 """Admin authorization dependency."""
 
-from __future__ import annotations
-
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -297,14 +285,11 @@ AdminUser = Annotated[User, Depends(get_admin_user)]
 ```python
 """Service dependencies with class-based injection."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import Depends
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.database import Database
 
@@ -367,8 +352,6 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 ```python
 """Rate limiting dependency."""
-
-from __future__ import annotations
 
 import time
 from collections import defaultdict
@@ -444,8 +427,6 @@ RateLimited = Annotated[None, Depends(check_rate_limit)]
 
 ```python
 """Tests for pagination dependency."""
-
-from __future__ import annotations
 
 import pytest
 from fastapi import FastAPI

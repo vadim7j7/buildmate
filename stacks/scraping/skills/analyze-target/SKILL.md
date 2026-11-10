@@ -1,3 +1,8 @@
+---
+name: analyze-target
+description: Analyze a target URL's structure, rendering, APIs and anti-bot protection to plan a scraping strategy
+---
+
 # /analyze-target
 
 Analyze a target website to understand its structure and plan scraping strategy.
@@ -123,7 +128,8 @@ Crawl-delay: 2
 
 ## Extraction Code Preview
 
-{% if variables.language == 'Python' %}
+**Python:**
+
 ```python
 from bs4 import BeautifulSoup
 
@@ -135,7 +141,9 @@ def extract_product(card) -> dict:
         "image": card.select_one("img.product-image")["src"],
     }
 ```
-{% else %}
+
+**Node.js:**
+
 ```typescript
 function extractProduct(card: cheerio.Cheerio): Product {
   return {
@@ -146,7 +154,6 @@ function extractProduct(card: cheerio.Cheerio): Product {
   };
 }
 ```
-{% endif %}
 
 ## Risks and Considerations
 

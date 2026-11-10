@@ -38,7 +38,7 @@ provide a `fallback` so `getValue()` never returns `undefined`.
 
 ```typescript
 // utils/storage.ts
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 
 export interface Settings {
   theme: 'light' | 'dark';
@@ -107,7 +107,7 @@ ctx.onInvalidated(unwatch);
 ### 4. Verify
 
 ```bash
-npx wxt prepare && npx tsc --noEmit
+npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
 npx vitest run
 ```
 
@@ -115,7 +115,7 @@ Test migrations with WXT's mocked storage:
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { settings } from '@/utils/storage';
 
 describe('settings', () => {
@@ -146,4 +146,4 @@ describe('settings', () => {
 - [ ] `fallback` provided
 - [ ] `version` + `migrations` added when evolving an existing item
 - [ ] Reactive accessor (`watch`) used where state must stay in sync
-- [ ] Migration test added; `tsc --noEmit` and `vitest run` pass
+- [ ] Migration test added; `npm run compile` and `vitest run` pass

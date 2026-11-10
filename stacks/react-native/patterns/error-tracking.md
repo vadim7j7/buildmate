@@ -15,7 +15,7 @@ npx expo install @sentry/react-native
 ### Configuration
 
 ```typescript
-// lib/sentry.ts
+// src/lib/sentry.ts
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 
@@ -58,15 +58,16 @@ export function initSentry() {
   });
 }
 
-// App.tsx
+// src/app/_layout.tsx (expo-router root layout — there is no App.tsx)
+import { Stack } from 'expo-router';
 import { initSentry } from '@/lib/sentry';
 
 initSentry();
 
-export default function App() {
+export default function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={<ErrorScreen />}>
-      <AppContent />
+      <Stack />
     </Sentry.ErrorBoundary>
   );
 }
@@ -111,7 +112,7 @@ export default {
 ## 3. Error Boundary Component
 
 ```typescript
-// components/ErrorBoundary.tsx
+// src/components/ErrorBoundary.tsx
 import React from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import * as Sentry from '@sentry/react-native';
@@ -197,54 +198,42 @@ export function AppErrorBoundary({ children }: { children: React.ReactNode }) {
 ## 4. Navigation Integration
 
 ```typescript
-// lib/sentry-navigation.ts
+// src/lib/sentry-navigation.ts
+// expo-router owns the NavigationContainer — never render your own. Register
+// expo-router's container ref with Sentry instead.
 import * as Sentry from '@sentry/react-native';
-import { NavigationContainerRef } from '@react-navigation/native';
-import { useRef } from 'react';
+import { useNavigationContainerRef } from 'expo-router';
+import { useEffect } from 'react';
 
-export function useSentryNavigationIntegration() {
-  const navigationRef = useRef<NavigationContainerRef<any>>(null);
-  const routingInstrumentation = Sentry.reactNavigationIntegration({
-    routeChangeTimeoutMs: 1000,
-    enableTimeToInitialDisplay: true,
-  });
-
-  const onReady = () => {
-    if (navigationRef.current) {
-      routingInstrumentation.registerNavigationContainer(navigationRef);
-    }
-  };
-
-  return {
-    navigationRef,
-    onReady,
-    routingInstrumentation,
-  };
-}
-
-// Update Sentry init
-Sentry.init({
-  // ... other config
-  integrations: [
-    Sentry.reactNativeTracingIntegration({
-      routingInstrumentation,
-      enableNativeFramesTracking: true,
-    }),
-  ],
+export const navigationIntegration = Sentry.reactNavigationIntegration({
+  routeChangeTimeoutMs: 1000,
+  enableTimeToInitialDisplay: true,
 });
 
-// App.tsx
-function App() {
-  const { navigationRef, onReady } = useSentryNavigationIntegration();
+// In Sentry.init (src/lib/sentry.ts):
+//   integrations: [navigationIntegration],
 
-  return (
-    <NavigationContainer ref={navigationRef} onReady={onReady}>
-      <Stack.Navigator>
-        {/* screens */}
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
+export function useSentryNavigation() {
+  const ref = useNavigationContainerRef();
+
+  useEffect(() => {
+    if (ref) {
+      navigationIntegration.registerNavigationContainer(ref);
+    }
+  }, [ref]);
 }
+
+// src/app/_layout.tsx
+import { Stack } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
+import { useSentryNavigation } from '@/lib/sentry-navigation';
+
+function RootLayout() {
+  useSentryNavigation();
+  return <Stack />;
+}
+
+export default Sentry.wrap(RootLayout);
 ```
 
 ---
@@ -252,7 +241,7 @@ function App() {
 ## 5. User Context
 
 ```typescript
-// lib/sentry-user.ts
+// src/lib/sentry-user.ts
 import * as Sentry from '@sentry/react-native';
 
 interface User {
@@ -313,7 +302,7 @@ function useAuth() {
 ## 6. Custom Error Classes
 
 ```typescript
-// lib/errors.ts
+// src/lib/errors.ts
 import * as Sentry from '@sentry/react-native';
 
 export class AppError extends Error {
@@ -376,7 +365,7 @@ try {
 ## 7. API Error Handling
 
 ```typescript
-// lib/api/error-handler.ts
+// src/lib/api/error-handler.ts
 import * as Sentry from '@sentry/react-native';
 import { NetworkError, AuthError } from '@/lib/errors';
 
@@ -435,7 +424,7 @@ export async function handleApiError(
 ## 8. Performance Monitoring
 
 ```typescript
-// lib/sentry-performance.ts
+// src/lib/sentry-performance.ts
 import * as Sentry from '@sentry/react-native';
 
 export function measureOperation<T>(
@@ -477,7 +466,7 @@ const order = await measureOperation(
 ## 9. Screen Tracking
 
 ```typescript
-// hooks/useSentryScreenTracking.ts
+// src/hooks/useSentryScreenTracking.ts
 import { useEffect } from 'react';
 import * as Sentry from '@sentry/react-native';
 
@@ -516,7 +505,7 @@ function ProductScreen() {
 ## 10. Testing Error Tracking
 
 ```typescript
-// lib/sentry-test.ts
+// src/lib/sentry-test.ts
 import * as Sentry from '@sentry/react-native';
 
 export function testSentryError() {
@@ -548,7 +537,7 @@ if (__DEV__) {
 ## 11. Offline Error Handling
 
 ```typescript
-// lib/sentry-offline.ts
+// src/lib/sentry-offline.ts
 import * as Sentry from '@sentry/react-native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -616,7 +605,7 @@ NetInfo.addEventListener((state) => {
 ## 12. Release Health
 
 ```typescript
-// lib/sentry-release.ts
+// src/lib/sentry-release.ts
 import * as Sentry from '@sentry/react-native';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';

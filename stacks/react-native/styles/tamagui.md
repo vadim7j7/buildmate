@@ -102,7 +102,7 @@ module.exports = function (api) {
 ```
 
 ```typescript
-// app/_layout.tsx
+// src/app/_layout.tsx
 import { TamaguiProvider } from 'tamagui';
 import config from '../tamagui.config';
 
@@ -122,7 +122,7 @@ export default function RootLayout() {
 ### Button Component
 
 ```typescript
-// components/Button.tsx
+// src/components/Button.tsx
 import { Button as TamaguiButton, styled, GetProps } from 'tamagui';
 
 export const Button = styled(TamaguiButton, {
@@ -199,7 +199,7 @@ export type ButtonProps = GetProps<typeof Button>;
 ### Card Component
 
 ```typescript
-// components/Card.tsx
+// src/components/Card.tsx
 import { Card as TamaguiCard, styled, XStack, YStack, H3, Paragraph } from 'tamagui';
 
 export const Card = styled(TamaguiCard, {
@@ -262,7 +262,7 @@ export function CardFooter({ children }: { children: React.ReactNode }) {
 ### Input Component
 
 ```typescript
-// components/Input.tsx
+// src/components/Input.tsx
 import { Input as TamaguiInput, Label, YStack, Paragraph, styled } from 'tamagui';
 import { forwardRef } from 'react';
 
@@ -341,7 +341,7 @@ export const Input = forwardRef<any, InputProps>(
 ### Screen Layout
 
 ```typescript
-// components/ScreenLayout.tsx
+// src/components/ScreenLayout.tsx
 import { YStack, ScrollView } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReactNode } from 'react';
@@ -454,7 +454,7 @@ function App() {
 ## Animations
 
 ```typescript
-// components/AnimatedCard.tsx
+// src/components/AnimatedCard.tsx
 import { Card, YStack, Paragraph } from 'tamagui';
 
 export function AnimatedCard({ title, description }) {

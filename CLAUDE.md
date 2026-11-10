@@ -58,10 +58,10 @@ standalone              → react-native, browser-extension, scraping
 | `rails` | `ruby` | Ruby on Rails API | backend-developer, backend-tester, backend-reviewer |
 | `rails-monolith` | `ruby` | Rails Monolith (ViewComponent + Hotwire) | backend-developer, backend-tester, backend-reviewer, view-developer, view-tester, view-reviewer |
 | `sinatra` | `ruby` | Sinatra Web Application | backend-developer, backend-tester, backend-reviewer |
-| `javascript` | — | Generic TypeScript/JS | *(none — children define their own)* |
+| `javascript` | — | Generic TypeScript/JS | backend-developer, backend-tester, backend-reviewer (plain Node/TS) |
 | `nextjs` | `javascript` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer |
 | `express` | `javascript` | Express.js API | backend-developer, backend-tester, backend-reviewer |
-| `nuxt` | `javascript` | Nuxt 3 (Vue) | frontend-developer, frontend-tester, frontend-reviewer |
+| `nuxt` | `javascript` | Nuxt 4 (Vue) | frontend-developer, frontend-tester, frontend-reviewer |
 | `python` | — | Generic Python development | backend-developer, backend-tester, backend-reviewer |
 | `flask` | `python` | Flask Web Application | backend-developer, backend-tester, backend-reviewer |
 | `fastapi` | `python` | Python FastAPI | backend-developer, backend-tester, backend-reviewer |
@@ -259,7 +259,7 @@ variables:
 
 | Field | Behavior |
 |-------|----------|
-| `agents` | Child overrides parent by name; unmatched parent agents inherited |
+| `agents` | Child overrides parent by name; unmatched parent agents inherited, unless the child sets `inherit_agents: false` (nextjs/nuxt do, so they don't get javascript's backend-* agents) |
 | `skills` | Union of parent + child (deduplicated) |
 | `quality_gates` | Child overrides parent by key; unmatched parent gates inherited |
 | `variables` | Child overrides parent by key; unmatched parent values inherited |
@@ -383,7 +383,7 @@ setup:
 
 - [ ] Parent stacks define `quality_gates` (lint, tests, optionally format/typecheck)
 - [ ] Child stacks inherit parent gates — only override if the child uses a different tool
-- [ ] If a child overrides `quality_gates`, it must not accidentally drop parent gates (e.g., nuxt overrides with only `tests` — this loses `typecheck` and `lint` from javascript parent)
+- [ ] Child `quality_gates` merge with the parent's by key: override a gate only when the child uses a different tool (e.g. nuxt replaces `typecheck` with `npx nuxi typecheck` and inherits `lint`)
 
 #### 7. Patterns and Styles
 

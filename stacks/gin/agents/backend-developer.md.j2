@@ -51,15 +51,93 @@ Match the existing code style exactly.
 
 ## Code Patterns
 
+### Server Entry Point (`cmd/server/main.go`)
+
+The dev server is started with `PORT=8080 go run ./cmd/server` and checked with
+`GET /health`, so this file must exist, read `PORT` (default `8080`), and shut
+down gracefully. Serve the Gin engine through `http.Server` (not `r.Run()`),
+because `r.Run()` cannot be shut down.
+
+```go
+package main
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"example.com/myapp/internal/router"
+)
+
+func main() {
+	if err := run(); err != nil {
+		slog.Error("server stopped", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           router.SetupRouter(h, mw), // h, mw wired from config/services
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return srv.Shutdown(shutdownCtx)
+}
+```
+
 ### Router Group Pattern
 
 ```go
 package router
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"example.com/myapp/internal/handler"
+	"example.com/myapp/internal/middleware"
+)
 
 func SetupRouter(h *handler.Handler, mw *middleware.Middleware) *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Logger(), gin.Recovery())
+
+	// Health check: public, outside /api and auth.
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 
 	// Public routes
 	public := r.Group("/api/v1")
@@ -89,6 +167,7 @@ func SetupRouter(h *handler.Handler, mw *middleware.Middleware) *gin.Engine {
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -248,6 +327,7 @@ func handleError(c *gin.Context, err error) {
 8. **Error responses** - Consistent JSON error format: `{"error": "message"}`
 9. **Status codes** - Use `net/http` constants, not magic numbers
 10. **Struct tags** - Use `binding` tags for validation
+11. **Entry point** - `cmd/server/main.go`, `PORT` env (default 8080), `GET /health`, `http.Server` + graceful shutdown (no `r.Run()`)
 
 ## Completion Checklist
 

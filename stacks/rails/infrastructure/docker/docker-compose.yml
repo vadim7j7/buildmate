@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     ports:
-      - "3000:3000"
+      - "3001:3000" # host 3001 (Rails dev port); the frontend uses 3000
     environment:
       - RAILS_ENV=development
       - DATABASE_URL=postgres://postgres:postgres@db:5432/app_development

@@ -57,7 +57,7 @@ See `patterns/permissions.md`.
 
 ## 5. Don't store secrets
 
-Anything in `wxt/storage` or bundled into the extension is readable by a determined user
+Anything in `wxt/utils/storage` or bundled into the extension is readable by a determined user
 and, for content-script-accessible areas, by the page context. Do not embed API keys or
 long-lived tokens. Authenticate against your backend and store short-lived,
 revocable session tokens; do sensitive work server-side.

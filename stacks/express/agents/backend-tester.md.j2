@@ -42,12 +42,40 @@ Grep for test setup:     jest.config.ts, jest.setup.ts
 ```typescript
 import request from 'supertest';
 import { app } from '@/app';
-import { prisma } from '@/lib/db';
+import { createTestUser, authHeader } from '@/__tests__/helpers/auth';
+
+let auth: { Authorization: string };
+let otherAuth: { Authorization: string };
+
+beforeAll(async () => {
+  auth = authHeader(await createTestUser());
+  otherAuth = authHeader(await createTestUser());
+});
 
 describe('GET /projects', () => {
+  it('rejects requests without a token', async () => {
+    await request(app).get('/projects').expect(401);
+  });
+
   it('returns paginated projects', async () => {
-    const response = await request(app).get('/projects').expect(200);
+    const response = await request(app).get('/projects?limit=5').set(auth).expect(200);
     expect(response.body).toBeInstanceOf(Array);
+  });
+
+  it('returns 422 for an invalid query string', async () => {
+    await request(app).get('/projects?limit=abc').set(auth).expect(422);
+  });
+});
+
+describe('GET /projects/:id', () => {
+  it("returns 404 for another user's project", async () => {
+    const { body: project } = await request(app)
+      .post('/projects')
+      .set(auth)
+      .send({ name: 'Mine' })
+      .expect(201);
+
+    await request(app).get(`/projects/${project.id}`).set(otherAuth).expect(404);
   });
 });
 
@@ -55,6 +83,7 @@ describe('POST /projects', () => {
   it('creates a project with valid input', async () => {
     const response = await request(app)
       .post('/projects')
+      .set(auth)
       .send({ name: 'Test Project' })
       .expect(201);
 
@@ -64,6 +93,7 @@ describe('POST /projects', () => {
   it('returns 422 for invalid input', async () => {
     const response = await request(app)
       .post('/projects')
+      .set(auth)
       .send({})
       .expect(422);
 
@@ -79,10 +109,11 @@ import { ProjectService } from '@/services/project-service';
 
 describe('ProjectService', () => {
   const service = new ProjectService();
+  const ownerId = 'user-1';
 
   describe('create', () => {
     it('creates a project', async () => {
-      const project = await service.create({ name: 'Test' });
+      const project = await service.create(ownerId, { name: 'Test' });
       expect(project.id).toBeDefined();
       expect(project.name).toBe('Test');
     });
@@ -90,7 +121,7 @@ describe('ProjectService', () => {
 
   describe('getById', () => {
     it('returns null for non-existent project', async () => {
-      const result = await service.getById('non-existent');
+      const result = await service.getById(ownerId, crypto.randomUUID());
       expect(result).toBeNull();
     });
   });
@@ -102,9 +133,10 @@ describe('ProjectService', () => {
 1. **Use `describe` blocks** - Group by endpoint or method
 2. **Use descriptive names** - `it('returns 404 for missing resource')`
 3. **Test happy path and error cases** - Always test both
-4. **Use Supertest for API tests** - Test full request/response cycle
-5. **Isolate tests** - Each test should be independent
-6. **Mock external services** - Never call external APIs in tests
+4. **Use Supertest for API tests** - Import `app` from `src/app.ts` (no `listen`, no port needed)
+5. **Cover auth** - 401 without a token, 404/403 for another user's resource
+6. **Isolate tests** - Each test should be independent
+7. **Mock external services** - Never call external APIs in tests
 
 ## Running Tests
 

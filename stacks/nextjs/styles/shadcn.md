@@ -6,12 +6,11 @@ Use shadcn/ui components built on Radix primitives + Tailwind CSS. Components ar
 
 ## Installation
 
-Add components via CLI:
+Initialize once, then add components via the `shadcn` CLI (the old `shadcn-ui` package is deprecated):
 
 ```bash
-npx shadcn-ui@latest add button
-npx shadcn-ui@latest add card
-npx shadcn-ui@latest add input
+npx shadcn@latest init
+npx shadcn@latest add button card input
 ```
 
 ## Component Usage

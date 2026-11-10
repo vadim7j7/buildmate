@@ -41,6 +41,12 @@ service interface, repository interface, and test file.
 
 7. **Register routes.** Add the route group to the router setup.
 
+   **Entry point.** If `cmd/server/main.go` does not exist yet, create it (see the
+   *Server Entry Point* pattern in the backend-developer agent): read `PORT`
+   (default `8080`), register `GET /health` returning `200` JSON, and shut down
+   gracefully with `signal.NotifyContext` + `Shutdown`. Details: `gin.New()` + `gin.Recovery()`, `r.GET("/health", ...)` returning `c.JSON(http.StatusOK, gin.H{"status": "ok"})`, served by `http.Server` so it can be shut down.
+   Verification runs `PORT=8080 go run ./cmd/server` and polls `/health`.
+
 8. **Run quality checks.**
 
    ```bash
@@ -58,4 +64,5 @@ internal/handler/<resource>.go
 internal/service/<resource>.go
 internal/repository/<resource>.go
 internal/handler/<resource>_test.go
+cmd/server/main.go                 # only if missing
 ```

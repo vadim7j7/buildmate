@@ -87,10 +87,10 @@ standalone              → react-native, browser-extension, scraping
 | `rails-monolith` | `ruby` | Rails Monolith (ViewComponent + Hotwire) | backend-developer, backend-tester, backend-reviewer, view-developer, view-tester, view-reviewer | new-component, new-stimulus-controller, new-turbo-frame, new-turbo-stream, new-view, new-form-component, new-mailer-template, new-component-preview |
 | `sinatra` | `ruby` | Sinatra Web Application | backend-developer, backend-tester, backend-reviewer | new-route, new-helper |
 | **JavaScript Ecosystem** |
-| `javascript` | — | Generic TypeScript/JS development | *(none — children define their own)* | test, review, docs, verify |
+| `javascript` | — | Generic TypeScript/JS development | backend-developer, backend-tester, backend-reviewer (plain Node/TS) | test, review, docs, verify |
 | `nextjs` | `javascript` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer | new-component, new-page, new-container, new-form |
 | `express` | `javascript` | Express.js API | backend-developer, backend-tester, backend-reviewer | new-router, new-middleware, new-controller |
-| `nuxt` | `javascript` | Nuxt 3 (Vue) | frontend-developer, frontend-tester, frontend-reviewer | new-page, new-composable, new-server-route |
+| `nuxt` | `javascript` | Nuxt 4 (Vue) | frontend-developer, frontend-tester, frontend-reviewer | new-page, new-composable, new-server-route |
 | **Python Ecosystem** |
 | `python` | — | Generic Python development | backend-developer, backend-tester, backend-reviewer | test, review, new-model, new-schema, new-service, db-migrate |
 | `flask` | `python` | Flask Web Application | backend-developer, backend-tester, backend-reviewer | new-blueprint, new-route |
@@ -438,7 +438,7 @@ variables:
 
 | Field | Behavior |
 |-------|----------|
-| `agents` | Child agents override parent agents with the same name; unmatched parent agents are inherited |
+| `agents` | Child agents override parent agents with the same name; unmatched parent agents are inherited, unless the child sets `inherit_agents: false` |
 | `skills` | Union of parent + child (deduplicated) |
 | `quality_gates` | Child gates override parent gates with the same key; unmatched parent gates are inherited |
 | `variables` | Child values override parent values for the same key; unmatched parent values are inherited |

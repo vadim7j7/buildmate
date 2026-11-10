@@ -5,6 +5,58 @@ before writing code to ensure consistency across the codebase.
 
 ---
 
+## 0. App Skeleton (Gemfile, config.ru, health route)
+
+Every Sinatra app boots through Rack. These three pieces must exist before any route
+is added.
+
+```ruby
+# Gemfile
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+gem 'pg'              # DB driver (mysql2 / sqlite3 for other databases)
+gem 'puma'            # app server rackup starts
+gem 'rackup'          # Sinatra 4 / Rack 3: the `rackup` command is a separate gem
+gem 'sequel'          # ORM
+gem 'sinatra', '~> 4.0'
+gem 'sinatra-contrib' # sinatra/json, Sinatra::Reloader
+
+group :test do
+  gem 'rack-test'
+  gem 'rspec'
+end
+```
+
+```ruby
+# config.ru
+# frozen_string_literal: true
+
+require_relative 'app'
+
+run App
+```
+
+Start it with `bundle exec rackup -p 4567` (never `ruby app.rb`: a modular
+`App < Sinatra::Base` has no `run!` call, so that command exits without serving).
+The app must answer `GET /health` with 200; auto-verify polls it:
+
+```ruby
+get '/health' do
+  json status: 'ok'
+end
+```
+
+### Rules
+
+- `config.ru` at the project root requires `app.rb` and runs `App`
+- Gemfile has `sinatra`, `rackup` and `puma` (plus `sinatra-contrib` for `sinatra/json`)
+- `GET /health` returns 200 with no auth and no database call
+- Dev server: `bundle exec rackup -p 4567`
+
+---
+
 ## 1. Modular Application Pattern
 
 Always use modular style, never classic Sinatra.

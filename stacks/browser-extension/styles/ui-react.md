@@ -45,13 +45,13 @@ share one root across surfaces.
 
 ## 2. Read extension state with a hook, not at import time
 
-Wrap `wxt/storage` and messaging in hooks so components re-render reactively and the
+Wrap `wxt/utils/storage` and messaging in hooks so components re-render reactively and the
 popup unmounts cleanly.
 
 ```tsx
 // hooks/useStorageItem.ts
 import { useEffect, useState } from 'react';
-import type { WxtStorageItem } from 'wxt/storage';
+import type { WxtStorageItem } from 'wxt/utils/storage';
 
 export function useStorageItem<T>(item: WxtStorageItem<T, any>) {
   const [value, setValue] = useState<T | null>(null);
@@ -143,7 +143,7 @@ export default defineContentScript({
 
 ## 6. Don't
 
-- ❌ `chrome.storage.local.get` in a component — use `wxt/storage` via a hook.
+- ❌ `chrome.storage.local.get` in a component — use `wxt/utils/storage` via a hook.
 - ❌ Long-lived timers in a popup — the popup is destroyed when it closes.
 - ❌ `dangerouslySetInnerHTML` with page/user content — see `styles/extension.md` and
   `patterns/security.md`.

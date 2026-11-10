@@ -5,6 +5,15 @@ Reference patterns for code generation following Next.js App Router conventions.
 
 > **Note:** These examples use plain HTML/JSX. Replace with components from your
 > project's configured UI library as specified in the style guides.
+>
+> **i18n:** for brevity, paths below omit the `[locale]` segment and use literal
+> strings. In a project with next-intl (the default scaffold), pages live under
+> `src/app/[locale]/` and all copy comes from `getTranslations` / `useTranslations`
+> (see `patterns/i18n.md`). Never ship hardcoded user-facing strings.
+>
+> **Client-side fetching** is only for data that is genuinely client-driven
+> (polling, infinite scroll, live search as you type). Use TanStack Query for it if
+> the project has it, and still render the first page on the server.
 
 ---
 
@@ -185,6 +194,7 @@ Use Server Actions for create, update, delete operations. No API routes needed.
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
+import { requireUser } from '@/lib/auth'; // session user, or throws/redirects
 import { z } from 'zod';
 
 const CreateProjectSchema = z.object({
@@ -202,6 +212,9 @@ export async function createProject(
   prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  // Server Actions are public POST endpoints: authenticate in every action.
+  const user = await requireUser();
+
   const parsed = CreateProjectSchema.safeParse({
     name: formData.get('name'),
     description: formData.get('description'),
@@ -211,13 +224,13 @@ export async function createProject(
     return {
       success: false,
       message: 'Validation failed',
-      errors: parsed.error.flatten().fieldErrors,
+      errors: z.flattenError(parsed.error).fieldErrors,
     };
   }
 
   try {
     await db.project.create({
-      data: parsed.data,
+      data: { ...parsed.data, ownerId: user.id },
     });
   } catch {
     return {
@@ -231,10 +244,20 @@ export async function createProject(
 }
 
 export async function deleteProject(projectId: string): Promise<ActionState> {
+  const user = await requireUser();
+  const id = z.string().uuid().safeParse(projectId);
+  if (!id.success) {
+    return { success: false, message: 'Invalid project' };
+  }
+
   try {
-    await db.project.delete({
-      where: { id: projectId },
+    // Authorize: scope by owner so a forged ID cannot delete another user's project.
+    const { count } = await db.project.deleteMany({
+      where: { id: id.data, ownerId: user.id },
     });
+    if (count === 0) {
+      return { success: false, message: 'Project not found' };
+    }
 
     revalidatePath('/projects');
 
@@ -248,6 +271,9 @@ export async function deleteProject(projectId: string): Promise<ActionState> {
 ### Key Points
 
 - `'use server'` directive at the top of the file
+- **Every action is a public POST endpoint**: authenticate and authorize inside it,
+  even if the page or `proxy.ts` already checked
+- Validate every argument with Zod (IDs too), and scope queries by the user
 - Functions can be called directly from Client Components
 - Use `revalidatePath()` to refresh cached data after mutations
 - Use `redirect()` for navigation after successful mutations

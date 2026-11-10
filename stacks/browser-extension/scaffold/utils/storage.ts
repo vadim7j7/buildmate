@@ -1,4 +1,4 @@
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 
 // Typed, reactive storage items. Keys are namespaced by area: local: / sync: / session:.
 // Bump `version` and add `migrations` when the shape changes. See patterns/storage.md

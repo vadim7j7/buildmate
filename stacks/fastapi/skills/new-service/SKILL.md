@@ -30,7 +30,6 @@ injection, and proper type annotations. Also generates the corresponding test fi
    - `blog_post` becomes `BlogPostService` in `src/app/services/blog_post_service.py`
 
 3. **Generate the service file.** Create the service with:
-   - `from __future__ import annotations`
    - `AsyncSession` injection via constructor
    - Async CRUD methods: `list`, `get_by_id`, `create`, `update`, `delete`
    - `model_dump()` for Pydantic-to-ORM conversion

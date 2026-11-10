@@ -1,15 +1,33 @@
 # Django Code Patterns
 
 Reference patterns for Django web application development. Agents should read this file
-before writing code to ensure consistency across the codebase.
+before writing code to ensure consistency across the codebase. The service layer,
+querysets and transactions are in `patterns/backend-patterns.md`.
+
+### Project Layout (one layout, everywhere)
+
+```
+manage.py
+pyproject.toml          # deps, ruff, mypy, pytest (DJANGO_SETTINGS_MODULE)
+config/                 # project package: settings.py, urls.py, wsgi.py, asgi.py, views.py
+<app>/                  # each Django app at the project root (projects/, users/, ...)
+    models.py  serializers.py  views.py  urls.py  admin.py
+    services/           # business logic (see backend-patterns.md)
+    migrations/
+    tests/              # __init__.py, test_models.py, test_views.py, test_services.py ...
+conftest.py             # shared pytest fixtures (api_client, user, ...)
+```
+
+Apps live at the project root as `<app>/` (never `src/<app>/`); tests live in
+`<app>/tests/` (never a top-level `tests/<app>/`).
 
 ---
 
 ## 1. Model Pattern
 
 ```python
-from __future__ import annotations
-
+# projects/models.py
+from django.conf import settings
 from django.db import models
 
 
@@ -19,7 +37,7 @@ class Project(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
     owner = models.ForeignKey(
-        "auth.User",
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="projects",
     )
@@ -39,9 +57,10 @@ class Project(models.Model):
 
 ### Model Rules
 
-- Use `from __future__ import annotations` at the top
 - Define `Meta` class with `ordering` and `indexes`
 - Add `__str__` for admin display
+- Reference users with `settings.AUTH_USER_MODEL` in FKs (never `"auth.User"` or `User`);
+  in other code call `get_user_model()`
 - Use `related_name` on all ForeignKey fields
 - Add `created_at` and `updated_at` timestamps
 - Use `models.Index` for frequently queried field combinations
@@ -51,7 +70,8 @@ class Project(models.Model):
 ## 2. Serializer Pattern
 
 ```python
-from __future__ import annotations
+# projects/serializers.py
+from typing import Any
 
 from rest_framework import serializers
 
@@ -77,7 +97,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
         model = Project
         fields = ["name", "description"]
 
-    def create(self, validated_data: dict) -> Project:
+    def create(self, validated_data: dict[str, Any]) -> Project:
         validated_data["owner"] = self.context["request"].user
         return super().create(validated_data)
 ```
@@ -94,14 +114,16 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 ## 3. ViewSet Pattern
 
 ```python
-from __future__ import annotations
-
-from rest_framework import viewsets, permissions
+# projects/views.py
+from django.db.models import QuerySet
+from rest_framework import permissions, serializers, viewsets
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .models import Project
-from .serializers import ProjectSerializer, ProjectCreateSerializer
+from .serializers import ProjectCreateSerializer, ProjectSerializer
+from .services.project_archive import ProjectArchiveService
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -109,22 +131,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return Project.objects.filter(
-            owner=self.request.user,
-        ).select_related("owner")
+    def get_queryset(self) -> QuerySet[Project]:
+        return Project.objects.filter(owner=self.request.user).select_related("owner")
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[serializers.BaseSerializer]:
         if self.action == "create":
             return ProjectCreateSerializer
         return ProjectSerializer
 
     @action(detail=True, methods=["post"])
-    def archive(self, request, pk=None):
-        """Archive a project."""
-        project = self.get_object()
-        project.is_active = False
-        project.save(update_fields=["is_active", "updated_at"])
+    def archive(self, request: Request, pk: str | None = None) -> Response:
+        """Archive a project (business logic lives in the service)."""
+        project = ProjectArchiveService().execute(self.get_object())
         return Response(ProjectSerializer(project).data)
 ```
 
@@ -133,7 +151,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
 - Use `ModelViewSet` for full CRUD
 - Override `get_queryset()` to scope by user
 - Use `select_related()` / `prefetch_related()` in querysets
-- Use `@action` decorator for custom endpoints
+- Use `@action` decorator for custom endpoints; delegate multi-step logic to a service
+- Views are sync by default (no `async def` views unless the whole path is async)
 - Set `permission_classes` at class level
 
 ---
@@ -141,9 +160,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
 ## 4. URL Configuration Pattern
 
 ```python
-from __future__ import annotations
-
-from django.urls import path, include
+# projects/urls.py
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import ProjectViewSet
@@ -156,28 +174,75 @@ urlpatterns = [
 ]
 ```
 
+```python
+# config/views.py
+from django.http import HttpRequest, JsonResponse
+
+
+def health(request: HttpRequest) -> JsonResponse:
+    """Liveness check used by the dev server verification (no auth, no DB)."""
+    return JsonResponse({"status": "ok"})
+```
+
+```python
+# config/urls.py
+from django.contrib import admin
+from django.urls import include, path
+
+from config.views import health
+
+urlpatterns = [
+    path("health", health, name="health"),
+    path("admin/", admin.site.urls),
+    path("api/", include("projects.urls")),
+]
+```
+
 ### URL Rules
 
 - Use DRF routers for ViewSets
 - Set explicit `basename` on router registrations
 - Use `include()` for app-level URL grouping
-- Keep URL config in each app's `urls.py`
+- Keep URL config in each app's `urls.py`; include it from `config/urls.py`
+- Keep the unauthenticated `/health` route in `config/urls.py`
 
 ---
 
 ## 5. Settings Pattern
 
-```python
-from __future__ import annotations
+Secrets come from the environment and there is **no insecure fallback**: a missing
+`DJANGO_SECRET_KEY` fails at startup, and `DEBUG` is off unless explicitly enabled.
+Local development sets both in an untracked `.env` (loaded by your shell, `direnv` or
+`uv run --env-file .env`).
 
+```python
+# config/settings.py
 import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-key")
-DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]  # KeyError at startup when unset
+DEBUG = os.environ.get("DJANGO_DEBUG") == "1"  # off unless explicitly "1"
+ALLOWED_HOSTS = [
+    h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h
+]
+
+DATABASES = {
+    "default": {
+        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
+        "NAME": os.environ.get("DB_NAME", "app"),
+        "USER": os.environ.get("DB_USER", ""),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", ""),
+        "CONN_MAX_AGE": 60,
+    }
+}
+
+ROOT_URLCONF = "config.urls"
+AUTH_USER_MODEL = "users.User"  # set before the first migration
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -208,8 +273,6 @@ REST_FRAMEWORK = {
 ## 6. Admin Pattern
 
 ```python
-from __future__ import annotations
-
 from django.contrib import admin
 
 from .models import Project
@@ -228,30 +291,47 @@ class ProjectAdmin(admin.ModelAdmin):
 
 ## 7. Testing Pattern
 
+pytest-django needs the settings module. Configure it once in `pyproject.toml`
+(tests also need a `DJANGO_SECRET_KEY`; set it in CI and your `.env`, or use a
+dedicated `config/settings_test.py` that sets one):
+
+```toml
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+addopts = "-v --tb=short --reuse-db"
+```
+
 ```python
-from __future__ import annotations
-
+# conftest.py (project root)
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
-
-from projects.models import Project
 
 
 @pytest.fixture
-def api_client():
+def api_client() -> APIClient:
     return APIClient()
 
 
 @pytest.fixture
 def user(db):
-    return User.objects.create_user(username="test", password="testpass")
+    return get_user_model().objects.create_user(username="test", password="testpass")
 
 
 @pytest.fixture
-def auth_client(api_client, user):
+def auth_client(api_client: APIClient, user) -> APIClient:
     api_client.force_authenticate(user=user)
     return api_client
+```
+
+```python
+# projects/tests/test_views.py
+import pytest
+
+from projects.models import Project
+
+pytestmark = pytest.mark.django_db
 
 
 class TestProjectViewSet:
@@ -266,9 +346,13 @@ class TestProjectViewSet:
         assert response.status_code == 201
         assert response.data["name"] == "New Project"
 
-    def test_unauthenticated_returns_401(self, api_client) -> None:
+    def test_unauthenticated_is_rejected(self, api_client) -> None:
         response = api_client.get("/api/projects/")
-        assert response.status_code == 401
+        # 401 with token/JWT auth, 403 with DRF's default session auth
+        assert response.status_code in (401, 403)
+
+    def test_health(self, api_client) -> None:
+        assert api_client.get("/health").status_code == 200
 ```
 
 ---
@@ -276,8 +360,6 @@ class TestProjectViewSet:
 ## 8. Middleware Pattern
 
 ```python
-from __future__ import annotations
-
 import time
 import logging
 
@@ -310,8 +392,6 @@ class RequestTimingMiddleware:
 ## 9. Signal Pattern
 
 ```python
-from __future__ import annotations
-
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 

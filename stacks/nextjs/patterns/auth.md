@@ -104,10 +104,15 @@ export const { GET, POST } = handlers;
 
 ---
 
-## 2. Middleware Protection
+## 2. Proxy Protection (formerly Middleware)
+
+Next.js 16 renamed `middleware.ts` to `proxy.ts`. If the project already has a
+`src/proxy.ts` (e.g. the next-intl one), wrap it instead of adding a second file.
+The proxy is an optimistic redirect only: still check the session in every
+Server Action, Route Handler and data function — they are reachable directly.
 
 ```typescript
-// middleware.ts
+// src/proxy.ts
 import { auth } from '@/auth';
 
 export default auth((req) => {
@@ -395,7 +400,7 @@ export async function register(prevState: unknown, formData: FormData) {
   if (!parsed.success) {
     return {
       error: 'Validation failed',
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      fieldErrors: z.flattenError(parsed.error).fieldErrors,
     };
   }
 

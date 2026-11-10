@@ -33,14 +33,18 @@ or service) with appropriate fixtures, test client usage, and standard test stru
 3. **Read the source module.** Read the corresponding source file to understand the
    API surface: fields, methods, endpoints, validation rules.
 
-4. **Generate the test file.** Create the test module with:
+4. **Check pytest-django config.** `pyproject.toml` must contain
+   `[tool.pytest.ini_options]` with `DJANGO_SETTINGS_MODULE = "config.settings"`
+   (add it if missing), and `<app>/tests/__init__.py` must exist.
+
+5. **Generate the test file.** Create the test module in `<app>/tests/` with:
    - `import pytest` and `pytestmark = pytest.mark.django_db`
    - Factory fixtures using `pytest-factoryboy` or `model_bakery`
    - `APIClient` for view tests
    - Test classes with descriptive names
    - Tests for happy path, edge cases, error conditions
 
-5. **Run quality checks.**
+6. **Run quality checks.**
 
    ```bash
    uv run ruff format <test_file>

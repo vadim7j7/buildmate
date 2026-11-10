@@ -1,30 +1,55 @@
-# Nuxt 3 Code Patterns
+# Nuxt 4 Code Patterns
 
-Reference patterns for Nuxt 3 development. Agents should read this file
+Reference patterns for Nuxt 4 development. Agents should read this file
 before writing code to ensure consistency across the codebase.
+
+## Directory Layout (Nuxt 4)
+
+Nuxt 4 puts the app code in `app/`; `server/`, `shared/` and `public/` stay at the root.
+
+```
+app/
+  app.vue
+  pages/          # file-based routes
+  layouts/
+  components/
+  composables/
+  middleware/     # route middleware
+  stores/         # Pinia (if used)
+  utils/
+server/
+  api/            # API routes (Nitro)
+  utils/          # auto-imported server helpers (e.g. requireUser)
+shared/           # code/types shared by app and server
+tests/            # Vitest (unit + nuxt environments)
+nuxt.config.ts
+```
+
+If a project still has `pages/` etc. at the root (Nuxt 3 layout or
+`future.compatibilityVersion` settings), follow what the project uses.
 
 ---
 
 ## 1. Page Pattern
 
-Pages use file-based routing with `<script setup>` and `useFetch`.
+Pages use file-based routing with `<script setup>` and `useFetch` (SSR-safe,
+deduplicated between server and client). `useFetch` returns `status`
+(`'idle' | 'pending' | 'success' | 'error'`), not the removed `pending` flag.
 
 ```vue
-<!-- pages/projects/index.vue -->
+<!-- app/pages/projects/index.vue -->
 <script setup lang="ts">
-definePageMeta({
-  title: 'Projects',
-});
+useHead({ title: 'Projects' });
 
-const { data: projects, pending, error, refresh } = await useFetch('/api/projects');
+const { data: projects, status, error, refresh } = await useFetch('/api/projects');
 </script>
 
 <template>
   <div>
     <h1>Projects</h1>
-    <div v-if="pending">Loading...</div>
+    <div v-if="status === 'pending'">Loading...</div>
     <div v-else-if="error">Error: {{ error.message }}</div>
-    <ProjectList v-else :projects="projects ?? []" />
+    <ProjectList v-else :projects="projects ?? []" @changed="refresh" />
   </div>
 </template>
 ```
@@ -32,13 +57,15 @@ const { data: projects, pending, error, refresh } = await useFetch('/api/project
 ### Dynamic Page
 
 ```vue
-<!-- pages/projects/[id].vue -->
+<!-- app/pages/projects/[id].vue -->
 <script setup lang="ts">
 const route = useRoute();
-const { data: project, error } = await useFetch(`/api/projects/${route.params.id}`);
+const id = computed(() => String(route.params.id));
+
+const { data: project, error } = await useFetch(() => `/api/projects/${id.value}`);
 
 if (error.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Project not found' });
+  throw createError({ statusCode: 404, statusMessage: 'Project not found', fatal: true });
 }
 </script>
 
@@ -54,32 +81,36 @@ if (error.value) {
 
 ## 2. Composable Pattern
 
-Extract reusable logic into composables.
+Two kinds of composables:
+
+- **Data composables** wrap `useFetch` / `useAsyncData`. They must be called
+  synchronously in `<script setup>` (or another composable), never inside a function
+  that runs later (click handler, `onMounted`, after an `await` in a plain function).
+- **Action composables** expose functions that call `$fetch` imperatively
+  (mutations, user-triggered loads).
 
 ```typescript
-// composables/useProjects.ts
+// app/composables/useProjects.ts
 export function useProjects() {
-  const projects = ref<Project[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+  // SSR-safe read: called during setup.
+  const { data: projects, status, error, refresh } = useFetch('/api/projects', {
+    key: 'projects',
+    default: () => [] as Project[],
+  });
 
-  async function fetchProjects() {
-    loading.value = true;
-    error.value = null;
-    try {
-      projects.value = await $fetch('/api/projects');
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Unknown error';
-    } finally {
-      loading.value = false;
-    }
+  // Imperative mutation: $fetch, not useFetch.
+  async function createProject(input: { name: string; description?: string }) {
+    const project = await $fetch('/api/projects', { method: 'POST', body: input });
+    await refresh();
+    return project;
   }
 
-  async function createProject(data: { name: string; description?: string }) {
-    return $fetch('/api/projects', { method: 'POST', body: data });
+  async function deleteProject(id: string) {
+    await $fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    await refresh();
   }
 
-  return { projects, loading, error, fetchProjects, createProject };
+  return { projects, status, error, refresh, createProject, deleteProject };
 }
 ```
 
@@ -87,37 +118,71 @@ export function useProjects() {
 
 - Prefix with `use` (e.g., `useProjects`, `useAuth`)
 - Return reactive refs and methods
-- Handle loading and error states internally
-- Use `$fetch` for imperative calls, `useFetch` for SSR-compatible calls
+- `useFetch` / `useAsyncData` only at setup time; `$fetch` inside functions run later
+- Expose `status` from `useFetch` (not a hand-rolled `loading` ref)
 
 ---
 
 ## 3. Server Route Pattern
 
-Server routes live in `server/api/` with file-based routing.
+Server routes live in `server/api/` with file-based routing. Validate every input
+with a schema (`readValidatedBody`, `getValidatedQuery`, `getValidatedRouterParams`)
+and check auth in the handler.
+
+```typescript
+// server/utils/auth.ts (auto-imported in server/)
+export async function requireUser(event: H3Event) {
+  const user = event.context.user; // set by your auth (e.g. nuxt-auth-utils' requireUserSession)
+  if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' });
+  return user;
+}
+```
+
+```typescript
+// shared/schemas/project.ts
+import { z } from 'zod';
+
+export const projectInput = z.object({
+  name: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(1000).optional(),
+});
+export const projectQuery = z.object({
+  skip: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+export const projectParams = z.object({ id: z.string().uuid() });
+```
 
 ```typescript
 // server/api/projects/index.get.ts
-export default defineEventHandler(async (event) => {
-  const query = getQuery(event);
-  const skip = Number(query.skip ?? 0);
-  const limit = Number(query.limit ?? 20);
+import { projectQuery } from '#shared/schemas/project';
 
-  return db.project.findMany({ skip, take: limit });
+export default defineEventHandler(async (event) => {
+  const user = await requireUser(event);
+  const { skip, limit } = await getValidatedQuery(event, projectQuery.parse);
+
+  return db.project.findMany({ where: { ownerId: user.id }, skip, take: limit });
 });
 
 // server/api/projects/index.post.ts
+import { projectInput } from '#shared/schemas/project';
+
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event);
-  const project = await db.project.create({ data: body });
+  const user = await requireUser(event);
+  const body = await readValidatedBody(event, projectInput.parse);
+
+  const project = await db.project.create({ data: { ...body, ownerId: user.id } });
   setResponseStatus(event, 201);
   return project;
 });
 
 // server/api/projects/[id].get.ts
+import { projectParams } from '#shared/schemas/project';
+
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id');
-  const project = await db.project.findUnique({ where: { id } });
+  const user = await requireUser(event);
+  const { id } = await getValidatedRouterParams(event, projectParams.parse);
+  const project = await db.project.findFirst({ where: { id, ownerId: user.id } });
 
   if (!project) {
     throw createError({ statusCode: 404, statusMessage: 'Not found' });
@@ -127,16 +192,27 @@ export default defineEventHandler(async (event) => {
 });
 
 // server/api/projects/[id].patch.ts
+import { projectInput, projectParams } from '#shared/schemas/project';
+
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id');
-  const body = await readBody(event);
-  return db.project.update({ where: { id }, data: body });
+  const user = await requireUser(event);
+  const { id } = await getValidatedRouterParams(event, projectParams.parse);
+  const body = await readValidatedBody(event, projectInput.partial().parse);
+
+  const { count } = await db.project.updateMany({ where: { id, ownerId: user.id }, data: body });
+  if (count === 0) throw createError({ statusCode: 404, statusMessage: 'Not found' });
+  return db.project.findUnique({ where: { id } });
 });
 
 // server/api/projects/[id].delete.ts
+import { projectParams } from '#shared/schemas/project';
+
 export default defineEventHandler(async (event) => {
-  const id = getRouterParam(event, 'id');
-  await db.project.delete({ where: { id } });
+  const user = await requireUser(event);
+  const { id } = await getValidatedRouterParams(event, projectParams.parse);
+
+  const { count } = await db.project.deleteMany({ where: { id, ownerId: user.id } });
+  if (count === 0) throw createError({ statusCode: 404, statusMessage: 'Not found' });
   setResponseStatus(event, 204);
   return null;
 });
@@ -146,8 +222,10 @@ export default defineEventHandler(async (event) => {
 
 - Use HTTP method suffix (`.get.ts`, `.post.ts`, `.patch.ts`, `.delete.ts`)
 - Use `defineEventHandler` for all handlers
-- Use `getQuery`, `readBody`, `getRouterParam` for input
-- Use `createError` for error responses
+- Validate input with `readValidatedBody(event, schema.parse)`, `getValidatedQuery`,
+  `getValidatedRouterParams` — not plain `readBody` / `getQuery`
+- Authenticate and authorize in every handler that reads or changes private data
+- Use `createError` for error responses (a Zod failure becomes a 400 automatically)
 - Use `setResponseStatus` for non-200 status codes
 
 ---
@@ -155,7 +233,7 @@ export default defineEventHandler(async (event) => {
 ## 4. Pinia Store Pattern
 
 ```typescript
-// stores/auth.ts
+// app/stores/auth.ts
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const isAuthenticated = computed(() => user.value !== null);
@@ -168,9 +246,10 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = response.user;
   }
 
-  function logout() {
+  async function logout() {
+    await $fetch('/api/auth/logout', { method: 'POST' });
     user.value = null;
-    navigateTo('/login');
+    await navigateTo('/login');
   }
 
   return { user, isAuthenticated, login, logout };
@@ -182,15 +261,17 @@ export const useAuthStore = defineStore('auth', () => {
 - Use `defineStore` with Composition API (not Options API)
 - Name stores with `use` prefix
 - Return only what consumers need
-- Use `$fetch` for API calls within stores
+- Use `$fetch` for API calls within store actions
 
 ---
 
-## 5. Middleware Pattern
+## 5. Route Middleware Pattern
+
+Route middleware only guards navigation; server routes still check auth themselves.
 
 ```typescript
-// middleware/auth.ts
-export default defineNuxtRouteMiddleware((to, from) => {
+// app/middleware/auth.ts
+export default defineNuxtRouteMiddleware(() => {
   const auth = useAuthStore();
 
   if (!auth.isAuthenticated) {
@@ -204,11 +285,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
 ## 6. Layout Pattern
 
 ```vue
-<!-- layouts/default.vue -->
-<script setup lang="ts">
-const auth = useAuthStore();
-</script>
-
+<!-- app/layouts/default.vue -->
 <template>
   <div class="layout">
     <AppHeader />
@@ -225,16 +302,14 @@ const auth = useAuthStore();
 ## 7. Component Pattern
 
 ```vue
-<!-- components/ProjectCard.vue -->
+<!-- app/components/ProjectCard.vue -->
 <script setup lang="ts">
 type Props = {
   project: Project;
   showActions?: boolean;
 };
 
-const props = withDefaults(defineProps<Props>(), {
-  showActions: true,
-});
+const { project, showActions = true } = defineProps<Props>();
 
 const emit = defineEmits<{
   delete: [id: string];
@@ -251,3 +326,15 @@ const emit = defineEmits<{
   </div>
 </template>
 ```
+
+---
+
+## 8. Tooling
+
+- **Typecheck**: `npx nuxi typecheck` (runs `vue-tsc` over `.vue` files with the
+  generated `.nuxt` tsconfigs). Needs `vue-tsc` and `typescript` as dev dependencies.
+  Plain `npx tsc --noEmit` does not check `.vue` files and, with Nuxt 4's root
+  `tsconfig.json` holding only project references, checks nothing useful.
+- **Lint**: `@nuxt/eslint` module + an `eslint.config.mjs` that exports
+  `withNuxt()`, and a `"lint": "eslint ."` script in `package.json`.
+- **Tests**: Vitest with `@nuxt/test-utils` (see the tester agent).

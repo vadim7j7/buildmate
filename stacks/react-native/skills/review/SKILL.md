@@ -35,8 +35,8 @@ Read each changed file in full. Also read:
 - `.agent-pipeline/implement.md` if it exists (implementation notes)
 - `.agent-pipeline/test.md` if it exists (test results)
 - The relevant feature file from `.claude/context/features/`
-- `constants/` files for theme reference
-- `queries/queryKeys.ts` for query key conventions
+- `src/constants/` files for theme reference
+- `src/queries/queryKeys.ts` for query key conventions
 
 ### 3. Delegate to mobile-code-reviewer
 
@@ -54,7 +54,7 @@ The reviewer checks for automatic BLOCKERs:
 |------|-----------|
 | Zustand for UI state only | Server data or DB records in Zustand store |
 | React Query for data | Direct API calls or DB queries in components |
-| Drizzle queries in db/queries/ | DB queries scattered outside db/queries/ |
+| Drizzle queries in src/db/queries/ | DB queries scattered outside src/db/queries/ |
 | FlashList for long lists | ScrollView + map() or FlatList for 20+ items |
 | StyleSheet.create | Inline style objects |
 | Theme constants | Hardcoded colours, spacing, or font sizes |
@@ -95,11 +95,11 @@ See `references/rn-performance.md` for performance patterns and
 
 1. Zustand stores must contain ONLY UI state
 2. React Query must be used for ALL data fetching
-3. Drizzle queries must live in `db/queries/`
+3. Drizzle queries must live in `src/db/queries/`
 4. Query keys must use the centralised factory
 
 ### Performance
-1. FlashList with estimatedItemSize for lists
+1. FlashList (v2: no `estimatedItemSize`) for lists
 2. React.memo on list item components
 3. useCallback for event handlers passed to children
 4. No anonymous functions in renderItem

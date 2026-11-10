@@ -317,9 +317,11 @@ end
 
 ---
 
-## 5. Job Pattern with Sidekiq
+## 5. Job Pattern (ActiveJob)
 
-Jobs are namespaced, configure queue and retry behavior, and delegate to services.
+Jobs are namespaced, configure queue and retry behavior with the ActiveJob API
+(`queue_as`, `retry_on`, `discard_on`), and delegate to services. Flag `sidekiq_options`
+unless the app's adapter is Sidekiq: on Solid Queue / GoodJob it raises `NoMethodError`.
 
 ```ruby
 # frozen_string_literal: true
@@ -331,14 +333,13 @@ module Sync
   #   Sync::CompanyDataJob.perform_later(company_id: 123, provider: 'clearbit')
   class CompanyDataJob < ApplicationJob
     queue_as :low_priority
-    sidekiq_options retry: 5, backtrace: true
 
     retry_on ActiveRecord::Deadlocked, wait: 5.seconds, attempts: 3
     discard_on ActiveJob::DeserializationError
 
     # @param company_id [Integer] the company to sync
     # @param provider [String] the data provider name
-    def perform(company_id, provider = 'clearbit')
+    def perform(company_id:, provider: 'clearbit')
       company = Company.find(company_id)
       return if company.synced_recently?
 

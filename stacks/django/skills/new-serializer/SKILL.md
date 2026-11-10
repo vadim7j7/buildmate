@@ -22,11 +22,11 @@ Generates DRF serializers for a model with read, create, and update variants.
 2. **Read the model** to determine fields and relationships
 3. **Generate serializers**: base read serializer and create serializer
 4. **Generate test file** for serializer validation
-5. **Run quality checks**: `uv run ruff format && uv run ruff check && uv run mypy`
+5. **Run quality checks**: `uv run ruff format . && uv run ruff check . && uv run mypy .`
 
 ## Generated Files
 
 ```
-src/<app>/serializers.py (or serializers/<resource>.py)
-tests/<app>/test_serializers.py
+<app>/serializers.py (or serializers/<resource>.py)
+<app>/tests/test_serializers.py
 ```

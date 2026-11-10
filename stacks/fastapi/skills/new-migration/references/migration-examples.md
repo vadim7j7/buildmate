@@ -14,8 +14,6 @@ Revises: None
 Create Date: 2026-01-15 10:00:00.000000
 """
 
-from __future__ import annotations
-
 from alembic import op
 import sqlalchemy as sa
 
@@ -64,8 +62,6 @@ Revises: abc123
 Create Date: 2026-01-16 10:00:00.000000
 """
 
-from __future__ import annotations
-
 from alembic import op
 import sqlalchemy as sa
 
@@ -100,8 +96,6 @@ Revision ID: ghi789
 Revises: def456
 Create Date: 2026-01-17 10:00:00.000000
 """
-
-from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
@@ -147,8 +141,6 @@ Revises: ghi789
 Create Date: 2026-01-18 10:00:00.000000
 """
 
-from __future__ import annotations
-
 from alembic import op
 import sqlalchemy as sa
 
@@ -188,8 +180,6 @@ Revises: jkl012
 Create Date: 2026-01-19 10:00:00.000000
 """
 
-from __future__ import annotations
-
 from alembic import op
 import sqlalchemy as sa
 
@@ -226,8 +216,6 @@ def downgrade() -> None:
 ## Async Alembic env.py Setup
 
 ```python
-from __future__ import annotations
-
 import asyncio
 from logging.config import fileConfig
 
@@ -281,5 +269,4 @@ else:
 3. **Use `server_default`** instead of Python-side defaults for new columns
 4. **Make new columns nullable** or provide a `server_default`
 5. **Create indices** for foreign keys and frequently filtered columns
-6. **Use `from __future__ import annotations`** in all migration files
-7. **Test rollback** after every migration: `alembic downgrade -1`
+6. **Test rollback** after every migration: `alembic downgrade -1`

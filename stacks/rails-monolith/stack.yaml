@@ -244,8 +244,8 @@ setup:
   dev_server_check: ruby -v && bundle -v && node -v
 
 variables:
-  framework: Rails 7/8 (Monolith)
-  language: Ruby 3.2+
+  framework: Rails 8+ (Monolith)
+  language: Ruby 3.4+
   test_framework: RSpec
   orm: ActiveRecord
   linter: RuboCop

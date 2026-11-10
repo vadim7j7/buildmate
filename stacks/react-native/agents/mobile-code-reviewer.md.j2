@@ -61,7 +61,7 @@ BLOCKER if a Zustand store contains:
 
 **React Query MUST be used for all server/database data.**
 
-**Drizzle queries MUST live in `db/queries/`.**
+**Drizzle queries MUST live in `src/db/queries/`.**
 
 ### 2. List Rendering
 
@@ -70,16 +70,26 @@ BLOCKER if a Zustand store contains:
 BLOCKER if:
 - `ScrollView` + `.map()` is used for dynamic data lists
 - `FlatList` is used for lists that could contain 20+ items
-- `FlashList` is missing `estimatedItemSize`
 
 ### 3. Navigation
 
 **expo-router conventions MUST be followed.**
 
 BLOCKER if:
-- React Navigation is used directly instead of expo-router
-- Screen files are not in the `app/` directory
+- React Navigation is used directly instead of expo-router (`NavigationContainer`,
+  `createNativeStackNavigator`/`createBottomTabNavigator`/`createDrawerNavigator`).
+  Navigators are `_layout.tsx` files using `Stack`, `Tabs` or `Drawer` (`expo-router/drawer`).
+  Importing a hook such as `usePreventRemove` from `@react-navigation/native` is fine.
+- Screen files are not in the `src/app/` directory, or non-route files (tests,
+  components, helpers) are placed inside `src/app/` (each file there becomes a route)
 - Route parameters use prop drilling instead of `useLocalSearchParams`
+
+### 5. Project Layout
+
+App code lives under `src/` and is imported through the `@/` alias (`@/` → `src/`).
+Routes in `src/app/`, components in `src/components/`, UI stores in `src/stores/`,
+React Query hooks in `src/queries/`, Drizzle in `src/db/` (queries in `src/db/queries/`),
+i18n in `src/i18n/`. WARNING for deep relative imports (`../../`) across these folders.
 
 ### 4. Styling
 
@@ -105,7 +115,7 @@ BLOCKER if:
 
 - [ ] Zustand stores contain ONLY UI state (BLOCKER if violated)
 - [ ] React Query is used for all data fetching (BLOCKER if violated)
-- [ ] Drizzle queries are in `db/queries/` (BLOCKER if violated)
+- [ ] Drizzle queries are in `src/db/queries/` (BLOCKER if violated)
 - [ ] Zustand stores have a `reset()` method for testing
 
 ### TypeScript
@@ -117,7 +127,7 @@ BLOCKER if:
 ### Performance
 
 - [ ] `FlashList` for lists with 20+ items (BLOCKER if ScrollView+map)
-- [ ] `estimatedItemSize` set on FlashList
+- [ ] No FlashList v1-only props (`estimatedItemSize`, `MasonryFlashList`, `inverted`) — removed/deprecated in v2 (WARNING)
 - [ ] `React.memo()` on list item components (WARNING)
 - [ ] `useCallback` for event handlers passed to children (WARNING)
 - [ ] `expo-image` instead of `Image` from react-native (SUGGESTION)

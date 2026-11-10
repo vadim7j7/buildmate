@@ -1,22 +1,31 @@
 ---
 name: new-server-action
-description: Generate a Next.js Server Action with Zod validation
+description: Generate a Next.js Server Action with auth checks and Zod validation
 ---
 
 # /new-server-action
 
 ## What This Does
 
-Creates a Next.js Server Action with Zod schema validation, proper error
-handling, and TypeScript types. Server Actions enable secure server-side
-mutations from React components.
+Creates a Next.js Server Action with authentication, authorization, Zod input
+validation, error handling, and TypeScript types. Server Actions are the way this
+app performs mutations from React components.
+
+**Every Server Action is a public POST endpoint.** Anyone can call it with any
+arguments, whether or not your UI shows the button. Hiding UI, checking in the
+page, or redirecting in `proxy.ts` does **not** protect the action. Each action
+must itself:
+
+1. **Authenticate** — get the session; return/throw if signed out.
+2. **Authorize** — check the user may touch *this* resource (ownership, role, tenant).
+3. **Validate** — parse every argument (including `FormData` and IDs) with Zod.
 
 ## Usage
 
 ```
-/new-server-action createUser         # Creates createUser action
+/new-server-action createProject      # Creates createProject action
 /new-server-action updateProfile      # Creates updateProfile action
-/new-server-action submitContact      # Creates submitContact action
+/new-server-action submitContact      # Creates submitContact action (public: no auth, but rate-limit)
 /new-server-action deletePost         # Creates deletePost action
 ```
 
@@ -25,66 +34,83 @@ mutations from React components.
 ### 1. Determine Action Purpose
 
 Based on the action name, infer:
-- What data the action accepts
-- What validation is needed
-- What side effects occur (database, email, etc.)
-- What response format to return
+- Who may call it (signed-in user? owner? admin? truly public?)
+- What data the action accepts and what validation is needed
+- What side effects occur (database, backend API, email, etc.)
+- What to revalidate and where to redirect afterwards
 
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` for conventions
+- `patterns/frontend-patterns.md` and `patterns/auth.md` for conventions
 - `skills/new-server-action/references/server-action-examples.md` for examples
-- Existing actions in `src/app/actions/` or `src/actions/`
+- Existing actions in `src/lib/actions/` and the session helper in `src/lib/auth` / `src/auth.ts`
 
 ### 3. Generate Files
 
-#### Action: `src/actions/<actionName>.ts`
+#### Action: `src/lib/actions/<resource>.ts`
+
+Two call styles:
+
+- **Form actions** (used with `<form action>` / `useActionState`) take
+  `(prevState: State, formData: FormData)`.
+- **Programmatic actions** (called from an event handler / `startTransition`) take
+  typed arguments — but those arguments are still untrusted and are validated.
 
 ```typescript
 'use server';
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { requireUser } from '@/lib/auth'; // returns the session user or throws/redirects
+import { db } from '@/lib/db';
 
 const <ActionName>Schema = z.object({
   // Input validation schema
 });
 
-type <ActionName>Input = z.infer<typeof <ActionName>Schema>;
+export type <ActionName>State =
+  | { status: 'idle' }
+  | { status: 'success' }
+  | { status: 'error'; error: string; fieldErrors?: Record<string, string[] | undefined> };
 
-type <ActionName>Result =
-  | { success: true; data: <ReturnType> }
-  | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+export async function <actionName>(
+  _prevState: <ActionName>State,
+  formData: FormData
+): Promise<<ActionName>State> {
+  // 1. Authenticate
+  const user = await requireUser();
 
-export async function <actionName>(input: <ActionName>Input): Promise<<ActionName>Result> {
-  // Validate input
-  const parsed = <ActionName>Schema.safeParse(input);
+  // 2. Validate (never trust client input)
+  const parsed = <ActionName>Schema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return {
-      success: false,
+      status: 'error',
       error: 'Validation failed',
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      fieldErrors: z.flattenError(parsed.error).fieldErrors,
     };
   }
 
+  // 3. Authorize against the resource being changed
+  //    e.g. const item = await db.item.findFirst({ where: { id, ownerId: user.id } });
+  //    if (!item) return { status: 'error', error: 'Not found' };
+
   try {
-    // Perform action
-    const result = await doSomething(parsed.data);
-
-    // Revalidate cache if needed
-    revalidatePath('/path');
-
-    return { success: true, data: result };
+    await doSomething(parsed.data, user.id);
   } catch (error) {
-    return { success: false, error: 'Operation failed' };
+    console.error('<actionName> failed:', error);
+    return { status: 'error', error: 'Operation failed' }; // no internal details
   }
+
+  revalidatePath('/[locale]/<path>', 'page');
+  return { status: 'success' };
 }
 ```
 
-#### Test: `src/actions/<actionName>.test.ts`
+#### Test: `src/lib/actions/<resource>.test.ts`
 
-Tests for validation, success, and error cases.
+Test at least: signed-out caller is rejected, a user who does not own the resource
+is rejected, invalid input returns field errors, the happy path mutates and revalidates.
 
 ### 4. Verify
 
@@ -95,98 +121,90 @@ npx tsc --noEmit
 
 ## Rules
 
-- Always use `'use server'` directive at the top
-- Validate all inputs with Zod
-- Return discriminated unions for type-safe error handling
-- Never trust client input - always validate server-side
+- Always use the `'use server'` directive at the top of the file
+- **Authenticate and authorize inside every action** — never rely on the page,
+  the UI, or `proxy.ts` having checked
+- Scope every query by the user (`where: { id, ownerId: user.id }`) so IDs from the
+  client cannot reach other users' data
+- Validate all inputs with Zod (`safeParse`), including IDs and `FormData`
+- Report field errors with `z.flattenError(error).fieldErrors` (Zod 4; `error.flatten()` is deprecated)
+- Form actions take `(prevState, formData)` so they work with `useActionState`
+- Return a typed result for expected failures; never expose internal error details
 - Use `revalidatePath` or `revalidateTag` after mutations
-- Handle errors gracefully - never expose internal details
-- Use `redirect()` for navigation after mutations (throws, not returns)
+- Call `redirect()` **outside** `try/catch` (it throws to navigate)
+- Truly public actions (contact form, sign-up) skip auth but must validate and be rate-limited
+- Do not return secrets or whole DB rows to the client — return only what the UI needs
 
 ## Generated Files
 
 ```
-src/actions/<actionName>.ts
-src/actions/<actionName>.test.ts
+src/lib/actions/<resource>.ts
+src/lib/actions/<resource>.test.ts
 ```
 
 ## Example Output
 
-For `/new-server-action createUser`:
+For `/new-server-action createProject`:
 
-**Action:** `src/actions/createUser.ts`
+**Action:** `src/lib/actions/projects.ts`
 ```typescript
 'use server';
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { requireUser } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
 
-const CreateUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain an uppercase letter')
-    .regex(/[0-9]/, 'Password must contain a number'),
+const CreateProjectSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(1000).default(''),
 });
 
-type CreateUserInput = z.infer<typeof CreateUserSchema>;
+export type CreateProjectState =
+  | { status: 'idle' }
+  | { status: 'error'; error: string; fieldErrors?: Record<string, string[] | undefined> };
 
-type CreateUserResult =
-  | { success: true; userId: string }
-  | { success: false; error: string; fieldErrors?: Record<string, string[]> };
+export async function createProject(
+  _prevState: CreateProjectState,
+  formData: FormData
+): Promise<CreateProjectState> {
+  const user = await requireUser();
 
-export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
-  // Validate input
-  const parsed = CreateUserSchema.safeParse(input);
+  const parsed = CreateProjectSchema.safeParse({
+    name: formData.get('name'),
+    description: formData.get('description') ?? undefined,
+  });
   if (!parsed.success) {
     return {
-      success: false,
+      status: 'error',
       error: 'Validation failed',
-      fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+      fieldErrors: z.flattenError(parsed.error).fieldErrors,
     };
   }
 
-  const { email, name, password } = parsed.data;
-
   try {
-    // Check for existing user
-    const existingUser = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.email, email),
-    });
-
-    if (existingUser) {
-      return {
-        success: false,
-        error: 'Email already registered',
-        fieldErrors: { email: ['Email already registered'] },
-      };
-    }
-
-    // Hash password
-    const hashedPassword = await hashPassword(password);
-
-    // Create user
-    const [user] = await db
-      .insert(users)
-      .values({
-        email,
-        name,
-        passwordHash: hashedPassword,
-      })
-      .returning({ id: users.id });
-
-    // Revalidate users list
-    revalidatePath('/admin/users');
-
-    return { success: true, userId: user.id };
+    await db.project.create({ data: { ...parsed.data, ownerId: user.id } });
   } catch (error) {
-    console.error('Failed to create user:', error);
-    return { success: false, error: 'Failed to create user' };
+    console.error('createProject failed:', error);
+    return { status: 'error', error: 'Could not create the project' };
   }
+
+  revalidatePath('/[locale]/projects', 'page');
+  redirect('/projects');
+}
+
+const ProjectIdSchema = z.string().uuid();
+
+export async function deleteProject(projectId: string): Promise<void> {
+  const user = await requireUser();
+  const id = ProjectIdSchema.parse(projectId);
+
+  // Scoped by owner: a forged ID for someone else's project deletes nothing.
+  const { count } = await db.project.deleteMany({ where: { id, ownerId: user.id } });
+  if (count === 0) throw new Error('Not found');
+
+  revalidatePath('/[locale]/projects', 'page');
 }
 ```
 
@@ -195,44 +213,32 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
 'use client';
 
 import { useActionState } from 'react';
-import { createUser } from '@/actions/createUser';
+import { useTranslations } from 'next-intl';
+import { createProject, type CreateProjectState } from '@/lib/actions/projects';
 
-export function SignUpForm() {
-  const [state, formAction, isPending] = useActionState(
-    async (prevState: unknown, formData: FormData) => {
-      const result = await createUser({
-        email: formData.get('email') as string,
-        name: formData.get('name') as string,
-        password: formData.get('password') as string,
-      });
-      return result;
-    },
-    null
-  );
+const initialState: CreateProjectState = { status: 'idle' };
+
+export function CreateProjectForm() {
+  const t = useTranslations('projects.form');
+  const [state, formAction, isPending] = useActionState(createProject, initialState);
 
   return (
     <form action={formAction}>
-      <input name="email" type="email" required />
-      {state?.fieldErrors?.email && (
-        <span className="error">{state.fieldErrors.email[0]}</span>
-      )}
-
-      <input name="name" type="text" required />
-      {state?.fieldErrors?.name && (
+      <label htmlFor="name">{t('name')}</label>
+      <input id="name" name="name" required />
+      {state.status === 'error' && state.fieldErrors?.name && (
         <span className="error">{state.fieldErrors.name[0]}</span>
       )}
 
-      <input name="password" type="password" required />
-      {state?.fieldErrors?.password && (
-        <span className="error">{state.fieldErrors.password[0]}</span>
-      )}
+      <label htmlFor="description">{t('description')}</label>
+      <textarea id="description" name="description" />
 
       <button type="submit" disabled={isPending}>
-        {isPending ? 'Creating...' : 'Create Account'}
+        {isPending ? t('submitting') : t('submit')}
       </button>
 
-      {state?.error && !state.fieldErrors && (
-        <div className="error">{state.error}</div>
+      {state.status === 'error' && !state.fieldErrors && (
+        <div role="alert" className="error">{state.error}</div>
       )}
     </form>
   );

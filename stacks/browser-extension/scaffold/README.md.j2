@@ -23,14 +23,15 @@ entrypoints/        # every extension surface (manifest is generated from these)
   popup/            # toolbar popup (index.html + main)
 utils/
   messaging.ts      # typed @webext-core/messaging protocol
-  storage.ts        # typed wxt/storage items
+  storage.ts        # typed wxt/utils/storage items
 wxt.config.ts       # manifest, permissions, modules — the single source of truth
 ```
 
 ## Quality gates
 
 ```bash
-npm run compile      # wxt prepare && tsc --noEmit
+npm run compile      # wxt prepare && {% if variables.ui_framework == 'Vue' %}vue-tsc --noEmit{% elif variables.ui_framework == 'Svelte' %}svelte-check{% else %}tsc --noEmit{% endif %}
+
 npm run lint         # eslint
 npm test             # vitest
 ```

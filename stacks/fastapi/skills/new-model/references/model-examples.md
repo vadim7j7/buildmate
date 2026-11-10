@@ -7,8 +7,6 @@ Examples using the modern `Mapped[]` annotation style.
 ## Example 1: Basic Model with Timestamps
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import String, Text, func
@@ -37,8 +35,6 @@ class Project(Base):
 ## Example 2: Model with Foreign Key and Relationship
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, String, Text, func
@@ -63,7 +59,7 @@ class Task(Base):
     )
 
     # Relationships
-    project: Mapped[Project] = relationship(back_populates="tasks")
+    project: Mapped["Project"] = relationship(back_populates="tasks")
 ```
 
 ---
@@ -71,8 +67,6 @@ class Task(Base):
 ## Example 3: Model with Enum and Index
 
 ```python
-from __future__ import annotations
-
 import enum
 from datetime import datetime
 
@@ -110,8 +104,8 @@ class Task(Base):
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    project: Mapped[Project] = relationship(back_populates="tasks")
-    assignee: Mapped[User | None] = relationship()
+    project: Mapped["Project"] = relationship(back_populates="tasks")
+    assignee: Mapped["User | None"] = relationship()
 ```
 
 ---
@@ -119,8 +113,6 @@ class Task(Base):
 ## Example 4: Model with Many-to-Many Relationship
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import Column, ForeignKey, String, Table, func
@@ -145,7 +137,7 @@ class Tag(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
 
-    projects: Mapped[list[Project]] = relationship(
+    projects: Mapped[list["Project"]] = relationship(
         secondary=project_tags, back_populates="tags"
     )
 
@@ -159,7 +151,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    tags: Mapped[list[Tag]] = relationship(
+    tags: Mapped[list["Tag"]] = relationship(
         secondary=project_tags, back_populates="projects"
     )
 ```
@@ -176,6 +168,7 @@ class Project(Base):
 6. **Use `String(N)`** for varchar columns with explicit length
 7. **Use `Text`** for unlimited text columns
 8. **Use `ForeignKey()`** inside `mapped_column()` for relationships
+9. **Quote related model names** (`Mapped["Project"]`, `Mapped[list["Tag"]]`): models live in different modules and there is no `from __future__ import annotations`
 9. **Use `relationship()`** with `back_populates` for bidirectional relationships
 10. **Use `Mapped[X | None]`** for nullable columns
 11. **Add composite indices** via `__table_args__` for common query patterns

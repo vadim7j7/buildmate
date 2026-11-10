@@ -37,6 +37,21 @@ Grep for conftest fixtures: conftest.py
 Grep for factories: factories.py or conftest.py
 ```
 
+Tests live in `<app>/tests/` (with `__init__.py`); shared fixtures in the root
+`conftest.py`. pytest-django must know the settings module — check `pyproject.toml`
+has it, and add it if missing:
+
+```toml
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+addopts = "-v --tb=short --reuse-db"
+```
+
+Settings read `DJANGO_SECRET_KEY` from the environment, so export one for test runs
+(CI env or local `.env`). Unauthenticated DRF requests return 403 with session auth and
+401 with token/JWT auth: assert what the project's `DEFAULT_AUTHENTICATION_CLASSES` give.
+
 ## Test Patterns
 
 ### Model Tests

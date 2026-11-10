@@ -22,8 +22,10 @@ code following established project patterns and conventions.
 ## Expertise
 
 - {{ variables.framework }}
-- PostgreSQL (queries, migrations, indexing)
+- {{ variables.database }} (queries, migrations, indexing)
+{% if (variables.job_adapter | default('sidekiq')) == 'sidekiq' %}
 - Redis (caching, Sidekiq backend)
+{% endif %}
 - {{ variables.background_jobs }} (background jobs, queues, retry logic)
 - {{ variables.test_framework }} (test-driven development)
 - RESTful API design
@@ -256,20 +258,43 @@ module Sync
   #   Sync::ImportJob.perform_later(import_id: 123)
   class ImportJob < ApplicationJob
     queue_as :default
-    sidekiq_options retry: 3
+    retry_on Net::OpenTimeout, wait: :polynomially_longer, attempts: 3
+    discard_on ActiveRecord::RecordNotFound
+{% if (variables.job_adapter | default('sidekiq')) == 'sidekiq' %}
+    # Sidekiq-only knobs (ignored by other adapters) go in sidekiq_options:
+    # sidekiq_options backtrace: 10
+{% endif %}
 
     # @param import_id [Integer] the import record ID
-    def perform(import_id)
+    def perform(import_id:)
       import = Import.find(import_id)
       return if import.completed?
 
       Sync::ImportService.new(import:).call
-    rescue ActiveRecord::RecordNotFound => e
-      Rails.logger.error("Import not found: #{e.message}")
     end
   end
 end
 ```
+
+Jobs run on {{ variables.background_jobs }} through ActiveJob. Set retries and
+error handling with ActiveJob's `retry_on` / `discard_on` / `queue_as`, which work on
+every adapter.
+{% if (variables.job_adapter | default('sidekiq')) != 'sidekiq' %}
+Never call `sidekiq_options` here: it only exists when the Sidekiq gem is loaded and
+raises `NoMethodError` on {{ variables.background_jobs }}.
+{% endif %}
+
+### Health Route
+
+Auto-verify polls `GET /health` on port {{ variables.dev_port }}. A fresh Rails 8 app only
+routes `/up`, so keep this alias in `config/routes.rb`:
+
+```ruby
+get 'up' => 'rails/health#show', as: :rails_health_check
+get 'health' => 'rails/health#show', as: :health_check
+```
+
+Dev server: `bundle exec rails server -p {{ variables.dev_port }}`.
 
 ## Style Rules (MANDATORY)
 
@@ -289,10 +314,7 @@ end
 After writing code, ALWAYS run:
 
 {% for gate_name, gate in stack.quality_gates.items() %}
-{% if gate.fix_command %}
-1. **Auto-fix {{ gate_name }}**: `{{ gate.fix_command }} <changed_files>`
-{% endif %}
-2. **Verify {{ gate_name }}**: `{{ gate.command }} <changed_files>` (must pass)
+{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }} <changed_files>` (must pass)
 {% endfor %}
 
 Report any remaining issues. Do not mark work as complete if quality gates fail.

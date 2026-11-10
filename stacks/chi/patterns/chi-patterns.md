@@ -40,7 +40,7 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
-			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			ww := chimw.NewWrapResponseWriter(w, r.ProtoMajor)
 			next.ServeHTTP(ww, r)
 
 			logger.Info("request",
@@ -58,7 +58,10 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 - Standard `http.Handler` middleware signature
 - Call `next.ServeHTTP(w, r)` to continue chain
 - Don't call `next` to abort
-- Use Chi's `middleware.NewWrapResponseWriter` for status capture
+- Use Chi's `chimw.NewWrapResponseWriter` for status capture (import
+  `chimw "github.com/go-chi/chi/v5/middleware"` so it never clashes with the
+  app's own `middleware` package)
+- Order built-ins as `chimw.RequestID`, `chimw.RealIP`, `chimw.Logger`, `chimw.Recoverer`
 
 ---
 

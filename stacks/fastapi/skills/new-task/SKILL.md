@@ -31,7 +31,6 @@ error handling, and a corresponding test file.
      `src/app/tasks/sync_external_data.py`
 
 3. **Generate the task file.** Create the task with:
-   - `from __future__ import annotations`
    - `@shared_task(bind=True, max_retries=3, default_retry_delay=60)`
    - Error handling with `self.retry(exc=exc)`
    - Type annotations and docstring

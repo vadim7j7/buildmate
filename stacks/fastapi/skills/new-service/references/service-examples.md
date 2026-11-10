@@ -7,8 +7,6 @@ Patterns for async service classes in FastAPI applications.
 ## Example 1: Basic CRUD Service
 
 ```python
-from __future__ import annotations
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -105,8 +103,6 @@ class ProjectService:
 ## Example 2: Service with Filtering and Eager Loading
 
 ```python
-from __future__ import annotations
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -175,8 +171,6 @@ class TaskService:
 ## Example 3: Service with External API Integration
 
 ```python
-from __future__ import annotations
-
 import logging
 
 import httpx

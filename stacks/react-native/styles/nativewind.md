@@ -19,8 +19,8 @@ npx expo install nativewind tailwindcss react-native-reanimated react-native-saf
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './app/**/*.{js,jsx,ts,tsx}',
-    './components/**/*.{js,jsx,ts,tsx}',
+    './src/app/**/*.{js,jsx,ts,tsx}',
+    './src/components/**/*.{js,jsx,ts,tsx}',
   ],
   presets: [require('nativewind/preset')],
   theme: {
@@ -85,7 +85,7 @@ module.exports = withNativeWind(config, { input: './global.css' });
 ### Basic Styling
 
 ```typescript
-// components/Button.tsx
+// src/components/Button.tsx
 import { Text, Pressable } from 'react-native';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -160,7 +160,7 @@ export function Button({
 ### Card Component
 
 ```typescript
-// components/Card.tsx
+// src/components/Card.tsx
 import { View, Text, Pressable } from 'react-native';
 import { ReactNode } from 'react';
 
@@ -212,7 +212,7 @@ export function CardContent({ children }: { children: ReactNode }) {
 ### Input Component
 
 ```typescript
-// components/Input.tsx
+// src/components/Input.tsx
 import { View, Text, TextInput, TextInputProps } from 'react-native';
 import { forwardRef } from 'react';
 
@@ -266,7 +266,7 @@ export const Input = forwardRef<TextInput, InputProps>(
 ### Screen Layout
 
 ```typescript
-// components/ScreenLayout.tsx
+// src/components/ScreenLayout.tsx
 import { View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReactNode } from 'react';
@@ -318,7 +318,7 @@ export function ScreenLayout({
 ### Flex Layouts
 
 ```typescript
-// components/Flex.tsx
+// src/components/Flex.tsx
 import { View } from 'react-native';
 import { ReactNode } from 'react';
 
@@ -378,7 +378,7 @@ export function Flex({
 ## Dark Mode
 
 ```typescript
-// hooks/useColorScheme.ts
+// src/hooks/useColorScheme.ts
 import { useColorScheme as useRNColorScheme } from 'react-native';
 
 export function useColorScheme() {
@@ -403,7 +403,7 @@ function ThemedCard() {
 ## Animations with Reanimated
 
 ```typescript
-// components/AnimatedButton.tsx
+// src/components/AnimatedButton.tsx
 import Animated, {
   useSharedValue,
   useAnimatedStyle,

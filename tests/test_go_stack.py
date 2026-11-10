@@ -41,7 +41,7 @@ class TestLoadGoStack:
         config = load_stack("go")
 
         assert config.variables["framework"] == "Go"
-        assert config.variables["language"] == "Go 1.22+"
+        assert config.variables["language"] == "Go 1.25+"
         assert config.variables["test_framework"] == "testing + testify"
         assert config.variables["orm"] == "database/sql"
 
@@ -137,7 +137,7 @@ class TestLoadGin:
         assert "format" in config.quality_gates
         assert "lint" in config.quality_gates
         assert "tests" in config.quality_gates
-        assert config.quality_gates["format"].command == "gofmt -l ."
+        assert config.quality_gates["format"].command == 'test -z "$(gofmt -l .)"'
 
     def test_gin_inherits_styles(self):
         """Gin should inherit styles from go parent."""
@@ -192,7 +192,7 @@ class TestLoadGin:
         config = load_stack("gin")
 
         assert config.variables["framework"] == "Gin"
-        assert config.variables["language"] == "Go 1.22+"
+        assert config.variables["language"] == "Go 1.25+"
         assert config.variables["test_framework"] == "testing + testify"
         assert config.variables["validation"] == "go-playground/validator"
 
@@ -242,11 +242,11 @@ class TestLoadFiber:
         assert "test" in config.skills
 
     def test_fiber_variables(self):
-        """Fiber should override framework but inherit language from go."""
+        """Fiber overrides framework, and language (recent Fiber v3 needs a newer Go)."""
         config = load_stack("fiber")
 
-        assert config.variables["framework"] == "Fiber v2+"
-        assert config.variables["language"] == "Go 1.22+"
+        assert config.variables["framework"] == "Fiber v3"
+        assert config.variables["language"] == "Go 1.26+"
         assert config.variables["validation"] == "go-playground/validator"
 
     def test_fiber_has_verification(self):
@@ -310,7 +310,7 @@ class TestLoadChi:
         config = load_stack("chi")
 
         assert config.variables["framework"] == "Chi v5+"
-        assert config.variables["language"] == "Go 1.22+"
+        assert config.variables["language"] == "Go 1.25+"
 
     def test_validate_chi_stack(self):
         """Chi stack should pass validation."""

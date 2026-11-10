@@ -291,14 +291,14 @@ describe.each(translated)('locale catalog parity: %s', (locale) => {
 ## Test File Organisation
 
 ```
-__tests__/
+__tests__/                   # at the project root (or src/__tests__/), not in src/app/
   components/
     ui/
       Button.test.tsx
     lists/
       TransactionCard.test.tsx
-  screens/
-    TransactionsScreen.test.tsx
+  app/                       # route/screen tests — never inside src/app/,
+    transactions.test.tsx    # where expo-router would treat them as routes
   stores/
     useTransactionStore.test.ts
   queries/

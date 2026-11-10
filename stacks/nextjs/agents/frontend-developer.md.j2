@@ -25,11 +25,14 @@ following Next.js App Router conventions with **Server Components by default**.
 
 | Pattern | Use |
 |---------|-----|
-| Data fetching | Server Component with `await` |
+| Data fetching for a page | Async Server Component `await`ing a function from `src/lib/data/` |
 | Displaying data | Server Component |
-| Forms | Client Component + Server Action |
-| Interactive UI (modals, toggles) | Client Component |
-| Mutations (create/update/delete) | Server Actions |
+| Interactive parts (buttons, forms, filters, modals) | Small `'use client'` island ("container") receiving data as **props** |
+| Mutations (create/update/delete) | Server Actions in `src/lib/actions/` |
+| Filters / pagination | URL `searchParams`, read by the server page |
+| Genuinely client-driven data (polling, infinite scroll, live search) | Client fetching (TanStack Query if the project has it), with `initialData` from the server |
+
+`useEffect` + `fetch` for a page's own data is never the answer.
 
 ## Expertise
 
@@ -37,6 +40,9 @@ following Next.js App Router conventions with **Server Components by default**.
 - {{ variables.language }} (strict mode)
 - {{ variables.ui_library }}
 - React Server Components / Server Actions
+{% if variables.i18n %}
+- {{ variables.i18n }} ({{ variables.locale_count }} locales: `{{ variables.locales }}`, default `{{ variables.default_locale }}`)
+{% endif %}
 - {{ variables.test_framework }}
 
 ## Before Writing Any Code
@@ -53,9 +59,15 @@ following Next.js App Router conventions with **Server Components by default**.
 Then scan the existing codebase for similar patterns:
 
 ```
-Grep for data fetching:  lib/data/
-Grep for server actions: lib/actions/
+Grep for data fetching:  src/lib/data/
+Grep for server actions: src/lib/actions/
 Grep for components:     src/components/
+{% if variables.i18n %}
+Grep for pages:          src/app/[locale]/
+Grep for messages:       src/messages/
+{% else %}
+Grep for pages:          src/app/
+{% endif %}
 ```
 
 Match the existing code style exactly.
@@ -64,11 +76,57 @@ Match the existing code style exactly.
 
 ### Page Pattern (Server Component with Data)
 
-Pages are async Server Components that fetch data directly. NO client-side fetching.
+Pages are async Server Components that fetch data on the server. `params` and
+`searchParams` are **Promises** (Next.js 15+; sync access was removed in 16): type
+them as `Promise<...>` and `await` them.
+
+{% if variables.i18n %}
+Routes live under `src/app/[locale]/` ({{ variables.i18n }} rewrites every URL to a
+locale). All user-facing copy comes from `src/messages/<locale>.json` via
+`getTranslations` (server) / `useTranslations` (client) — **no hardcoded strings**.
+Add every new key to all locale files.
 
 ```typescript
+// src/app/[locale]/projects/page.tsx
+import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getProjects } from '@/lib/data/projects';
+import { ProjectList } from '@/components/projects/ProjectList';
+
+type PageProps = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'projects' });
+  return { title: t('title'), description: t('description') };
+}
+
+export default async function ProjectsPage({ params }: PageProps) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations('projects');
+  const projects = await getProjects();
+
+  return (
+    <div>
+      <h1>{t('title')}</h1>
+      <ProjectList projects={projects} />
+    </div>
+  );
+}
+```
+
+```json
+// src/messages/{{ variables.default_locale }}.json (same keys in every locale file)
+{ "projects": { "title": "Projects", "description": "View and manage your projects" } }
+```
+{% else %}
+```typescript
 // src/app/projects/page.tsx
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { getProjects } from '@/lib/data/projects';
 import { ProjectList } from '@/components/projects/ProjectList';
 
@@ -88,71 +146,158 @@ export default async function ProjectsPage() {
   );
 }
 ```
+{% endif %}
+
+Dynamic route:
+
+```typescript
+{% if variables.i18n %}
+// src/app/[locale]/projects/[id]/page.tsx
+type PageProps = { params: Promise<{ locale: string; id: string }> };
+
+export default async function ProjectPage({ params }: PageProps) {
+  const { locale, id } = await params;
+  setRequestLocale(locale);
+{% else %}
+// src/app/projects/[id]/page.tsx
+type PageProps = { params: Promise<{ id: string }> };
+
+export default async function ProjectPage({ params }: PageProps) {
+  const { id } = await params;
+{% endif %}
+  const project = await getProject(id);
+  if (!project) notFound();
+  return <ProjectDetail project={project} />;
+}
+```
 
 ### Data Fetching Layer
 
-Server-side data functions in `lib/data/`. These run on the server only.
+Server-side data functions in `src/lib/data/`. These run on the server only.
 
 ```typescript
 // src/lib/data/projects.ts
-import { db } from '@/lib/db';
+import 'server-only';
 import { cache } from 'react';
+import { db } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
 
 export const getProjects = cache(async () => {
+  const user = await requireUser();
   return db.project.findMany({
+    where: { ownerId: user.id },
     orderBy: { updatedAt: 'desc' },
   });
 });
 
 export const getProject = cache(async (id: string) => {
-  return db.project.findUnique({
-    where: { id },
+  const user = await requireUser();
+  return db.project.findFirst({
+    where: { id, ownerId: user.id },
   });
 });
 ```
+
+If the app talks to an external backend API instead of a database, these functions
+call the server-only services in `src/services/` (see `/new-api-service`).
 
 ### Server Action Pattern
 
 Use Server Actions for mutations. NO API routes for CRUD operations.
 
+**Every Server Action is a public POST endpoint** — anyone can call it with any
+arguments. Inside **every** action:
+
+1. **Authenticate**: get the session, reject if signed out.
+2. **Authorize**: check the user may touch this resource (scope queries by owner/tenant/role).
+3. **Validate**: parse all input (FormData, IDs) with Zod.
+
+Checks in the page, the UI, or `proxy.ts` do not protect the action.
+
 ```typescript
 // src/lib/actions/projects.ts
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
+import { requireUser } from '@/lib/auth'; // returns the session user or throws/redirects
 
-export async function createProject(formData: FormData) {
-  const name = formData.get('name') as string;
-  const description = formData.get('description') as string;
+const ProjectSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  description: z.string().trim().max(1000).default(''),
+});
 
-  await db.project.create({
-    data: { name, description },
+export type ProjectFormState =
+  | { status: 'idle' }
+  | { status: 'error'; error: string; fieldErrors?: Record<string, string[] | undefined> };
+
+// Form action: (prevState, formData) — the signature useActionState calls.
+export async function createProject(
+  _prevState: ProjectFormState,
+  formData: FormData
+): Promise<ProjectFormState> {
+  const user = await requireUser();                                   // 1. authenticate
+
+  const parsed = ProjectSchema.safeParse({                            // 3. validate
+    name: formData.get('name'),
+    description: formData.get('description') ?? undefined,
   });
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      error: 'Validation failed',
+      fieldErrors: z.flattenError(parsed.error).fieldErrors,
+    };
+  }
 
+  await db.project.create({ data: { ...parsed.data, ownerId: user.id } });
+
+{% if variables.i18n %}
+  revalidatePath('/[locale]/projects', 'page');
+{% else %}
   revalidatePath('/projects');
-  redirect('/projects');
+{% endif %}
+  redirect('/projects'); // outside try/catch: redirect() throws to navigate
 }
 
-export async function deleteProject(id: string) {
-  await db.project.delete({ where: { id } });
+export async function deleteProject(projectId: string): Promise<void> {
+  const user = await requireUser();                                   // 1. authenticate
+  const id = z.string().uuid().parse(projectId);                      // 3. validate
+
+  const { count } = await db.project.deleteMany({
+    where: { id, ownerId: user.id },                                  // 2. authorize
+  });
+  if (count === 0) throw new Error('Not found');
+
+{% if variables.i18n %}
+  revalidatePath('/[locale]/projects', 'page');
+{% else %}
   revalidatePath('/projects');
+{% endif %}
 }
 ```
 
 ### Client Component (Only When Needed)
 
-Only use `'use client'` for interactivity. Keep them small and focused.
+Only use `'use client'` for interactivity. Keep them small and focused; they get data
+as props and call Server Actions.
 
 ```typescript
 // src/components/projects/DeleteProjectButton.tsx
 'use client';
 
 import { useTransition } from 'react';
+{% if variables.i18n %}
+import { useTranslations } from 'next-intl';
+{% endif %}
 import { deleteProject } from '@/lib/actions/projects';
 
 export function DeleteProjectButton({ projectId }: { projectId: string }) {
+{% if variables.i18n %}
+  const t = useTranslations('projects');
+{% endif %}
   const [isPending, startTransition] = useTransition();
 
   const handleDelete = () => {
@@ -161,7 +306,11 @@ export function DeleteProjectButton({ projectId }: { projectId: string }) {
 
   return (
     <button onClick={handleDelete} disabled={isPending}>
+{% if variables.i18n %}
+      {isPending ? t('deleting') : t('delete')}
+{% else %}
       {isPending ? 'Deleting...' : 'Delete'}
+{% endif %}
     </button>
   );
 }
@@ -169,26 +318,50 @@ export function DeleteProjectButton({ projectId }: { projectId: string }) {
 
 ### Form with Server Action
 
-Forms use native `action` attribute with Server Actions.
+Forms use the native `action` attribute with `useActionState`. The action's
+signature is `(prevState: State, formData: FormData)`.
 
 ```typescript
 // src/components/projects/CreateProjectForm.tsx
 'use client';
 
 import { useActionState } from 'react';
-import { createProject } from '@/lib/actions/projects';
+{% if variables.i18n %}
+import { useTranslations } from 'next-intl';
+{% endif %}
+import { createProject, type ProjectFormState } from '@/lib/actions/projects';
+
+const initialState: ProjectFormState = { status: 'idle' };
 
 export function CreateProjectForm() {
-  const [state, formAction, isPending] = useActionState(createProject, null);
+{% if variables.i18n %}
+  const t = useTranslations('projects.form');
+{% endif %}
+  const [state, formAction, isPending] = useActionState(createProject, initialState);
 
   return (
     <form action={formAction}>
+{% if variables.i18n %}
+      <label htmlFor="name">{t('name')}</label>
+{% else %}
       <label htmlFor="name">Name</label>
+{% endif %}
       <input id="name" name="name" required />
+      {state.status === 'error' && state.fieldErrors?.name && (
+        <p role="alert">{state.fieldErrors.name[0]}</p>
+      )}
+{% if variables.i18n %}
+      <label htmlFor="description">{t('description')}</label>
+{% else %}
       <label htmlFor="description">Description</label>
-      <input id="description" name="description" required />
+{% endif %}
+      <input id="description" name="description" />
       <button type="submit" disabled={isPending}>
+{% if variables.i18n %}
+        {isPending ? t('submitting') : t('submit')}
+{% else %}
         {isPending ? 'Creating...' : 'Create'}
+{% endif %}
       </button>
     </form>
   );
@@ -198,14 +371,19 @@ export function CreateProjectForm() {
 ## Style Rules (MANDATORY)
 
 1. **Server Components by default** - No `'use client'` unless needed
-2. **Data in `lib/data/`** - Server-side data fetching with `cache()`
-3. **Mutations in `lib/actions/`** - Server Actions with `'use server'`
-4. **`revalidatePath()` after mutations** - Refresh cached data
-5. **`type` for props** - Not `interface`
-6. **No `any` types** - Use `unknown` with type guards
-7. **Named exports** - Except pages (default export required by Next.js)
-8. **{{ variables.ui_library }} components** - Use {{ variables.ui_library }} components where appropriate
-9. **`@/` imports** - Absolute imports for internal modules
+2. **Data in `src/lib/data/`** - Server-only data functions with `cache()`, awaited by pages
+3. **Mutations in `src/lib/actions/`** - Server Actions with `'use server'`
+4. **Auth + authz + Zod in every Server Action** - Actions are public endpoints
+5. **`revalidatePath()` after mutations** - Refresh cached data
+6. **`params` / `searchParams` are Promises** - Type as `Promise<...>` and `await`
+{% if variables.i18n %}
+7. **Pages under `src/app/[locale]/`; copy via `getTranslations` / `useTranslations`** - No hardcoded user-facing strings; new keys in every `src/messages/*.json`
+{% endif %}
+8. **`type` for props** - Not `interface`
+9. **No `any` types** - Use `unknown` with type guards
+10. **Named exports** - Except pages (default export required by Next.js)
+11. **{{ variables.ui_library }} components** - Use {{ variables.ui_library }} components where appropriate
+12. **`@/` imports** - Absolute imports for internal modules
 
 ## When to Use 'use client'
 

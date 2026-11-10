@@ -7,8 +7,6 @@ Reference patterns for reviewing FastAPI code quality.
 ## Application Factory
 
 ```python
-from __future__ import annotations
-
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
@@ -50,8 +48,6 @@ def create_app() -> FastAPI:
 ### Database Session
 
 ```python
-from __future__ import annotations
-
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -71,8 +67,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 ### Custom Dependencies
 
 ```python
-from __future__ import annotations
-
 from fastapi import Depends, Query
 
 from app.schemas.pagination import PaginationParams
@@ -93,8 +87,6 @@ def get_pagination(
 ### Custom Exception Handlers
 
 ```python
-from __future__ import annotations
-
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -139,8 +131,6 @@ def register_exception_handlers(app: FastAPI) -> None:
 ## Eager Loading for N+1 Prevention
 
 ```python
-from __future__ import annotations
-
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -165,8 +155,6 @@ async def list_projects_with_tasks(db: AsyncSession) -> list[Project]:
 ### FastAPI BackgroundTasks (lightweight)
 
 ```python
-from __future__ import annotations
-
 from fastapi import APIRouter, BackgroundTasks
 
 router = APIRouter()
@@ -190,8 +178,6 @@ async def notify_user(
 ### Celery Tasks (heavy workloads)
 
 ```python
-from __future__ import annotations
-
 from fastapi import APIRouter
 
 from app.tasks.sync import sync_external_data
@@ -211,8 +197,6 @@ async def trigger_sync(resource_id: int) -> dict:
 ## Middleware Patterns
 
 ```python
-from __future__ import annotations
-
 import time
 import logging
 

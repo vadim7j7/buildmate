@@ -1,7 +1,8 @@
 name: nuxt
 extends: javascript
-display_name: Nuxt 3
-description: Full-stack Vue development with Nuxt 3
+inherit_agents: false
+display_name: Nuxt 4
+description: Full-stack Vue development with Nuxt 4
 
 compatible_with:
   - rails
@@ -23,7 +24,7 @@ compatible_with:
 agents:
   - name: frontend-developer
     template: agents/frontend-developer.md.j2
-    description: Nuxt 3 / Vue developer
+    description: Nuxt 4 / Vue developer
     model: opus
     tools:
       - Read
@@ -66,7 +67,14 @@ skills:
   - new-composable
   - new-server-route
 
+# Merged with the javascript parent by key: `lint` (npm run lint) is inherited,
+# `typecheck` and `tests` are overridden here.
 quality_gates:
+  typecheck:
+    # `tsc --noEmit` skips .vue files, and Nuxt 4's root tsconfig only holds
+    # project references. nuxi typecheck runs vue-tsc with the generated configs.
+    command: npx nuxi typecheck
+    description: Type checking of .ts and .vue files (vue-tsc)
   tests:
     command: npx vitest run
     description: Vitest test suite
@@ -74,8 +82,20 @@ quality_gates:
 patterns:
   - patterns/nuxt-patterns.md
 
+# Overrides the parent setup: Nuxt starters ship without the dev tooling the
+# quality gates need (vue-tsc for typecheck, @nuxt/eslint + a "lint" script,
+# @nuxt/test-utils for tests). The developer agent adds them if missing.
+setup:
+  install_command: npm install
+  post_install:
+    - npm install -D vue-tsc typescript
+    - npx nuxi module add eslint
+    - npm pkg set scripts.lint="eslint ." scripts.typecheck="nuxi typecheck"
+    - npm install -D vitest @nuxt/test-utils @vue/test-utils happy-dom
+  dev_server_check: node -v && npx nuxi info
+
 variables:
-  framework: Nuxt 3+
+  framework: Nuxt 4
   test_framework: Vitest
   ui_framework: Vue 3
   dev_port: 3000

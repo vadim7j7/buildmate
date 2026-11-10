@@ -10,7 +10,7 @@ All agents and skills should follow these patterns when generating code.
 A tab screen using expo-router, FlashList, React Query, and i18n for a data list.
 
 ```typescript
-// app/(tabs)/transactions.tsx
+// src/app/(tabs)/transactions.tsx
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Stack, Link, router } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
@@ -42,7 +42,6 @@ export default function TransactionsScreen() {
       <FlashList
         data={transactions ?? []}
         renderItem={({ item }) => <TransactionCard transaction={item} />}
-        estimatedItemSize={72}
         onRefresh={refetch}
         refreshing={isLoading}
         ListEmptyComponent={
@@ -78,10 +77,10 @@ const styles = StyleSheet.create({
 
 ### Key Points
 
-- Screen is a **default export** inside `app/` (expo-router convention)
+- Screen is a **default export** inside `src/app/` (expo-router convention)
 - `Stack.Screen options` sets the navigation title via `t()` for i18n
 - Platform-specific UI: iOS uses header button, Android uses FAB
-- `FlashList` with `estimatedItemSize` for performant list rendering
+- `FlashList` (v2: no `estimatedItemSize`; use `getItemType` for mixed rows) for performant list rendering
 - `ListEmptyComponent` shows empty state only when not loading
 - Pull-to-refresh via `onRefresh` + `refreshing` from React Query
 - All styles via `StyleSheet.create` with theme constants
@@ -94,7 +93,7 @@ const styles = StyleSheet.create({
 A UI-only Zustand store with selectors, actions, and reset function.
 
 ```typescript
-// stores/useTransactionStore.ts
+// src/stores/useTransactionStore.ts
 import { create } from 'zustand';
 
 interface TransactionStoreState {
@@ -156,7 +155,7 @@ export const useSearchQuery = () =>
 Query and mutation hooks using the centralised query key factory.
 
 ```typescript
-// queries/useTransactions.ts
+// src/queries/useTransactions.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getTransactions,
@@ -220,7 +219,7 @@ export function useDeleteTransaction() {
 ### Query Key Factory
 
 ```typescript
-// queries/queryKeys.ts
+// src/queries/queryKeys.ts
 export const queryKeys = {
   transactions: {
     all: ['transactions'] as const,
@@ -235,8 +234,8 @@ export const queryKeys = {
 
 ### Key Points
 
-- One file per entity: `queries/use<Entity>.ts`
-- Query key factory in `queries/queryKeys.ts` for consistent cache management
+- One file per entity: `src/queries/use<Entity>.ts`
+- Query key factory in `src/queries/queryKeys.ts` for consistent cache management
 - `useQuery` for reads with appropriate `staleTime`
 - `useMutation` for writes with `onSuccess` invalidation
 - `enabled: !!id` to prevent queries with empty IDs
@@ -250,7 +249,7 @@ export const queryKeys = {
 Typed CRUD functions for a database entity, called from React Query hooks.
 
 ```typescript
-// db/queries/transactions.ts
+// src/db/queries/transactions.ts
 import { eq, desc, and, like, between } from 'drizzle-orm';
 import { db } from '../client';
 import { transactions, type NewTransaction } from '../schema';
@@ -296,7 +295,7 @@ export async function deleteTransaction(id: string) {
 
 ### Key Points
 
-- All database operations live in `db/queries/<entity>.ts`
+- All database operations live in `src/db/queries/<entity>.ts`
 - Functions are plain `async` -- not hooks, not classes
 - Called from React Query hooks (`queryFn` / `mutationFn`), never from components
 - Use Drizzle query builder (`eq`, `desc`, `and`, `like`, `between`)
@@ -311,7 +310,7 @@ export async function deleteTransaction(id: string) {
 A reusable component using theme constants, spacing scale, and platform shadows.
 
 ```typescript
-// components/ui/TransactionCard.tsx
+// src/components/ui/TransactionCard.tsx
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
@@ -418,7 +417,7 @@ const styles = StyleSheet.create({
 A modal screen with form inputs, keyboard handling, validation, and `router.back()` on success.
 
 ```typescript
-// app/(modals)/transaction-form.tsx
+// src/app/(modals)/transaction-form.tsx
 import { useState } from 'react';
 import {
   View,
@@ -566,7 +565,7 @@ Root layout with providers, tab layout with icons, and route groups.
 ### Root Layout
 
 ```typescript
-// app/_layout.tsx
+// src/app/_layout.tsx
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
@@ -604,7 +603,7 @@ export default function RootLayout() {
 ### Tab Layout
 
 ```typescript
-// app/(tabs)/_layout.tsx
+// src/app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';

@@ -14,9 +14,10 @@ src/
 │   │   ├── TransactionCard.tsx
 │   │   ├── TransactionCard.test.tsx
 │   │   └── index.ts
-├── screens/
-│   ├── TransactionListScreen.tsx
-│   └── TransactionListScreen.test.tsx
+├── app/                      # expo-router routes ONLY — never put tests here
+│   └── (tabs)/                 # (every file in src/app/ becomes a route)
+│       ├── transactions.tsx
+│       └── transactions/[id].tsx
 ├── hooks/
 │   ├── useTransactions.ts
 │   └── useTransactions.test.ts
@@ -31,6 +32,9 @@ src/
 │       ├── transactions.ts
 │       └── transactions.test.ts
 └── __tests__/
+    ├── app/                    # screen/route tests live here, outside src/app/
+    │   ├── transactions.test.tsx
+    │   └── navigation.test.tsx
     ├── integration/
     │   └── checkout-flow.test.tsx
     └── e2e/
@@ -44,7 +48,7 @@ src/
 ### Basic Component Test
 
 ```typescript
-// components/TransactionCard/TransactionCard.test.tsx
+// src/components/TransactionCard/TransactionCard.test.tsx
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import { TransactionCard } from './TransactionCard';
 
@@ -131,11 +135,11 @@ export { customRender as render };
 ## 3. Screen Testing
 
 ```typescript
-// screens/TransactionListScreen.test.tsx
+// src/__tests__/app/transactions.test.tsx  (never inside src/app/ — it would become a route)
 import { render, screen, waitFor, fireEvent } from '@/test-utils/render';
 import { rest } from 'msw';
 import { setupServer } from 'msw/node';
-import TransactionListScreen from './TransactionListScreen';
+import TransactionListScreen from '@/app/(tabs)/transactions';
 
 const mockTransactions = [
   { id: '1', description: 'Coffee', amount: -4.50 },
@@ -219,10 +223,10 @@ describe('TransactionListScreen', () => {
 ## 4. Form Testing
 
 ```typescript
-// screens/TransactionFormScreen.test.tsx
+// src/__tests__/app/transaction-form.test.tsx
 import { render, screen, fireEvent, waitFor } from '@/test-utils/render';
 import { Alert } from 'react-native';
-import TransactionFormScreen from './TransactionFormScreen';
+import TransactionFormScreen from '@/app/(modals)/transaction-form';
 
 jest.spyOn(Alert, 'alert');
 
@@ -328,7 +332,7 @@ describe('TransactionFormScreen', () => {
 ## 5. Zustand Store Testing
 
 ```typescript
-// stores/useTransactionStore.test.ts
+// src/stores/useTransactionStore.test.ts
 import { act, renderHook } from '@testing-library/react-native';
 import { useTransactionStore } from './useTransactionStore';
 
@@ -399,7 +403,7 @@ describe('useTransactionStore', () => {
 ## 6. React Query Hook Testing
 
 ```typescript
-// queries/useTransactions.test.ts
+// src/queries/useTransactions.test.ts
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { rest } from 'msw';
@@ -493,7 +497,7 @@ describe('useCreateTransaction', () => {
 ## 7. Database Query Testing
 
 ```typescript
-// db/queries/transactions.test.ts
+// src/db/queries/transactions.test.ts
 import { eq } from 'drizzle-orm';
 import { db } from '../client';
 import { transactions } from '../schema';
@@ -583,45 +587,41 @@ describe('transactions queries', () => {
 ## 8. Navigation Testing
 
 ```typescript
-// screens/__tests__/navigation.test.tsx
-import { render, screen, fireEvent } from '@/test-utils/render';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from '../HomeScreen';
-import DetailScreen from '../DetailScreen';
+// src/__tests__/app/navigation.test.tsx
+// expo-router ships an in-memory router for tests: renderRouter mounts a
+// mock file tree, so navigation is tested without React Navigation directly.
+import { renderRouter, screen } from 'expo-router/testing-library';
+import { fireEvent } from '@testing-library/react-native';
+import { Link } from 'expo-router';
+import { Text } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 
-const Stack = createNativeStackNavigator();
-
-function TestNavigator() {
+function Home() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Detail" component={DetailScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <>
+      <Text>Home Screen</Text>
+      <Link href="/items/1">Item 1</Link>
+    </>
   );
 }
 
+function ItemDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return <Text>Item ID: {id}</Text>;
+}
+
 describe('Navigation', () => {
-  it('navigates from Home to Detail', async () => {
-    render(<TestNavigator />);
+  it('navigates from Home to the item detail route', () => {
+    renderRouter(
+      { index: Home, 'items/[id]': ItemDetail },
+      { initialUrl: '/' }
+    );
 
-    // Start on Home
     expect(screen.getByText('Home Screen')).toBeTruthy();
-
-    // Navigate to Detail
-    fireEvent.press(screen.getByText('Go to Detail'));
-
-    // Now on Detail
-    expect(screen.getByText('Detail Screen')).toBeTruthy();
-  });
-
-  it('passes params to Detail screen', async () => {
-    render(<TestNavigator />);
 
     fireEvent.press(screen.getByText('Item 1'));
 
+    expect(screen).toHavePathname('/items/1');
     expect(screen.getByText('Item ID: 1')).toBeTruthy();
   });
 });
@@ -732,11 +732,11 @@ export async function fillForm(fields: Record<string, string>) {
 | Test Type | Tool | Location |
 |-----------|------|----------|
 | Component | RNTL | `*.test.tsx` |
-| Screen | RNTL + MSW | `screens/*.test.tsx` |
-| Store (Zustand) | renderHook | `stores/*.test.ts` |
-| Queries (React Query) | renderHook + MSW | `queries/*.test.ts` |
-| Database | Jest | `db/queries/*.test.ts` |
-| Navigation | RNTL | `__tests__/navigation.test.tsx` |
+| Screen | RNTL + MSW | `src/__tests__/app/*.test.tsx` (never inside `src/app/`) |
+| Store (Zustand) | renderHook | `src/stores/*.test.ts` |
+| Queries (React Query) | renderHook + MSW | `src/queries/*.test.ts` |
+| Database | Jest | `src/db/queries/*.test.ts` |
+| Navigation | `expo-router/testing-library` (`renderRouter`) | `src/__tests__/app/navigation.test.tsx` |
 | E2E | Detox/Maestro | `e2e/*.e2e.ts` |
 
 ### Common Queries

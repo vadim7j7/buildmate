@@ -41,8 +41,6 @@ Grep for conftest fixtures: tests/conftest.py
 ### Router Tests (Integration)
 
 ```python
-from __future__ import annotations
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -83,8 +81,6 @@ class TestProjectRouter:
 ### Service Tests (Unit)
 
 ```python
-from __future__ import annotations
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,8 +110,6 @@ class TestProjectService:
 ### Schema Tests
 
 ```python
-from __future__ import annotations
-
 import pytest
 from pydantic import ValidationError
 

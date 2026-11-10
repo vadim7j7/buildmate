@@ -88,7 +88,8 @@ Rules:
 
 ## 3. Always Import `browser` from `wxt/browser`
 
-WXT provides a unified, promise-based, cross-browser API. **Never** touch the
+WXT provides a unified, promise-based, cross-browser API (native `browser`/`chrome`,
+no `webextension-polyfill` since WXT 0.20). **Never** touch the
 raw `chrome.*` or `browser.*` globals — they differ between Chrome (callback
 `chrome`) and Firefox (`browser`), and the global is untyped under WXT.
 
@@ -113,7 +114,7 @@ Rules:
 
 ---
 
-## 4. Use `wxt/storage` `defineItem` over Raw Storage
+## 4. Use `wxt/utils/storage` `defineItem` over Raw Storage
 
 Never call `browser.storage.local.get/set` directly in feature code. Define a
 typed storage item once in `utils/storage.ts` and import it. This gives you
@@ -121,7 +122,7 @@ type safety, defaults, versioning/migrations, and change watching.
 
 ```typescript
 // CORRECT — utils/storage.ts
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 
 export interface Settings {
   theme: 'light' | 'dark';
@@ -359,7 +360,7 @@ Rules:
 ## 11. Vitest and Type Enforcement
 
 WXT ships a Vitest config preset (`WxtVitest`) that mocks `wxt/browser`,
-`wxt/storage`, and the build-time env. Run these before code is complete:
+`wxt/utils/storage`, and the build-time env. Run these before code is complete:
 
 ```bash
 # Type check (uses the generated .wxt/tsconfig.json)
@@ -375,7 +376,7 @@ npx wxt build && npx wxt build -b firefox
 ```typescript
 // vitest.config.ts
 import { defineConfig } from 'vitest/config';
-import { WxtVitest } from 'wxt/testing';
+import { WxtVitest } from 'wxt/testing/vitest-plugin';
 
 export default defineConfig({
   plugins: [WxtVitest()],

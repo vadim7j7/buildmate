@@ -20,7 +20,7 @@ Generates a Fiber handler struct with methods, request/response types, and tests
 
 1. **Read reference patterns** from `patterns/fiber-patterns.md` and `patterns/backend-patterns.md`.
 2. **Determine handler name** and file paths.
-3. **Generate handler** with constructor, service dependency, and methods using `*fiber.Ctx`.
+3. **Generate handler** with constructor, service dependency, and methods using `c fiber.Ctx` (Fiber v3), `c.Bind().Body()`, and `strings.Clone` for any param kept past the handler.
 4. **Generate test file** with `app.Test()` and mock services.
 5. **Run quality checks**: `gofmt`, `golangci-lint`, `go test`.
 

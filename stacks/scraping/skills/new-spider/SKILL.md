@@ -1,4 +1,13 @@
+---
+name: new-spider
+description: Generate a Scrapy spider with items, pipeline and tests (Python projects only)
+---
+
 # /new-spider
+
+> **Scrapy is Python-only.** The Scrapy spider below applies only to projects set up
+> with `--language=python`. In Node.js projects there is no Scrapy: this skill falls back
+> to the plain crawler class in the "Node.js" section (or use `/new-scraper`).
 
 Generate a new Scrapy spider (Python) or structured scraper class.
 
@@ -21,7 +30,6 @@ Generate a new Scrapy spider (Python) or structured scraper class.
 
 ## Generated Files
 
-{% if variables.language == 'Python' %}
 ### Python (Scrapy)
 
 ```
@@ -93,7 +101,6 @@ class {{ Name }}Item(BaseModel):
         return float(clean) if clean else 0.0
 ```
 
-{% else %}
 ### Node.js
 
 ```
@@ -170,7 +177,6 @@ export class {{ Name }}Spider {
   }
 }
 ```
-{% endif %}
 
 ## Implementation Steps
 

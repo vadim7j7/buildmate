@@ -49,17 +49,14 @@ using Phoenix.ConnTest, Phoenix.LiveViewTest, and Phoenix.ChannelTest.
 defmodule MyAppWeb.ArticleControllerTest do
   use MyAppWeb.ConnCase
 
-  alias MyApp.Content
+  import MyApp.ContentFixtures
 
-  setup %{conn: conn} do
-    user = insert(:user)
-    conn = conn |> log_in_user(user)
-    %{conn: conn, user: user}
-  end
+  # From `mix phx.gen.auth`: registers a user (user_fixture/0) and logs it in.
+  setup :register_and_log_in_user
 
   describe "index" do
     test "lists all articles", %{conn: conn} do
-      insert_list(3, :article)
+      for _ <- 1..3, do: article_fixture()
       conn = get(conn, ~p"/api/articles")
       assert json_response(conn, 200) |> length() == 3
     end
@@ -81,7 +78,7 @@ defmodule MyAppWeb.ArticleControllerTest do
 
   describe "show" do
     test "returns article when exists", %{conn: conn} do
-      article = insert(:article)
+      article = article_fixture()
       conn = get(conn, ~p"/api/articles/#{article}")
       assert json_response(conn, 200)["id"] == article.id
     end
@@ -102,16 +99,13 @@ defmodule MyAppWeb.ArticleLiveTest do
   use MyAppWeb.ConnCase
 
   import Phoenix.LiveViewTest
+  import MyApp.ContentFixtures
 
-  setup %{conn: conn} do
-    user = insert(:user)
-    conn = log_in_user(conn, user)
-    %{conn: conn, user: user}
-  end
+  setup :register_and_log_in_user
 
   describe "Index" do
     test "lists all articles", %{conn: conn} do
-      article = insert(:article)
+      article = article_fixture()
       {:ok, _live, html} = live(conn, ~p"/articles")
 
       assert html =~ "Articles"
@@ -135,25 +129,49 @@ end
 defmodule MyApp.ContentTest do
   use MyApp.DataCase, async: true
 
+  import MyApp.ContentFixtures
+
   alias MyApp.Content
   alias MyApp.Content.Article
 
   describe "list_articles/0" do
     test "returns all articles" do
-      article = insert(:article)
+      article = article_fixture()
       assert Content.list_articles() == [article]
     end
   end
 
   describe "create_article/1" do
     test "with valid data creates an article" do
-      attrs = params_for(:article)
+      attrs = %{title: "Test Article", body: "Content"}
       assert {:ok, %Article{}} = Content.create_article(attrs)
     end
 
     test "with invalid data returns error changeset" do
       assert {:error, %Ecto.Changeset{}} = Content.create_article(%{})
     end
+  end
+end
+```
+
+### Fixtures
+
+Phoenix generators (`mix phx.gen.context/html/json/live`, `mix phx.gen.auth`)
+write `*_fixture` functions to `test/support/fixtures/<context>_fixtures.ex`.
+Reuse or extend those; do not add ExMachina (`insert/1`, `params_for/1`) unless
+the project already depends on it.
+
+```elixir
+defmodule MyApp.ContentFixtures do
+  @moduledoc "Test helpers for creating `MyApp.Content` entities."
+
+  def article_fixture(attrs \\ %{}) do
+    {:ok, article} =
+      attrs
+      |> Enum.into(%{title: "Some title", body: "Some body"})
+      |> MyApp.Content.create_article()
+
+    article
   end
 end
 ```
@@ -193,7 +211,7 @@ end
 4. **Pattern match assertions** - `assert {:ok, %Article{}} = result`
 5. **`~p` sigil** for verified routes
 6. **`json_response/2`** for JSON API tests
-7. **`insert/1`** from factory for test data
+7. **Fixtures** - `*_fixture/1` from `test/support/fixtures/` for test data (no ExMachina)
 8. **Setup blocks** for shared test context
 
 ## Completion Checklist

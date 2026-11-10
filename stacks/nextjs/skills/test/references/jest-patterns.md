@@ -166,68 +166,62 @@ describe('SearchBar', () => {
 
 ---
 
-## Pattern 3: Async Operations
+## Pattern 3: Server-First Data (pages, data functions, client islands)
 
-Test loading, success, and error states for components that fetch data.
+Pages are async Server Components that fetch on the server; client components get
+data as props. So: test data functions directly, test presentational/client
+components with props, and mock Server Actions — not client-side fetches.
 
 ```typescript
-import { render, screen, waitFor } from '@/test-utils/render';
-import { ProjectListContainer } from './ProjectListContainer';
-import * as projectsService from '@/services/projects';
+// src/lib/data/projects.test.ts — data function (server-only module)
+jest.mock('server-only', () => ({}));
+jest.mock('@/lib/db', () => ({
+  db: { project: { findMany: jest.fn() } },
+}));
 
-jest.mock('@/services/projects');
+import { db } from '@/lib/db';
+import { getProjects } from './projects';
 
-const mockFetchProjects = projectsService.fetchProjectsApi as jest.MockedFunction<
-  typeof projectsService.fetchProjectsApi
->;
+describe('getProjects', () => {
+  it('returns projects newest first', async () => {
+    (db.project.findMany as jest.Mock).mockResolvedValue([{ id: '1', name: 'Alpha' }]);
 
-describe('ProjectListContainer', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
-  it('shows loading state while fetching', () => {
-    mockFetchProjects.mockReturnValue(new Promise(() => {}));
-    render(<ProjectListContainer />);
-    expect(screen.getByLabelText('Loading')).toBeInTheDocument();
-  });
-
-  it('renders project list on success', async () => {
-    mockFetchProjects.mockResolvedValue([
-      { id: '1', name: 'Alpha', description: 'First', createdAt: '2024-01-01' },
-      { id: '2', name: 'Beta', description: 'Second', createdAt: '2024-01-02' },
-    ]);
-
-    render(<ProjectListContainer />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Alpha')).toBeInTheDocument();
-      expect(screen.getByText('Beta')).toBeInTheDocument();
-    });
-  });
-
-  it('shows error alert on failure', async () => {
-    mockFetchProjects.mockRejectedValue(new Error('Server unavailable'));
-
-    render(<ProjectListContainer />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.getByText(/server unavailable/i)).toBeInTheDocument();
-    });
-  });
-
-  it('shows empty state when no projects exist', async () => {
-    mockFetchProjects.mockResolvedValue([]);
-
-    render(<ProjectListContainer />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/no projects/i)).toBeInTheDocument();
-    });
+    await expect(getProjects()).resolves.toEqual([{ id: '1', name: 'Alpha' }]);
+    expect(db.project.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { updatedAt: 'desc' } })
+    );
   });
 });
 ```
+
+```typescript
+// src/components/projects/ProjectList.test.tsx — data in as props
+import { render, screen } from '@/test-utils/render';
+import { ProjectList } from './ProjectList';
+
+describe('ProjectList', () => {
+  it('renders the projects it is given', () => {
+    render(
+      <ProjectList
+        projects={[
+          { id: '1', name: 'Alpha', description: 'First' },
+          { id: '2', name: 'Beta', description: 'Second' },
+        ]}
+      />
+    );
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+  });
+
+  it('shows the empty state', () => {
+    render(<ProjectList projects={[]} />);
+    expect(screen.getByText(/no projects/i)).toBeInTheDocument();
+  });
+});
+```
+
+Async Server Component pages themselves are best covered by Playwright E2E tests
+(Jest/RTL cannot render async Server Components reliably).
 
 ---
 
@@ -239,9 +233,6 @@ Test that form validation rules work correctly.
 import { render, screen, waitFor } from '@/test-utils/render';
 import userEvent from '@testing-library/user-event';
 import { CreateProjectForm } from './CreateProjectForm';
-import * as projectsService from '@/services/projects';
-
-jest.mock('@/services/projects');
 
 describe('CreateProjectForm', () => {
   const user = userEvent.setup();
@@ -285,17 +276,10 @@ describe('CreateProjectForm', () => {
   });
 
   it('resets form after successful submission', async () => {
-    const mockCreate = projectsService.createProjectApi as jest.MockedFunction<
-      typeof projectsService.createProjectApi
-    >;
-    mockCreate.mockResolvedValue({
-      id: '1',
-      name: 'Test',
-      description: 'Desc',
-      createdAt: '',
-    });
+    // onSubmit is the Server Action the page passes in; mock it here.
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
 
-    render(<CreateProjectForm />);
+    render(<CreateProjectForm onSubmit={onSubmit} />);
 
     await user.type(screen.getByLabelText(/name/i), 'Test Project');
     await user.type(screen.getByLabelText(/description/i), 'A description');

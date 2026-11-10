@@ -7,8 +7,6 @@ Patterns for generating test files for different layers of a FastAPI application
 ## Router Test Example
 
 ```python
-from __future__ import annotations
-
 import pytest
 from httpx import AsyncClient
 
@@ -87,8 +85,6 @@ class TestProjectRouter:
 ## Service Test Example
 
 ```python
-from __future__ import annotations
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -156,8 +152,6 @@ class TestProjectService:
 ## Schema Test Example
 
 ```python
-from __future__ import annotations
-
 import pytest
 from pydantic import ValidationError
 
@@ -198,8 +192,6 @@ class TestProjectUpdate:
 ## Task Test Example
 
 ```python
-from __future__ import annotations
-
 from unittest.mock import patch
 
 from app.tasks.sync import sync_external_data

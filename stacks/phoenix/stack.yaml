@@ -73,7 +73,7 @@ setup:
   dev_server_check: elixir -v && mix --version
 
 variables:
-  framework: Phoenix 1.7+
+  framework: Phoenix 1.8+
   template_engine: HEEx
   realtime: Phoenix.PubSub
   dev_port: 4000

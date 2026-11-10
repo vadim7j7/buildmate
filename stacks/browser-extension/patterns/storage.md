@@ -1,6 +1,6 @@
 # Storage
 
-Use `wxt/storage` for all persistence. It wraps `browser.storage` with typed items,
+Use `wxt/utils/storage` for all persistence. It wraps `browser.storage` with typed items,
 fallbacks, versioned migrations, and change watching — so you never sprinkle raw
 `browser.storage.local.get('key')` calls through the codebase.
 
@@ -8,7 +8,7 @@ fallbacks, versioned migrations, and change watching — so you never sprinkle r
 
 ```typescript
 // utils/storage.ts
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 
 export interface Settings {
   theme: 'light' | 'dark';

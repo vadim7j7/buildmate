@@ -75,7 +75,7 @@ declare module '@gluestack-ui/themed' {
 ```
 
 ```typescript
-// app/_layout.tsx
+// src/app/_layout.tsx
 import { GluestackUIProvider } from '@gluestack-ui/themed';
 import { config } from '../gluestack.config';
 
@@ -95,7 +95,7 @@ export default function RootLayout() {
 ### Button Component
 
 ```typescript
-// components/Button.tsx
+// src/components/Button.tsx
 import {
   Button as GluestackButton,
   ButtonText,
@@ -147,7 +147,7 @@ export function Button({
 ### Card Component
 
 ```typescript
-// components/Card.tsx
+// src/components/Card.tsx
 import {
   Box,
   Heading,
@@ -236,7 +236,7 @@ export function CardFooter({ children }: { children: ReactNode }) {
 ### Input Component
 
 ```typescript
-// components/Input.tsx
+// src/components/Input.tsx
 import {
   FormControl,
   FormControlLabel,
@@ -321,7 +321,7 @@ export const Input = forwardRef<any, InputProps>(
 ### Screen Layout
 
 ```typescript
-// components/ScreenLayout.tsx
+// src/components/ScreenLayout.tsx
 import { Box, ScrollView, VStack } from '@gluestack-ui/themed';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView, Platform } from 'react-native';
@@ -410,7 +410,7 @@ import { HStack, VStack, Box } from '@gluestack-ui/themed';
 ### Color Modes
 
 ```typescript
-// hooks/useColorMode.ts
+// src/hooks/useColorMode.ts
 import { useColorMode as useGluestackColorMode } from '@gluestack-ui/themed';
 
 export function useColorMode() {
@@ -434,7 +434,7 @@ function ThemeToggle() {
 ### Theme-aware Styling
 
 ```typescript
-// components/ThemedCard.tsx
+// src/components/ThemedCard.tsx
 import { Box, useColorMode } from '@gluestack-ui/themed';
 
 export function ThemedCard({ children }) {
@@ -461,7 +461,7 @@ export function ThemedCard({ children }) {
 ### Form Pattern
 
 ```typescript
-// components/LoginForm.tsx
+// src/components/LoginForm.tsx
 import { VStack } from '@gluestack-ui/themed';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

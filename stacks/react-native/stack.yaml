@@ -208,14 +208,16 @@ setup:
   dev_server_check: node -v && npm -v
 
 variables:
-  framework: React Native + Expo (SDK 54+)
+  framework: React Native + Expo (SDK 55+, New Architecture only)
+  linter: ESLint (eslint-config-expo, flat config)
+  package_manager: npm
   language: TypeScript (strict mode)
   test_framework: Jest + React Native Testing Library
   ui_state: Zustand
   server_state: React Query (TanStack Query v5)
   database: Drizzle ORM (SQLite)
   navigation: expo-router
-  lists: FlashList
+  lists: FlashList v2 (@shopify/flash-list 2.x, no estimatedItemSize)
   i18n: i18next + expo-localization
   # Locale defaults — overridden by the `languages` option / profile.
   locales: "en,es,fr,de,it,pt-BR,nl,pl,tr,vi,id,ja,ko,ru,zh,tl,th,ms"

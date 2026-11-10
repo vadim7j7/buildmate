@@ -166,7 +166,7 @@ User.in_batches.update_all('full_name = name')
 
 ```ruby
 # For PostgreSQL
-class AddIndexToOrdersUserId < ActiveRecord::Migration[7.0]
+class AddIndexToOrdersUserId < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def change

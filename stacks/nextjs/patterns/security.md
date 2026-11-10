@@ -128,7 +128,7 @@ export async function createProject(formData: FormData) {
   });
 
   if (!result.success) {
-    return { error: result.error.flatten() };
+    return { error: z.flattenError(result.error) };
   }
 
   const project = await db.insert(projects).values({
@@ -234,7 +234,7 @@ export async function destroySession() {
 ### Protected Routes
 
 ```typescript
-// middleware.ts
+// src/proxy.ts (named middleware.ts before Next.js 16)
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSession } from '@/lib/auth';
@@ -242,7 +242,7 @@ import { getSession } from '@/lib/auth';
 const protectedPaths = ['/dashboard', '/settings', '/projects'];
 const authPaths = ['/login', '/signup'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const session = await getSession();
   const path = request.nextUrl.pathname;
 
@@ -304,7 +304,7 @@ export async function POST(request: Request) {
   const result = createProjectSchema.safeParse(body);
   if (!result.success) {
     return NextResponse.json(
-      { error: 'Invalid input', details: result.error.flatten() },
+      { error: 'Invalid input', details: z.flattenError(result.error) },
       { status: 400 }
     );
   }

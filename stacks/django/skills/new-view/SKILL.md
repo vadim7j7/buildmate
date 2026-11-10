@@ -26,14 +26,14 @@ admin registration, and test file.
 5. **Generate URL config** with DRF router
 6. **Register in admin** if not already registered
 7. **Generate test file** with pytest and APIClient
-8. **Run quality checks**: `uv run ruff format && uv run ruff check && uv run mypy && uv run pytest`
+8. **Run quality checks**: `uv run ruff format . && uv run ruff check . && uv run mypy . && uv run pytest`
 
 ## Generated Files
 
 ```
-src/<app>/views.py (or views/<resource>.py)
-src/<app>/serializers.py
-src/<app>/urls.py
-src/<app>/admin.py (updated)
-tests/<app>/test_views.py
+<app>/views.py (or views/<resource>.py)
+<app>/serializers.py
+<app>/urls.py
+<app>/admin.py (updated)
+<app>/tests/test_views.py
 ```

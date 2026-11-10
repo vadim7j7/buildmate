@@ -256,7 +256,7 @@ en:
 ```ruby
 # frozen_string_literal: true
 
-# Preview user emails at http://localhost:3000/rails/mailers/user_mailer
+# Preview user emails at http://localhost:3001/rails/mailers/user_mailer
 class UserMailerPreview < ActionMailer::Preview
   def welcome
     user = User.first || FactoryBot.build(:user, name: 'Preview User')

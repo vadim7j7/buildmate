@@ -7,17 +7,35 @@ and validating responses, status codes, and error handling.
 
 ## Prerequisites
 
-- Rails server running on port 3000 (or configured port)
+- Rails server running on port 3000 (`bin/dev`)
 - Test database seeded
 - Authentication tokens available for protected endpoints
 
 ## Verification Workflow
 
+### 0. Health Route (`/health`)
+
+Auto-verify polls `GET /health`. A fresh Rails 8 app only routes `/up`
+(`rails/health#show`), so add an alias next to it in `config/routes.rb`:
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  get 'up' => 'rails/health#show', as: :rails_health_check
+  get 'health' => 'rails/health#show', as: :health_check
+
+  # ...
+end
+```
+
+`Rails::HealthController` returns 200 when the app boots and 500 when it raises.
+Check it: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health` → `200`.
+
 ### 1. Start Dev Server
 
 ```bash
 # Check if running
-curl -s http://localhost:3000/health || bundle exec rails server -d
+curl -sf http://localhost:3000/health >/dev/null || (bin/dev > log/dev-server.log 2>&1 &)
 
 # Wait for ready
 until curl -s http://localhost:3000/health; do sleep 1; done

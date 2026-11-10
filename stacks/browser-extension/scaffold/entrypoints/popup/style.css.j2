@@ -4,6 +4,15 @@
   color-scheme: light dark;
 }
 
+/* Set by the theme toggle in main.ts */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   width: 320px;
@@ -32,7 +41,8 @@ button {
   padding: 8px 12px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  background: #fff;
+  background: Canvas;
+  color: CanvasText;
   cursor: pointer;
   font: inherit;
 }

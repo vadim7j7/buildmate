@@ -131,7 +131,7 @@ export default defineConfig({
 ### 4. Verify
 
 ```bash
-npx wxt prepare && npx tsc --noEmit
+npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
 npx wxt build            # confirm the generated manifest is valid
 ```
 
@@ -148,5 +148,5 @@ npx wxt build            # confirm the generated manifest is valid
 - [ ] HTML surfaces have `index.html` + `main.ts` in their own directory
 - [ ] `defineBackground` / `defineContentScript` used for background/content
 - [ ] Required manifest keys added to `wxt.config.ts` (sidepanel permissions, etc.)
-- [ ] `npx wxt prepare && tsc --noEmit` passes
+- [ ] `npm run compile` passes
 - [ ] `npx wxt build` produces a valid manifest

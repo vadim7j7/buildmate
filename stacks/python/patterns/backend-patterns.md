@@ -10,8 +10,6 @@ before writing code to ensure consistency across the codebase.
 Schemas define request/response shapes using Pydantic v2.
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -64,8 +62,6 @@ class ProjectRead(ProjectBase):
 Models define database tables using SQLAlchemy 2.0's `Mapped[]` annotations.
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, String, Text, func
@@ -88,7 +84,7 @@ class Project(Base):
     )
 
     # Relationships
-    tasks: Mapped[list[Task]] = relationship(back_populates="project")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="project")
 ```
 
 ### Model Rules
@@ -101,6 +97,7 @@ class Project(Base):
 - Use `String(N)` for varchar, `Text` for unlimited
 - Use `ForeignKey()` for foreign key columns
 - Use `relationship()` with `back_populates` for bidirectional relationships
+- Quote related model names (`Mapped[list["Task"]]`) — they are defined in other modules
 - Add composite indices via `__table_args__` for common query patterns
 
 ---
@@ -110,8 +107,6 @@ class Project(Base):
 Services contain business logic and operate on database sessions.
 
 ```python
-from __future__ import annotations
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -185,8 +180,6 @@ class ProjectService:
 Migrations use Alembic with async engine support.
 
 ```python
-from __future__ import annotations
-
 from alembic import op
 import sqlalchemy as sa
 
@@ -235,8 +228,6 @@ Tests use pytest with async fixtures.
 ### Service Tests (Unit)
 
 ```python
-from __future__ import annotations
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -266,8 +257,6 @@ class TestProjectService:
 ### Schema Tests
 
 ```python
-from __future__ import annotations
-
 import pytest
 from pydantic import ValidationError
 
@@ -301,8 +290,6 @@ class TestProjectSchemas:
 ## 6. Error Handling Pattern
 
 ```python
-from __future__ import annotations
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -332,8 +319,6 @@ class ConflictError(ServiceError):
 ## 7. Logging Pattern
 
 ```python
-from __future__ import annotations
-
 import logging
 
 logger = logging.getLogger(__name__)

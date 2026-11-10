@@ -16,6 +16,14 @@ const tabs = await browser.tabs.query({ active: true }); // works everywhere
 
 WRONG: the raw `chrome.*` global is Chromium-only and callback-based.
 
+Since WXT 0.20 this `browser` is **not** `webextension-polyfill`: it is the native
+`browser`/`chrome` object (package `@wxt-dev/browser`), typed from `@types/chrome` — use
+the `Browser` namespace (`import type { Browser } from 'wxt/browser'`) for types.
+Consequence: a raw `browser.runtime.onMessage` listener can no longer return a Promise
+to reply — call `sendResponse` and `return true` (or use `@webext-core/messaging`).
+Other WXT utilities moved too: `wxt/storage` → `wxt/utils/storage`, and
+`wxt/sandbox` / `wxt/client` APIs come from `#imports`.
+
 ## 2. Build-time environment flags
 
 WXT injects compile-time constants. Dead-code elimination removes the unused branch per

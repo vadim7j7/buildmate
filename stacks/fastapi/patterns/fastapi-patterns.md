@@ -11,8 +11,6 @@ Routers define HTTP endpoints using FastAPI's `APIRouter`. Each router handles o
 resource type and delegates business logic to a service class.
 
 ```python
-from __future__ import annotations
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -107,8 +105,6 @@ async def delete_project(
 Schemas define request/response shapes using Pydantic v2.
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -161,8 +157,6 @@ class ProjectRead(ProjectBase):
 Models define database tables using SQLAlchemy 2.0's `Mapped[]` annotations.
 
 ```python
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, String, Text, func
@@ -185,7 +179,7 @@ class Project(Base):
     )
 
     # Relationships
-    tasks: Mapped[list[Task]] = relationship(back_populates="project")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="project")
 ```
 
 ### Model Rules
@@ -207,8 +201,6 @@ class Project(Base):
 Services contain business logic and operate on database sessions.
 
 ```python
-from __future__ import annotations
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -282,8 +274,6 @@ class ProjectService:
 Tasks handle background work using Celery's `@shared_task` decorator.
 
 ```python
-from __future__ import annotations
-
 import logging
 
 from celery import shared_task
@@ -327,8 +317,6 @@ def sync_external_data(self, resource_id: int) -> dict:
 Dependencies provide reusable injection points for FastAPI routes.
 
 ```python
-from __future__ import annotations
-
 from collections.abc import AsyncGenerator
 
 from fastapi import Depends, Query
@@ -360,8 +348,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 Tests use pytest with async fixtures and httpx for HTTP testing.
 
 ```python
-from __future__ import annotations
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession

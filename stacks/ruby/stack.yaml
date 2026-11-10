@@ -111,7 +111,7 @@ setup:
 
 variables:
   framework: Ruby
-  language: Ruby 3.2+
+  language: Ruby 3.4+
   test_framework: RSpec
   orm: Sequel
   linter: RuboCop

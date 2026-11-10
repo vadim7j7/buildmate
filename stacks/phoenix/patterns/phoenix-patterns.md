@@ -145,6 +145,25 @@ defmodule MyAppWeb.UserLive.Index do
     with {:ok, user} <- Accounts.get_user(id),
          {:ok, _} <- Accounts.delete_user(user) do
       {:noreply, stream_delete(socket, :users, user)}
+    else
+      {:error, :not_found} ->
+        {:noreply, put_flash(socket, :error, "User not found")}
+
+      {:error, %Ecto.Changeset{}} ->
+        {:noreply, put_flash(socket, :error, "Could not delete user")}
+    end
+  end
+
+  def handle_event("save", %{"user" => user_params}, socket) do
+    case Accounts.create_user(user_params) do
+      {:ok, user} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "User created")
+         |> stream_insert(:users, user)}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, :form, to_form(changeset))}
     end
   end
 
@@ -156,6 +175,10 @@ end
 
 ### Rules
 - Use `@impl true` on all callbacks
+- `handle_event/3` must always return `{:noreply, socket}`: give every `with` an
+  `else` (a bare `with` returns `{:error, _}` and crashes the LiveView)
+- On `{:error, %Ecto.Changeset{}}` from a form, re-assign `to_form(changeset)` so
+  the errors render; for other errors, `put_flash(socket, :error, ...)`
 - Use streams for large collections
 - Handle events with `handle_event/3`
 - Use assigns for state management
@@ -223,6 +246,24 @@ defmodule MyAppWeb.Plugs.Auth do
 end
 ```
 
+### Health Check
+
+The dev server is verified with `GET /health`; `mix phx.new` does not create it.
+
+```elixir
+# lib/my_app_web/controllers/health_controller.ex
+defmodule MyAppWeb.HealthController do
+  use MyAppWeb, :controller
+
+  def show(conn, _params), do: json(conn, %{status: "ok"})
+end
+
+# lib/my_app_web/router.ex - outside every pipeline (no auth, no CSRF)
+scope "/", MyAppWeb do
+  get "/health", HealthController, :show
+end
+```
+
 ### Rules
 - Implement `init/1` and `call/2`
 - Use `halt()` to stop the pipeline
@@ -269,4 +310,5 @@ end
 - Use `ConnCase` for controller tests
 - Use `~p` sigil for verified routes
 - Use `json_response/2` for API tests
-- Use `setup` for test data
+- Use `setup` for test data; use `*_fixture` helpers from `test/support/fixtures/`
+  (what Phoenix generators create), not ExMachina

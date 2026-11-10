@@ -330,8 +330,11 @@ def _resolve_inheritance(
     parent_agents = {a["name"]: a for a in parent_config.get("agents", [])}
     child_agents = {a["name"]: a for a in child_config.get("agents", [])}
 
-    # Start with parent agents, tagged with parent stack name
+    # Start with parent agents, tagged with parent stack name, unless the child
+    # opts out (a frontend child of a parent that defines backend agents)
     merged_agents: dict[str, dict[str, Any]] = {}
+    if child_config.get("inherit_agents", True) is False:
+        parent_agents = {}
     for name, agent in parent_agents.items():
         agent_copy = dict(agent)
         agent_copy["_source_stack"] = parent_name

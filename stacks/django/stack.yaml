@@ -67,6 +67,24 @@ skills:
   - db-migrate
   - test
 
+# Apps live at the project root (<app>/, tests in <app>/tests/), so the python
+# parent's `src/ tests/` paths do not apply: check the whole project.
+quality_gates:
+  format:
+    command: uv run ruff format --check .
+    fix_command: uv run ruff format .
+    description: Code formatting check
+  lint:
+    command: uv run ruff check .
+    fix_command: uv run ruff check --fix .
+    description: Ruff linting
+  typecheck:
+    command: uv run mypy .
+    description: Type checking with mypy + django-stubs
+  tests:
+    command: uv run pytest
+    description: pytest + pytest-django (DJANGO_SETTINGS_MODULE in pyproject.toml)
+
 patterns:
   - patterns/django-patterns.md
 
@@ -77,7 +95,8 @@ setup:
   dev_server_check: uv run python --version
 
 variables:
-  framework: Django 5+
+  framework: Django 5.2+
+  test_framework: pytest + pytest-django
   orm: Django ORM
   migrations: Django migrations
   validation: DRF serializers
@@ -107,14 +126,14 @@ options:
           db_adapter: ""
           db_engine: django.db.backends.sqlite3
       mongodb:
-        description: MongoDB with Djongo
+        description: MongoDB with django-mongodb-backend (official, Django 5.2)
         patterns:
           - patterns/mongodb.md
         variables:
           database: MongoDB
-          db_adapter: djongo
-          db_engine: djongo
-          orm: Django ORM (MongoDB via Djongo)
+          db_adapter: django-mongodb-backend 5.2.x (PyMongo)
+          db_engine: django_mongodb_backend
+          orm: Django ORM (MongoDB via django-mongodb-backend)
 
 verification:
   enabled: true

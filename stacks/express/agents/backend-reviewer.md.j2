@@ -35,8 +35,11 @@ performance, and adherence to TypeScript conventions.
 - [ ] Input validated with Zod schemas
 - [ ] No raw SQL queries
 - [ ] Authentication middleware on protected routes
+- [ ] Authorization: queries scoped by the current user/tenant (no IDOR via IDs in params/body)
+- [ ] Route params and query strings validated with Zod, not just bodies
 - [ ] No secrets in code
 - [ ] CORS configured properly
+- [ ] Server reads `process.env.PORT` (dev runs on {{ variables.dev_port }})
 
 ### Performance
 
@@ -48,7 +51,9 @@ performance, and adherence to TypeScript conventions.
 ### Code Quality
 
 - [ ] TypeScript strict mode compliance (no `any`)
-- [ ] Proper error handling with `next(error)`
+- [ ] Errors propagate from `async` handlers to the error middleware (Express 5); no redundant `try/catch` + `next(error)`
+- [ ] `req.query` never assigned to (read-only in Express 5); parsed into a new variable
+- [ ] Validation errors reported with `z.flattenError()` / `error.issues` (not deprecated `error.flatten()`)
 - [ ] Named exports used
 - [ ] Service layer for business logic
 - [ ] Controller delegates to services

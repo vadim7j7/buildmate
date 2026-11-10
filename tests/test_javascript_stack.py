@@ -29,13 +29,23 @@ class TestLoadJavaScriptStack:
 
         assert config.variables["language"] == "TypeScript"
         assert config.variables["package_manager"] == "npm"
-        assert config.variables["runtime"] == "Node.js 22+"
+        assert config.variables["runtime"] == "Node.js 24 LTS"
 
-    def test_javascript_empty_agents(self):
-        """JavaScript stack should have empty agents list."""
+    def test_javascript_has_generic_agents(self):
+        """JavaScript stack has its own developer/tester/reviewer for plain Node/TS."""
         config = load_stack("javascript")
 
-        assert len(config.agents) == 0
+        assert {a.name for a in config.agents} == {
+            "backend-developer",
+            "backend-tester",
+            "backend-reviewer",
+        }
+
+    def test_frontend_children_do_not_inherit_backend_agents(self):
+        """nextjs/nuxt set inherit_agents: false, so they only have frontend-* agents."""
+        for name in ("nextjs", "nuxt"):
+            config = load_stack(name)
+            assert all(a.name.startswith("frontend-") for a in config.agents), name
 
     def test_javascript_quality_gates(self):
         """JavaScript stack should have quality gates."""
@@ -178,7 +188,7 @@ class TestLoadNuxt:
         config = load_stack("nuxt")
 
         assert config.name == "nuxt"
-        assert config.display_name == "Nuxt 3"
+        assert config.display_name == "Nuxt 4"
         assert config.parent_stack_path is not None
 
     def test_nuxt_inherits_from_javascript(self):
@@ -228,7 +238,7 @@ class TestLoadNuxt:
         """Nuxt should have framework-specific variables."""
         config = load_stack("nuxt")
 
-        assert config.variables["framework"] == "Nuxt 3+"
+        assert config.variables["framework"] == "Nuxt 4"
         assert config.variables["language"] == "TypeScript"  # inherited
         assert config.variables["ui_framework"] == "Vue 3"
 

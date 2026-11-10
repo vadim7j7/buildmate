@@ -91,7 +91,7 @@ skills:
 
 quality_gates:
   format:
-    command: gofmt -l .
+    command: test -z "$(gofmt -l .)"
     fix_command: gofmt -w .
     description: Go code formatting
   lint:
@@ -114,7 +114,7 @@ setup:
 
 variables:
   framework: Go
-  language: Go 1.22+
+  language: Go 1.25+
   test_framework: testing + testify
   linter: golangci-lint
   orm: database/sql

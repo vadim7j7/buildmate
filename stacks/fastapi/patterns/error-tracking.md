@@ -18,8 +18,6 @@ pip install sentry-sdk[fastapi]
 # app/core/sentry.py
 """Sentry configuration."""
 
-from __future__ import annotations
-
 import sentry_sdk
 from sentry_sdk.integrations.asyncio import AsyncioIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
@@ -106,17 +104,12 @@ app = FastAPI()
 # app/middleware/sentry.py
 """Sentry integration middleware."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 import sentry_sdk
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from collections.abc import Callable
 
 
 class SentryContextMiddleware(BaseHTTPMiddleware):
@@ -163,8 +156,6 @@ app.add_middleware(SentryContextMiddleware)
 ```python
 # app/core/errors.py
 """Custom error classes with Sentry integration."""
-
-from __future__ import annotations
 
 from typing import Any
 
@@ -307,8 +298,6 @@ class RateLimitError(AppError):
 # app/api/exception_handlers.py
 """Global exception handlers."""
 
-from __future__ import annotations
-
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -394,8 +383,6 @@ register_exception_handlers(app)
 # app/dependencies/sentry.py
 """Sentry context dependencies."""
 
-from __future__ import annotations
-
 from typing import Annotated
 
 import sentry_sdk
@@ -436,8 +423,6 @@ async def get_profile(
 ```python
 # app/services/transaction.py
 """Transaction monitoring with Sentry."""
-
-from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
@@ -523,8 +508,6 @@ class OrderService:
 # app/tasks/base.py
 """Background task error handling."""
 
-from __future__ import annotations
-
 import functools
 from typing import Any, Callable, TypeVar
 
@@ -578,8 +561,6 @@ async def send_welcome_email(ctx: dict, user_id: str) -> None:
 ```python
 # app/core/sentry_utils.py
 """Sentry utility functions."""
-
-from __future__ import annotations
 
 from typing import Any
 
@@ -648,8 +629,6 @@ class PaymentService:
 # app/core/sentry.py
 """Sentry error fingerprinting."""
 
-from __future__ import annotations
-
 import sentry_sdk
 
 from app.core.errors import ExternalServiceError
@@ -687,8 +666,6 @@ def before_send(event: dict, hint: dict) -> dict | None:
 ```python
 # app/api/health.py
 """Health check with Sentry integration."""
-
-from __future__ import annotations
 
 import sentry_sdk
 from fastapi import APIRouter
@@ -744,8 +721,6 @@ async def health_check() -> HealthResponse:
 # app/api/debug.py
 """Debug endpoints for testing Sentry."""
 
-from __future__ import annotations
-
 import sentry_sdk
 from fastapi import APIRouter, HTTPException
 
@@ -785,8 +760,6 @@ async def test_sentry_message():
 ```python
 # app/core/sentry.py
 """Sentry release tracking."""
-
-from __future__ import annotations
 
 import os
 

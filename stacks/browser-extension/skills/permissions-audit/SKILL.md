@@ -55,7 +55,7 @@ A grant with no corresponding call is **unused**.
 
 | Permission | Required by (search for) |
 |---|---|
-| `storage` | `wxt/storage` items, `browser.storage.*` |
+| `storage` | `wxt/utils/storage` items, `browser.storage.*` |
 | `tabs` | `browser.tabs.*` (URL/title access; `activeTab` may suffice) |
 | `scripting` | `browser.scripting.executeScript` |
 | `activeTab` | on-click access to the current tab (preferred over `tabs` + `<all_urls>`) |
@@ -129,7 +129,7 @@ After any edit, rebuild to confirm the manifest is still valid and the code
 still type-checks:
 
 ```bash
-npx wxt prepare && npx tsc --noEmit
+npm run compile   # wxt prepare + tsc / vue-tsc / svelte-check (per the ui option)
 npx wxt build && npx wxt build -b firefox
 ```
 

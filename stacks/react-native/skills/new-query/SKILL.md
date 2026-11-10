@@ -14,9 +14,9 @@ query key factory pattern and integrates with Drizzle ORM query functions.
 ## Usage
 
 ```
-/new-query useTransactions      # queries/useTransactions.ts
-/new-query useBudgets           # queries/useBudgets.ts
-/new-query useCategories        # queries/useCategories.ts
+/new-query useTransactions      # src/queries/useTransactions.ts
+/new-query useBudgets           # src/queries/useBudgets.ts
+/new-query useCategories        # src/queries/useCategories.ts
 ```
 
 ## Arguments
@@ -31,17 +31,17 @@ query key factory pattern and integrates with Drizzle ORM query functions.
 
 Place the hook at:
 ```
-queries/<hookName>.ts
+src/queries/<hookName>.ts
 ```
 
 ### 2. Check for Drizzle Query Functions
 
-Look for corresponding query functions in `db/queries/`. If they do not exist,
+Look for corresponding query functions in `src/db/queries/`. If they do not exist,
 create them or inform the user they need to be created first.
 
 ### 3. Update Query Key Factory
 
-Add query keys for the new entity to `queries/queryKeys.ts`:
+Add query keys for the new entity to `src/queries/queryKeys.ts`:
 
 ```typescript
 export const queryKeys = {
@@ -86,7 +86,7 @@ npx tsc --noEmit
 
 ### Query Keys
 
-- Use the centralised `queryKeys` factory in `queries/queryKeys.ts`
+- Use the centralised `queryKeys` factory in `src/queries/queryKeys.ts`
 - Never use inline string arrays for query keys
 - Follow the `all > lists > list(filters) > details > detail(id)` hierarchy
 

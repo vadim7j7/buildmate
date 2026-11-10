@@ -10,8 +10,6 @@ OAuth2 and JWT authentication patterns.
 # app/core/security.py
 """Security utilities for JWT and password handling."""
 
-from __future__ import annotations
-
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -88,8 +86,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 ```python
 # app/api/v1/auth.py
 """Authentication endpoints."""
-
-from __future__ import annotations
 
 from datetime import timedelta
 from typing import Annotated
@@ -197,8 +193,6 @@ async def refresh_token(
 # app/dependencies/auth.py
 """Authentication dependencies."""
 
-from __future__ import annotations
-
 from typing import Annotated
 
 import jwt
@@ -283,15 +277,9 @@ CurrentSuperuser = Annotated[User, Depends(get_current_active_superuser)]
 # app/services/oauth_service.py
 """OAuth provider integration service."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
 import httpx
 
 from app.core.config import settings
-
-if TYPE_CHECKING:
-    from app.models.user import User
 
 
 class OAuthService:
@@ -390,8 +378,6 @@ class OAuthService:
 ```python
 # app/api/v1/oauth.py
 """OAuth callback endpoints."""
-
-from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -512,8 +498,6 @@ class UserLogin(BaseModel):
 # app/services/token_service.py
 """Token management service."""
 
-from __future__ import annotations
-
 from datetime import datetime, timezone
 
 import redis.asyncio as redis
@@ -579,8 +563,6 @@ async def logout(
 ```python
 # tests/test_auth.py
 """Authentication tests."""
-
-from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient

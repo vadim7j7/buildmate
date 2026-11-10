@@ -51,6 +51,48 @@ Match the existing code style exactly.
 
 ## Code Patterns
 
+### App Skeleton (Gemfile, config.ru)
+
+A new or bare project needs these before anything else; check they exist.
+
+```ruby
+# Gemfile
+# frozen_string_literal: true
+
+source 'https://rubygems.org'
+
+gem 'pg'              # DB driver (mysql2 / sqlite3 for other databases)
+gem 'puma'            # app server rackup starts
+gem 'rackup'          # Sinatra 4 / Rack 3: the `rackup` command is a separate gem
+gem 'sequel'          # ORM
+gem 'sinatra', '~> 4.0'
+gem 'sinatra-contrib' # sinatra/json, Sinatra::Reloader
+
+group :test do
+  gem 'rack-test'
+  gem 'rspec'
+end
+```
+
+```ruby
+# config.ru
+# frozen_string_literal: true
+
+require_relative 'app'
+
+run App
+```
+
+Start it with `bundle exec rackup -p {{ variables.dev_port }}` (never `ruby app.rb`: a modular
+`App < Sinatra::Base` has no `run!` call, so that command exits without serving).
+The app must answer `GET /health` with 200; auto-verify polls it:
+
+```ruby
+get '/health' do
+  json status: 'ok'
+end
+```
+
 ### Modular App Pattern
 
 ```ruby
@@ -221,10 +263,7 @@ end
 After writing code, ALWAYS run:
 
 {% for gate_name, gate in stack.quality_gates.items() %}
-{% if gate.fix_command %}
-1. **Auto-fix {{ gate_name }}**: `{{ gate.fix_command }} <changed_files>`
-{% endif %}
-2. **Verify {{ gate_name }}**: `{{ gate.command }} <changed_files>` (must pass)
+{{ loop.index }}. **{{ gate_name | capitalize }}**:{% if gate.fix_command %} auto-fix with `{{ gate.fix_command }} <changed_files>`, then{% endif %} verify with `{{ gate.command }} <changed_files>` (must pass)
 {% endfor %}
 
 Report any remaining issues. Do not mark work as complete if quality gates fail.

@@ -1,3 +1,8 @@
+---
+name: test-scraper
+description: Run a scraper's unit, mocked-integration and live validation tests (pytest for Python, Jest for Node.js)
+---
+
 # /test-scraper
 
 Run comprehensive tests for a scraper, including validation against live targets.
@@ -26,7 +31,8 @@ Run comprehensive tests for a scraper, including validation against live targets
 
 Test individual components:
 
-{% if variables.language == 'Python' %}
+**Python:**
+
 ```bash
 # Run unit tests only
 uv run pytest tests/unit/ -v
@@ -34,7 +40,9 @@ uv run pytest tests/unit/ -v
 # Run with coverage
 uv run pytest tests/unit/ --cov=scrapers --cov-report=html
 ```
-{% else %}
+
+**Node.js:**
+
 ```bash
 # Run unit tests only
 npm test -- --testPathPattern="unit"
@@ -42,29 +50,31 @@ npm test -- --testPathPattern="unit"
 # Run with coverage
 npm test -- --coverage
 ```
-{% endif %}
 
 ### 2. Integration Tests (Mocked)
 
 Test full scraper flow with mocked HTTP:
 
-{% if variables.language == 'Python' %}
+**Python:**
+
 ```bash
 # Run integration tests
 uv run pytest tests/integration/ -v -m "not live"
 ```
-{% else %}
+
+**Node.js:**
+
 ```bash
 # Run integration tests
 npm test -- --testPathPattern="integration" --testPathIgnorePatterns="live"
 ```
-{% endif %}
 
 ### 3. Live Validation Tests
 
 Test against actual target (use sparingly):
 
-{% if variables.language == 'Python' %}
+**Python:**
+
 ```bash
 # Run live tests (careful with rate limiting)
 uv run pytest tests/live/ -v --slow
@@ -72,7 +82,9 @@ uv run pytest tests/live/ -v --slow
 # With sampling
 uv run pytest tests/live/ -v -k "test_sample" --sample=5
 ```
-{% else %}
+
+**Node.js:**
+
 ```bash
 # Run live tests
 npm test -- --testPathPattern="live" --runInBand
@@ -80,7 +92,6 @@ npm test -- --testPathPattern="live" --runInBand
 # Single test with timeout
 npm test -- --testPathPattern="live" --testTimeout=60000
 ```
-{% endif %}
 
 ## Validation Checks
 

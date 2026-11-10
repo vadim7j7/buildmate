@@ -7,17 +7,12 @@ Reference examples for generating ASGI middleware.
 ```python
 """Request timing middleware for performance monitoring."""
 
-from __future__ import annotations
-
 import time
-from typing import TYPE_CHECKING
-
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from collections.abc import Callable
 
 
 class TimingMiddleware(BaseHTTPMiddleware):
@@ -49,17 +44,12 @@ class TimingMiddleware(BaseHTTPMiddleware):
 ```python
 """Request ID middleware for request tracing."""
 
-from __future__ import annotations
-
 import uuid
-from typing import TYPE_CHECKING
-
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from collections.abc import Callable
 
 REQUEST_ID_HEADER = "X-Request-ID"
 
@@ -97,18 +87,13 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 ```python
 """Structured request logging middleware."""
 
-from __future__ import annotations
-
 import logging
 import time
-from typing import TYPE_CHECKING
-
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -176,13 +161,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 ```python
 """Pure ASGI timing middleware for maximum performance."""
 
-from __future__ import annotations
-
 import time
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class TimingMiddleware:
@@ -231,13 +211,8 @@ class TimingMiddleware:
 ```python
 """Correlation ID middleware for distributed tracing."""
 
-from __future__ import annotations
-
 import uuid
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 CORRELATION_ID_HEADER = b"x-correlation-id"
 
@@ -294,8 +269,6 @@ class CorrelationMiddleware:
 
 ```python
 """Tests for timing middleware."""
-
-from __future__ import annotations
 
 import pytest
 from fastapi import FastAPI

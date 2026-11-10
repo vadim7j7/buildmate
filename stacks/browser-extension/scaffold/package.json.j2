@@ -4,6 +4,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
@@ -11,7 +14,13 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+{% if variables.ui_framework == 'Vue' %}
+    "compile": "wxt prepare && vue-tsc --noEmit",
+{% elif variables.ui_framework == 'Svelte' %}
+    "compile": "wxt prepare && svelte-check --tsconfig ./tsconfig.json",
+{% else %}
     "compile": "wxt prepare && tsc --noEmit",
+{% endif %}
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -19,22 +28,29 @@
   },
   "dependencies": {
     "@webext-core/messaging": "^2.1.0"{% if variables.ui_framework == 'React' %},
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"{% elif variables.ui_framework == 'Vue' %},
-    "vue": "^3.4.21"{% elif variables.ui_framework == 'Svelte' %},
-    "svelte": "^4.2.12"{% endif %}
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"{% elif variables.ui_framework == 'Vue' %},
+    "vue": "^3.5.0"{% elif variables.ui_framework == 'Svelte' %},
+    "svelte": "^5.0.0"{% endif %}
+
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
     "eslint": "^9.9.0",
-    "typescript": "^5.6.0",
+    "typescript": "^5.9.0",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^2.1.0",
-    "wxt": "^0.19.0"{% if variables.use_tailwind %},
+    "vite": "^7.0.0",
+    "vitest": "^4.1.0",
+    "wxt": "^0.21.0"{% if variables.use_tailwind %},
     "tailwindcss": "^4.0.0",
-    "@tailwindcss/vite": "^4.0.0"{% endif %}{% if variables.wxt_module %},
-    "{{ variables.wxt_module }}": "^1.1.0"{% endif %}{% if variables.ui_framework == 'React' %},
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0"{% endif %}
+    "@tailwindcss/vite": "^4.0.0"{% endif %}{% if variables.ui_framework == 'React' %},
+    "@wxt-dev/module-react": "^1.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"{% elif variables.ui_framework == 'Vue' %},
+    "@wxt-dev/module-vue": "^1.0.0",
+    "vue-tsc": "^3.0.0"{% elif variables.ui_framework == 'Svelte' %},
+    "@wxt-dev/module-svelte": "^2.0.0",
+    "svelte-check": "^4.0.0"{% endif %}
+
   }
 }

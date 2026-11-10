@@ -36,7 +36,6 @@ appropriate fixtures, async test methods, and standard test structure.
    API surface: functions, methods, parameters, return types.
 
 4. **Generate the test file.** Create the test module with:
-   - `from __future__ import annotations`
    - Appropriate imports and fixtures
    - Test class with descriptive name
    - Test methods for happy path, edge cases, error conditions

@@ -73,25 +73,27 @@ function List() {
     <FlashList
       data={items}
       renderItem={({ item }) => <ItemRow item={item} onPress={handlePress} />}
-      estimatedItemSize={50}
     />
   );
 }
 ```
 
-### Missing estimatedItemSize
+### FlashList v1 props on FlashList v2
 
 ```typescript
-// WRONG - FlashList without estimatedItemSize
-<FlashList data={items} renderItem={renderItem} />
+// WRONG - v1 props removed in FlashList v2 (ignored, flagged in dev)
+<FlashList data={items} renderItem={renderItem} estimatedItemSize={72} />
+<MasonryFlashList data={photos} numColumns={2} renderItem={renderPhoto} />
+<FlashList data={messages} renderItem={renderMessage} inverted />
 
-// Warning: FlashList will use a default estimatedItemSize which may hurt performance
-
-// CORRECT - always provide estimatedItemSize
+// CORRECT - v2 measures items itself; masonry is a prop; chat lists keep
+// their position with maintainVisibleContentPosition (on by default)
+<FlashList data={items} renderItem={renderItem} getItemType={(i) => i.kind} />
+<FlashList masonry data={photos} numColumns={2} renderItem={renderPhoto} />
 <FlashList
-  data={items}
-  renderItem={renderItem}
-  estimatedItemSize={72}  // Average height of your items
+  data={messages}
+  renderItem={renderMessage}
+  maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
 />
 ```
 
@@ -113,7 +115,6 @@ import { FlashList } from '@shopify/flash-list';
 <FlashList
   data={transactions}
   renderItem={renderItem}
-  estimatedItemSize={72}
   keyExtractor={(item) => item.id}
 />
 
@@ -296,6 +297,8 @@ function FormScreen() {
 }
 
 // CORRECT - handle back navigation
+// (hooks such as usePreventRemove come from @react-navigation/native, which
+// expo-router builds on; importing hooks is fine — navigators/containers are not)
 import { usePreventRemove } from '@react-navigation/native';
 
 function FormScreen() {
@@ -679,7 +682,7 @@ Alert.alert(t('common.error'), t('errors.generic'));
 |---------|----------|
 | Inline styles | StyleSheet.create |
 | Anonymous handlers | useCallback + memo |
-| Slow lists | FlashList with estimatedItemSize |
+| Slow lists | FlashList v2 (no size estimates; `getItemType` for mixed rows) |
 | Poor image perf | expo-image with caching |
 | Memory leaks | Cleanup effects, AbortController |
 | Large bundle | Tree-shaking, lighter alternatives |

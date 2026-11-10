@@ -74,7 +74,7 @@ ViewComponent and Stimulus reviews are handled by the **view-reviewer** agent.
 - [ ] Controllers are RESTful (index, show, new, create, edit, update, destroy)
 - [ ] `respond_to` blocks include HTML and JSON where both are needed
 - [ ] Models have proper associations / validations / scopes
-- [ ] Jobs are namespaced and have `queue_as` + `sidekiq_options retry:`
+- [ ] Jobs are namespaced, set `queue_as`, and handle failures with ActiveJob `retry_on` / `discard_on`{{ '' if (variables.job_adapter | default('sidekiq')) == 'sidekiq' else ' (no `sidekiq_options`: it raises `NoMethodError` on ' ~ variables.background_jobs ~ ')' }}
 - [ ] Migrations are reversible
 
 ### Testing

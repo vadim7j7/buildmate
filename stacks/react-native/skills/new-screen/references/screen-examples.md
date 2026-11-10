@@ -6,7 +6,7 @@ A list screen with FlashList, data loading, pull-to-refresh, empty state, and
 platform-specific primary action.
 
 ```typescript
-// app/(tabs)/budgets.tsx
+// src/app/(tabs)/budgets.tsx
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Stack, Link, router } from 'expo-router';
@@ -57,7 +57,6 @@ export default function BudgetsScreen() {
       <FlashList
         data={budgets ?? []}
         renderItem={renderItem}
-        estimatedItemSize={80}
         keyExtractor={(item) => item.id}
         onRefresh={refetch}
         refreshing={isLoading}
@@ -110,7 +109,7 @@ A form screen with KeyboardAvoidingView, validation, header save button, and
 mutation handling.
 
 ```typescript
-// app/(modals)/budget-form.tsx
+// src/app/(modals)/budget-form.tsx
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -278,7 +277,7 @@ A detail screen with ScrollView, sections, data loading, and navigation
 parameter handling.
 
 ```typescript
-// app/(tabs)/budgets/[id].tsx
+// src/app/(tabs)/budgets/[id].tsx
 import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -463,7 +462,7 @@ const styles = StyleSheet.create({
 ## Screen with Tab Navigation Layout
 
 ```typescript
-// app/(tabs)/_layout.tsx
+// src/app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -526,7 +525,7 @@ export default function TabLayout() {
 ## Root Layout with Providers
 
 ```typescript
-// app/_layout.tsx
+// src/app/_layout.tsx
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

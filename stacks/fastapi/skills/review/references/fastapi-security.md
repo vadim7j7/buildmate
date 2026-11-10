@@ -8,14 +8,15 @@ OWASP-aligned security patterns for FastAPI applications.
 
 ### OAuth2 with JWT
 
+Use **PyJWT** (`import jwt`), not `python-jose` (unmaintained), and timezone-aware
+`datetime.now(UTC)`, never `datetime.utcnow()` (deprecated). Same as `patterns/oauth.md`.
+
 ```python
-from __future__ import annotations
+from datetime import UTC, datetime, timedelta
 
-from datetime import datetime, timedelta
-
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -28,7 +29,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=30))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=30))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
@@ -45,13 +46,13 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
-        user_id: int | None = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except JWTError:
+    except jwt.InvalidTokenError as exc:  # includes ExpiredSignatureError
+        raise credentials_exception from exc
+    subject: str | None = payload.get("sub")  # PyJWT requires "sub" to be a string
+    if subject is None:
         raise credentials_exception
 
-    user = await db.get(User, user_id)
+    user = await db.get(User, int(subject))
     if user is None:
         raise credentials_exception
     return user
@@ -64,8 +65,6 @@ async def get_current_user(
 ### Pydantic Validators
 
 ```python
-from __future__ import annotations
-
 import re
 
 from pydantic import BaseModel, field_validator
@@ -132,8 +131,6 @@ result = await db.execute(text(query))
 ## CORS Configuration
 
 ```python
-from __future__ import annotations
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -156,8 +153,6 @@ def configure_cors(app: FastAPI) -> None:
 ## Secrets Management
 
 ```python
-from __future__ import annotations
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -183,8 +178,6 @@ class Settings(BaseSettings):
 ## Rate Limiting
 
 ```python
-from __future__ import annotations
-
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address

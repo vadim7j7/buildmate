@@ -1,5 +1,6 @@
 name: nextjs
 extends: javascript
+inherit_agents: false
 display_name: React + Next.js
 description: Frontend development with React and Next.js App Router
 

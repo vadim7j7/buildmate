@@ -12,8 +12,6 @@ Best practices for async/await patterns in FastAPI applications.
 # app/api/v1/users.py
 """Async endpoint examples."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -43,8 +41,6 @@ def get_user_count():
 ```python
 # app/core/database.py
 """Async database configuration."""
-
-from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
@@ -80,17 +76,12 @@ async def get_db() -> AsyncSession:
 # app/repositories/user_repository.py
 """Async repository pattern."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.models.user import User
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class UserRepository:
@@ -162,8 +153,6 @@ class UserRepository:
 # app/services/dashboard_service.py
 """Concurrent data fetching."""
 
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 
@@ -211,8 +200,6 @@ class DashboardService:
 # app/services/batch_service.py
 """Batch operations with error handling."""
 
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 
@@ -250,8 +237,6 @@ async def process_item(item: str) -> dict:
 # app/services/task_service.py
 """Using TaskGroup for structured concurrency."""
 
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 
@@ -284,8 +269,6 @@ async def fetch_resource(resource_id: str) -> dict:
 ```python
 # app/services/external_api.py
 """Rate-limited external API calls."""
-
-from __future__ import annotations
 
 import asyncio
 
@@ -325,8 +308,6 @@ class ExternalAPIClient:
 # app/services/timeout_service.py
 """Timeout patterns."""
 
-from __future__ import annotations
-
 import asyncio
 
 from app.core.errors import TimeoutError
@@ -364,8 +345,6 @@ async def fetch_with_timeout(url: str) -> dict:
 # app/api/v1/orders.py
 """Background task patterns."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter, BackgroundTasks
 
 from app.services.email_service import send_order_confirmation
@@ -394,8 +373,6 @@ async def create_order(
 ```python
 # app/services/processor.py
 """Long-running background processing."""
-
-from __future__ import annotations
 
 import asyncio
 from typing import Any
@@ -445,8 +422,6 @@ async def process_file_async(file_id: str) -> None:
 ```python
 # app/core/resources.py
 """Async context manager patterns."""
-
-from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -515,8 +490,6 @@ class HTTPClientPool:
 ```python
 # app/services/streaming.py
 """Async generator patterns."""
-
-from __future__ import annotations
 
 from typing import AsyncGenerator
 

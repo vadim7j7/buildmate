@@ -7,27 +7,45 @@ and validating responses, status codes, and error handling.
 
 ## Prerequisites
 
-- Rails server running on port 3000 (or configured port)
+- Rails server running on port 3001 (`bundle exec rails server -p 3001`)
 - Test database seeded
 - Authentication tokens available for protected endpoints
 
 ## Verification Workflow
 
+### 0. Health Route (`/health`)
+
+Auto-verify polls `GET /health`. A fresh Rails 8 app only routes `/up`
+(`rails/health#show`), so add an alias next to it in `config/routes.rb`:
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+  get 'up' => 'rails/health#show', as: :rails_health_check
+  get 'health' => 'rails/health#show', as: :health_check
+
+  # ...
+end
+```
+
+`Rails::HealthController` returns 200 when the app boots and 500 when it raises.
+Check it: `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/health` → `200`.
+
 ### 1. Start Dev Server
 
 ```bash
 # Check if running
-curl -s http://localhost:3000/health || bundle exec rails server -d
+curl -s http://localhost:3001/health || bundle exec rails server -d -p 3001
 
 # Wait for ready
-until curl -s http://localhost:3000/health; do sleep 1; done
+until curl -s http://localhost:3001/health; do sleep 1; done
 ```
 
 ### 2. Test Endpoint
 
 ```bash
 # Example: POST /api/users
-curl -X POST http://localhost:3000/api/users \
+curl -X POST http://localhost:3001/api/users \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"user": {"email": "test@example.com", "name": "Test"}}' \
@@ -47,25 +65,25 @@ curl -X POST http://localhost:3000/api/users \
 
 ```bash
 # Missing required field
-curl -X POST http://localhost:3000/api/users \
+curl -X POST http://localhost:3001/api/users \
   -H "Content-Type: application/json" \
   -d '{"user": {"name": "Test"}}' \
   -w "\n%{http_code}"
 # Expected: 422 Unprocessable Entity
 
 # Invalid data
-curl -X POST http://localhost:3000/api/users \
+curl -X POST http://localhost:3001/api/users \
   -H "Content-Type: application/json" \
   -d '{"user": {"email": "invalid"}}' \
   -w "\n%{http_code}"
 # Expected: 422 Unprocessable Entity
 
 # Not found
-curl http://localhost:3000/api/users/99999 -w "\n%{http_code}"
+curl http://localhost:3001/api/users/99999 -w "\n%{http_code}"
 # Expected: 404 Not Found
 
 # Unauthorized
-curl http://localhost:3000/api/admin/users -w "\n%{http_code}"
+curl http://localhost:3001/api/admin/users -w "\n%{http_code}"
 # Expected: 401 Unauthorized
 ```
 
@@ -84,7 +102,7 @@ user.errors.full_messages # => ["Email is invalid"]
 
 ```bash
 # Verify includes work
-curl http://localhost:3000/api/posts?include=author,comments \
+curl http://localhost:3001/api/posts?include=author,comments \
   | jq '.data[0].author, .data[0].comments'
 ```
 
@@ -92,7 +110,7 @@ curl http://localhost:3000/api/posts?include=author,comments \
 
 ```bash
 # Verify pagination
-curl "http://localhost:3000/api/posts?page=1&per_page=10" \
+curl "http://localhost:3001/api/posts?page=1&per_page=10" \
   | jq '.meta.total, .meta.page, .meta.per_page'
 ```
 

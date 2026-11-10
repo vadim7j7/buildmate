@@ -51,23 +51,103 @@ Match the existing code style exactly.
 
 ## Code Patterns
 
+### Server Entry Point (`cmd/server/main.go`)
+
+The dev server is started with `PORT=8080 go run ./cmd/server` and checked with
+`GET /health`, so this file must exist, read `PORT` (default `8080`), serve
+`GET /health` with a `200` JSON response, and shut down gracefully.
+
+```go
+package main
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"example.com/myapp/internal/router"
+)
+
+func main() {
+	if err := run(); err != nil {
+		slog.Error("server stopped", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           router.NewRouter(h, mw), // h, mw wired from config/services
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return srv.Shutdown(shutdownCtx)
+}
+```
+
 ### Sub-Router Pattern
+
+Chi ships its own `middleware` package; import it as `chimw` so it never collides
+with the app's `internal/middleware` package.
 
 ```go
 package router
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimw "github.com/go-chi/chi/v5/middleware"
+
+	"example.com/myapp/internal/handler"
+	"example.com/myapp/internal/middleware"
 )
 
 func NewRouter(h *handler.Handler, mw *middleware.AppMiddleware) chi.Router {
 	r := chi.NewRouter()
 
-	// Global middleware
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
+	// Global middleware: RequestID first so Logger can include the ID.
+	r.Use(chimw.RequestID)
+	r.Use(chimw.RealIP)
+	r.Use(chimw.Logger)
+	r.Use(chimw.Recoverer)
+
+	// Health check: public, outside /api and auth.
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public routes
@@ -102,7 +182,14 @@ func NewRouter(h *handler.Handler, mw *middleware.AppMiddleware) chi.Router {
 ```go
 package middleware
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+)
+
+type ctxKey string
+
+const userIDKey ctxKey = "user_id"
 
 // Auth is an authentication middleware using standard http.Handler.
 func (m *AppMiddleware) Auth(next http.Handler) http.Handler {
@@ -225,7 +312,9 @@ func (rs *UserResource) Routes() chi.Router {
 func respondJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Error("encode response", "err", err)
+	}
 }
 
 func respondError(w http.ResponseWriter, status int, message string) {
@@ -245,6 +334,8 @@ func respondError(w http.ResponseWriter, status int, message string) {
 8. **Standard handlers** - Use `http.HandlerFunc` signature
 9. **JSON encoding** - Use `json.NewEncoder(w).Encode()` for responses
 10. **Error responses** - Consistent JSON format via helper functions
+11. **chimw alias** - Import `github.com/go-chi/chi/v5/middleware` as `chimw`; `RequestID` before `Logger`
+12. **Entry point** - `cmd/server/main.go`, `PORT` env (default 8080), `GET /health`, graceful shutdown
 
 ## Completion Checklist
 

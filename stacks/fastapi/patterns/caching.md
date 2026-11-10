@@ -10,8 +10,6 @@ Caching patterns using Redis for FastAPI.
 # app/core/cache.py
 """Redis cache configuration."""
 
-from __future__ import annotations
-
 import json
 from typing import Any
 
@@ -128,8 +126,6 @@ Cache = Annotated[RedisCache, Depends(get_cache)]
 # app/api/v1/posts.py
 """Posts with caching."""
 
-from __future__ import annotations
-
 from fastapi import APIRouter
 
 from app.dependencies.cache import Cache
@@ -172,8 +168,6 @@ async def get_post(
 ```python
 # app/core/cache.py
 """Caching decorator."""
-
-from __future__ import annotations
 
 import functools
 import hashlib
@@ -240,16 +234,11 @@ class PostService:
 # app/services/post_service.py
 """Post service with cache invalidation."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import cache
 from app.models.post import Post
 from app.schemas.post import PostCreate, PostUpdate
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class PostService:
@@ -303,8 +292,6 @@ class PostService:
 ```python
 # app/core/memoize.py
 """In-memory memoization for expensive computations."""
-
-from __future__ import annotations
 
 import functools
 from datetime import datetime, timedelta
@@ -368,17 +355,12 @@ def memoize(ttl: int = 60) -> Callable[[F], F]:
 # app/middleware/cache.py
 """Response caching middleware."""
 
-from __future__ import annotations
-
 import hashlib
-from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 from app.core.cache import cache
 
@@ -467,8 +449,6 @@ class ResponseCacheMiddleware(BaseHTTPMiddleware):
 # app/tasks/cache_warmer.py
 """Cache warming tasks."""
 
-from __future__ import annotations
-
 from app.core.cache import cache
 from app.core.database import get_db_session
 from app.services.post_service import PostService
@@ -547,8 +527,6 @@ async def cache_health() -> dict:
 ```python
 # tests/test_cache.py
 """Cache tests."""
-
-from __future__ import annotations
 
 import pytest
 

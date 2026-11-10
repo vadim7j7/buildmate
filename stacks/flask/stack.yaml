@@ -69,8 +69,35 @@ skills:
 patterns:
   - patterns/flask-patterns.md
 
+# Flask is synchronous: override the python parent's async ORM/migrations/drivers.
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL with psycopg 3 (sync)
+        variables:
+          database: PostgreSQL
+          db_adapter: psycopg
+          db_url_scheme: postgresql+psycopg
+      mysql:
+        description: MySQL with PyMySQL (sync)
+        variables:
+          database: MySQL
+          db_adapter: pymysql
+          db_url_scheme: mysql+pymysql
+      sqlite:
+        description: SQLite for simple projects
+        variables:
+          database: SQLite
+          db_adapter: sqlite3 (stdlib)
+          db_url_scheme: sqlite
+
 variables:
   framework: Flask 3+
+  orm: Flask-SQLAlchemy 3.1 (SQLAlchemy 2.0)
+  migrations: Flask-Migrate
   dev_port: 5001
 
 verification:

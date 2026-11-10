@@ -76,15 +76,9 @@ async def create_post(request: Request):
 # app/core/limiter.py
 """Rate limiter with user identification."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
+from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-
-if TYPE_CHECKING:
-    from fastapi import Request
 
 
 def get_user_identifier(request: Request) -> str:
@@ -171,8 +165,6 @@ app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 ```python
 # app/dependencies/rate_limit.py
 """Tiered rate limiting based on user plan."""
-
-from __future__ import annotations
 
 from typing import Annotated
 
@@ -265,16 +257,11 @@ async def forgot_password(request: Request):
 # app/middleware/rate_limit.py
 """Rate limiting middleware."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from collections.abc import Callable
 
 import redis.asyncio as redis
 
@@ -344,8 +331,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 ```python
 # app/services/rate_limiter.py
 """Sliding window rate limiter using Redis sorted sets."""
-
-from __future__ import annotations
 
 import time
 from dataclasses import dataclass
@@ -418,8 +403,6 @@ class SlidingWindowRateLimiter:
 ```python
 # tests/test_rate_limit.py
 """Rate limiting tests."""
-
-from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient

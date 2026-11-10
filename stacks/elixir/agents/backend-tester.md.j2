@@ -47,12 +47,14 @@ Elixir tests using ExUnit, Mox for mocking, and property-based testing.
 defmodule MyApp.UsersTest do
   use MyApp.DataCase, async: true
 
+  import MyApp.UsersFixtures
+
   alias MyApp.Users
   alias MyApp.Users.User
 
   describe "list_users/0" do
     test "returns all users" do
-      user = insert(:user)
+      user = user_fixture()
       assert Users.list_users() == [user]
     end
 
@@ -76,7 +78,7 @@ defmodule MyApp.UsersTest do
 
   describe "get_user/1" do
     test "returns user when exists" do
-      user = insert(:user)
+      user = user_fixture()
       assert {:ok, ^user} = Users.get_user(user.id)
     end
 
@@ -86,6 +88,32 @@ defmodule MyApp.UsersTest do
   end
 end
 ```
+
+### Fixtures
+
+Use plain fixture modules in `test/support/fixtures/` (the convention Phoenix
+generators use; no extra dependency). `test/support` is compiled in the test
+env via `elixirc_paths(:test)` in `mix.exs`.
+
+```elixir
+defmodule MyApp.UsersFixtures do
+  @moduledoc "Test helpers for creating `MyApp.Users` entities."
+
+  def unique_user_email, do: "user#{System.unique_integer([:positive])}@example.com"
+
+  def user_fixture(attrs \\ %{}) do
+    {:ok, user} =
+      attrs
+      |> Enum.into(%{name: "Alice", email: unique_user_email()})
+      |> MyApp.Users.create_user()
+
+    user
+  end
+end
+```
+
+Create the data through the context function (`Users.create_user/1`), not
+`Repo.insert!`, so fixtures exercise the same changeset as production.
 
 ### GenServer Test
 
@@ -130,6 +158,10 @@ defmodule MyApp.OrderServiceTest do
 end
 ```
 
+Mox and StreamData are not in a fresh project either: add
+`{:mox, "~> 1.2", only: :test}` / `{:stream_data, "~> 1.1", only: [:dev, :test]}`
+to `mix.exs` before using them.
+
 ## Test Style Rules
 
 1. **async: true** - Use async tests when possible (no shared state)
@@ -137,7 +169,7 @@ end
 3. **Pattern match assertions** - Use `assert {:ok, %User{}} = result`
 4. **Pin operator** - Use `^` to match existing values: `assert {:ok, ^user}`
 5. **setup blocks** - Use for shared test setup, return map for test context
-6. **Factories** - Use ExMachina or custom factories, not fixtures
+6. **Fixtures** - Use `*_fixture/1` functions from `test/support/fixtures/` (no ExMachina unless the project already depends on it)
 7. **Mox** - Define behaviors, mock with Mox in tests
 8. **Doctests** - Include examples in `@doc` that serve as tests
 

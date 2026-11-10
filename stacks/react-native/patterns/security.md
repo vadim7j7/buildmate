@@ -76,7 +76,7 @@ const response = await pinnedFetch('https://api.example.com/data', {
 ### Token Management
 
 ```typescript
-// services/auth.ts
+// src/services/auth.ts
 import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_KEY = 'auth_token';
@@ -163,7 +163,7 @@ const sendMessage = async (message: string) => {
 ### Form Validation
 
 ```typescript
-// screens/ProfileForm.tsx
+// src/components/forms/ProfileForm.tsx
 import { z } from 'zod';
 
 const profileSchema = z.object({
@@ -270,7 +270,7 @@ export default function ResetPassword() {
 ## 5. Biometric Authentication
 
 ```typescript
-// hooks/useBiometricAuth.ts
+// src/hooks/useBiometricAuth.ts
 import * as LocalAuthentication from 'expo-local-authentication';
 
 export function useBiometricAuth() {

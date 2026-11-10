@@ -63,7 +63,7 @@ performance, and adherence to project conventions.
 - [ ] Presenters inherit from `BasePresenter`
 - [ ] Controllers are RESTful
 - [ ] Models have proper associations/validations/scopes
-- [ ] Jobs are namespaced and use Sidekiq options
+- [ ] Jobs are namespaced, set `queue_as`, and handle failures with ActiveJob `retry_on` / `discard_on`{{ '' if (variables.job_adapter | default('sidekiq')) == 'sidekiq' else ' (no `sidekiq_options`: it raises `NoMethodError` on ' ~ variables.background_jobs ~ ')' }}
 - [ ] Migrations are reversible
 
 ### Testing

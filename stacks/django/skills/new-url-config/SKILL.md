@@ -21,11 +21,11 @@ Generates Django URL configuration using DRF routers for ViewSet registration.
 1. **Read reference patterns** from `patterns/django-patterns.md`
 2. **Generate URL config** with `DefaultRouter` and ViewSet registration
 3. **Include in root URL config** if not already registered
-4. **Run quality checks**: `uv run ruff format && uv run ruff check`
+4. **Run quality checks**: `uv run ruff format . && uv run ruff check .`
 
 ## Generated Files
 
 ```
-src/<app>/urls.py
-src/config/urls.py (updated to include app URLs)
+<app>/urls.py
+config/urls.py (updated to include app URLs)
 ```

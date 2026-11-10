@@ -20,9 +20,9 @@ service, Zod schema, and test file.
 ## How It Works
 
 1. **Read reference patterns** from `patterns/express-patterns.md` and `styles/typescript.md`
-2. **Generate router** with CRUD routes and validation middleware
+2. **Generate router** with CRUD routes, `authenticate` and body validation middleware (Express 5 path syntax)
 3. **Generate controller** with handler methods
-4. **Generate service** with database operations
+4. **Generate service** with database operations scoped by the current user
 5. **Generate Zod schema** for request validation
 6. **Generate test file** with Supertest integration tests
 7. **Register router** in `src/app.ts`

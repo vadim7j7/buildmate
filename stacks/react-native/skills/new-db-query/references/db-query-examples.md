@@ -5,7 +5,7 @@
 First, define the table in the schema file.
 
 ```typescript
-// db/schema.ts
+// src/db/schema.ts
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
@@ -54,7 +54,7 @@ export type Transaction = typeof transactions.$inferSelect;
 ## Complete CRUD Query Module
 
 ```typescript
-// db/queries/budgets.ts
+// src/db/queries/budgets.ts
 import { eq, desc, and, like, sql } from 'drizzle-orm';
 import { db } from '../client';
 import { budgets, type NewBudget } from '../schema';
@@ -163,7 +163,7 @@ export async function getBudgetSummary() {
 ## Transaction Queries with Joins
 
 ```typescript
-// db/queries/transactions.ts
+// src/db/queries/transactions.ts
 import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
 import { db } from '../client';
 import { transactions, budgets, type NewTransaction } from '../schema';
@@ -314,7 +314,7 @@ export async function getTransactionsByCategory() {
 ## Database Client Initialisation
 
 ```typescript
-// db/client.ts
+// src/db/client.ts
 import { drizzle } from 'drizzle-orm/expo-sqlite';
 import { openDatabaseSync } from 'expo-sqlite';
 import * as schema from './schema';

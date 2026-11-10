@@ -5,7 +5,7 @@
 A full module with list query, detail query, and CRUD mutations.
 
 ```typescript
-// queries/useBudgets.ts
+// src/queries/useBudgets.ts
 import {
   useQuery,
   useMutation,
@@ -124,7 +124,7 @@ export function useDeleteBudget() {
 Centralised query key management. All keys follow a hierarchical pattern.
 
 ```typescript
-// queries/queryKeys.ts
+// src/queries/queryKeys.ts
 export const queryKeys = {
   budgets: {
     all: ['budgets'] as const,
@@ -172,7 +172,7 @@ queryClient.invalidateQueries({ queryKey: queryKeys.budgets.detail('123') });
 For mutations that should update the UI immediately before the server confirms.
 
 ```typescript
-// queries/useTransactions.ts
+// src/queries/useTransactions.ts
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
 
@@ -230,7 +230,7 @@ export function useUpdateTransaction() {
 For paginated lists with load-more functionality.
 
 ```typescript
-// queries/useTransactionsInfinite.ts
+// src/queries/useTransactionsInfinite.ts
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { getTransactionsPaginated } from '@/db/queries/transactions';
 import { queryKeys } from './queryKeys';
@@ -264,7 +264,7 @@ export function useTransactionsInfinite() {
 When one query depends on the result of another.
 
 ```typescript
-// queries/useBudgetTransactions.ts
+// src/queries/useBudgetTransactions.ts
 export function useBudgetTransactions(budgetId: string) {
   // First, get the budget to know its category
   const { data: budget } = useBudget(budgetId);

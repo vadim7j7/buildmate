@@ -24,7 +24,7 @@ Jest, React Testing Library, and Playwright.
 - {{ variables.test_framework }}
 - Playwright (E2E testing)
 - Testing React components
-- Mocking API calls
+- Mocking Server Actions, data functions and `server-only`
 
 ## Test Patterns
 
@@ -66,75 +66,138 @@ describe('ProjectCard', () => {
 });
 ```
 
-### Container Test
+The app is server-first: pages are async Server Components that fetch on the
+server, client components ("containers") receive data as props, and mutations are
+Server Actions. Test each layer where it lives:
+
+| Layer | How to test |
+|---|---|
+| Data functions (`src/lib/data/`) | Unit test the function; mock the DB/service and `server-only` |
+| Server Actions (`src/lib/actions/`) | Unit test: signed-out rejected, other user's resource rejected, invalid input returns field errors, happy path mutates + revalidates |
+| Client islands | Render with props, mock the Server Action, assert it is called |
+| Async Server Component pages | Playwright E2E (RTL cannot render async Server Components reliably) |
+
+### Client Island (Container) Test
 
 ```typescript
-// src/containers/ProjectListContainer.test.tsx
-import { render, screen, waitFor } from '@testing-library/react';
-import { ProjectListContainer } from './ProjectListContainer';
-import { fetchProjectsApi } from '@/services/projects';
+// src/components/projects/DeleteProjectButton.test.tsx
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+{% if variables.i18n %}
+import { NextIntlClientProvider } from 'next-intl';
+import messages from '@/messages/{{ variables.default_locale }}.json';
+{% endif %}
+import { DeleteProjectButton } from './DeleteProjectButton';
+import { deleteProject } from '@/lib/actions/projects';
 
-jest.mock('@/services/projects');
-const mockFetchProjects = fetchProjectsApi as jest.Mock;
+jest.mock('@/lib/actions/projects', () => ({
+  deleteProject: jest.fn().mockResolvedValue(undefined),
+}));
 
-describe('ProjectListContainer', () => {
+{% if variables.i18n %}
+const renderWithIntl = (ui: React.ReactElement) =>
+  render(
+    <NextIntlClientProvider locale="{{ variables.default_locale }}" messages={messages}>
+      {ui}
+    </NextIntlClientProvider>
+  );
+
+{% endif %}
+describe('DeleteProjectButton', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('shows loading state initially', () => {
-    mockFetchProjects.mockImplementation(() => new Promise(() => {}));
-    render(<ProjectListContainer />);
+  it('calls the deleteProject Server Action with the id it was given', async () => {
+{% if variables.i18n %}
+    renderWithIntl(<DeleteProjectButton projectId="p1" />);
+{% else %}
+    render(<DeleteProjectButton projectId="p1" />);
+{% endif %}
 
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
-  });
-
-  it('renders projects after loading', async () => {
-    mockFetchProjects.mockResolvedValue([
-      { id: '1', name: 'Project 1', description: 'Desc 1' },
-    ]);
-
-    render(<ProjectListContainer />);
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Project 1')).toBeInTheDocument();
-    });
-  });
-
-  it('shows error message on failure', async () => {
-    mockFetchProjects.mockRejectedValue(new Error('Network error'));
-
-    render(<ProjectListContainer />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/network error/i)).toBeInTheDocument();
+      expect(deleteProject).toHaveBeenCalledWith('p1');
     });
   });
 });
 ```
 
-### Hook Test
+### Server Action Test
 
 ```typescript
-// src/hooks/useProjects.test.ts
-import { renderHook, waitFor } from '@testing-library/react';
-import { useProjects } from './useProjects';
-import { fetchProjectsApi } from '@/services/projects';
+// src/lib/actions/projects.test.ts
+import { deleteProject } from './projects';
+import { requireUser } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { revalidatePath } from 'next/cache';
 
-jest.mock('@/services/projects');
+jest.mock('@/lib/auth', () => ({ requireUser: jest.fn() }));
+jest.mock('@/lib/db', () => ({ db: { project: { deleteMany: jest.fn() } } }));
+jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
-describe('useProjects', () => {
-  it('fetches and returns projects', async () => {
-    (fetchProjectsApi as jest.Mock).mockResolvedValue([{ id: '1' }]);
+const VALID_ID = '3f2b8c1e-8a3b-4c7d-9e2f-1a2b3c4d5e6f';
 
-    const { result } = renderHook(() => useProjects());
+describe('deleteProject', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-    expect(result.current.loading).toBe(true);
+  it('rejects a signed-out caller', async () => {
+    (requireUser as jest.Mock).mockRejectedValue(new Error('Unauthorized'));
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-      expect(result.current.projects).toHaveLength(1);
+    await expect(deleteProject(VALID_ID)).rejects.toThrow('Unauthorized');
+    expect(db.project.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid id', async () => {
+    (requireUser as jest.Mock).mockResolvedValue({ id: 'u1' });
+
+    await expect(deleteProject('not-a-uuid')).rejects.toThrow();
+    expect(db.project.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("cannot delete another user's project", async () => {
+    (requireUser as jest.Mock).mockResolvedValue({ id: 'u1' });
+    (db.project.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+
+    await expect(deleteProject(VALID_ID)).rejects.toThrow('Not found');
+    expect(db.project.deleteMany).toHaveBeenCalledWith({
+      where: { id: VALID_ID, ownerId: 'u1' },
     });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('deletes the owned project and revalidates', async () => {
+    (requireUser as jest.Mock).mockResolvedValue({ id: 'u1' });
+    (db.project.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+    await deleteProject(VALID_ID);
+
+    expect(revalidatePath).toHaveBeenCalled();
+  });
+});
+```
+
+### Data Function Test
+
+```typescript
+// src/lib/data/projects.test.ts
+jest.mock('server-only', () => ({}));
+jest.mock('@/lib/auth', () => ({ requireUser: jest.fn().mockResolvedValue({ id: 'u1' }) }));
+jest.mock('@/lib/db', () => ({ db: { project: { findMany: jest.fn() } } }));
+
+import { db } from '@/lib/db';
+import { getProjects } from './projects';
+
+describe('getProjects', () => {
+  it("returns only the current user's projects", async () => {
+    (db.project.findMany as jest.Mock).mockResolvedValue([{ id: '1' }]);
+
+    await expect(getProjects()).resolves.toHaveLength(1);
+    expect(db.project.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { ownerId: 'u1' } })
+    );
   });
 });
 ```
@@ -171,7 +234,7 @@ test.describe('Projects', () => {
 ## Test Style Rules
 
 1. **Describe/it blocks** - Use descriptive names
-2. **Mock external dependencies** - API calls, external services
+2. **Mock external dependencies** - DB, backend services, Server Actions, `server-only`
 3. **Test user behavior** - Not implementation details
 4. **Use screen queries** - Not container queries
 5. **Async/await** - For async operations

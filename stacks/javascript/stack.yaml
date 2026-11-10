@@ -9,7 +9,24 @@ compatible_with:
   - browser-extension
   - scraping
 
-agents: []
+agents:
+  - name: backend-developer
+    template: agents/backend-developer.md.j2
+    description: Node.js / TypeScript developer
+    model: opus
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+  - name: backend-tester
+    template: agents/backend-tester.md.j2
+    description: Vitest testing specialist
+    model: sonnet
+    tools: [Read, Write, Edit, Bash, Grep, Glob]
+    skills:
+      - test
+  - name: backend-reviewer
+    template: agents/backend-reviewer.md.j2
+    description: Node.js / TypeScript code reviewer
+    model: opus
+    tools: [Read, Grep, Glob, Bash]
 
 skills:
   - test
@@ -42,4 +59,7 @@ setup:
 variables:
   language: TypeScript
   package_manager: npm
-  runtime: Node.js 22+
+  runtime: Node.js 24 LTS
+  framework: Node.js + TypeScript
+  test_framework: Vitest
+  linter: ESLint (flat config)

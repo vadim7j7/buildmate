@@ -1,13 +1,14 @@
 ---
 name: new-job
-description: Generate a namespaced Sidekiq background job with retry config and spec
+description: Generate a namespaced ActiveJob background job with retry config and spec
 ---
 
 # /new-job
 
 ## What This Does
 
-Generates a new Sidekiq background job following the project's job pattern: namespaced
+Generates a new ActiveJob background job (runs on the project's adapter: Sidekiq,
+Solid Queue or GoodJob) following the project's job pattern: namespaced
 under a module, configured with queue and retry settings, delegating to a service
 object. Also generates the corresponding spec file.
 
@@ -37,8 +38,9 @@ object. Also generates the corresponding spec file.
    - YARD documentation
    - `ApplicationJob` inheritance
    - Queue configuration (`queue_as`)
-   - Sidekiq retry options
-   - `retry_on` / `discard_on` declarations
+   - `retry_on` / `discard_on` declarations (retry count lives in `retry_on attempts:`)
+   - `sidekiq_options` only when the project's adapter is Sidekiq (check
+     `config.active_job.queue_adapter`); it raises `NoMethodError` on other adapters
    - `perform` method that delegates to a service
    - Error handling
 

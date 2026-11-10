@@ -1,4 +1,7 @@
-# MongoDB Patterns (FastAPI + Motor + Beanie)
+# MongoDB Patterns (FastAPI + Beanie + PyMongo Async)
+
+Beanie 2.x runs on PyMongo's async API (`AsyncMongoClient`). Motor is deprecated —
+do not add it.
 
 ## Beanie Document Model
 
@@ -6,8 +9,7 @@
 # models/user.py
 from beanie import Document, Indexed, Link
 from pydantic import EmailStr, Field
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 class User(Document):
     email: Indexed(EmailStr, unique=True)
@@ -15,11 +17,11 @@ class User(Document):
     role: str = "user"
     settings: dict = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime | None = None
 
     # Reference to another document
-    organization: Optional[Link["Organization"]] = None
+    organization: Link["Organization"] | None = None
 
     class Settings:
         name = "users"  # Collection name
@@ -29,7 +31,7 @@ class User(Document):
         ]
 
     async def before_save(self):
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
 ```
 
 ## Embedded Documents
@@ -37,7 +39,7 @@ class User(Document):
 ```python
 # models/user.py
 from beanie import Document
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Address(BaseModel):
     street: str
@@ -63,13 +65,13 @@ await user.save()
 
 ```python
 # db/mongodb.py
-from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
+from pymongo import AsyncMongoClient
 from models.user import User
 from models.post import Post
 
 async def init_db():
-    client = AsyncIOMotorClient(settings.MONGODB_URI)
+    client = AsyncMongoClient(settings.MONGODB_URI, tz_aware=True)
     await init_beanie(
         database=client[settings.DATABASE_NAME],
         document_models=[User, Post],

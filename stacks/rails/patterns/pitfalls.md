@@ -140,7 +140,7 @@ Always add indexes for columns used in WHERE, JOIN, and ORDER clauses.
 gem 'lol_dba'  # Run: lol_dba db:find_indexes
 
 # Common missing indexes
-class AddMissingIndexes < ActiveRecord::Migration[7.0]
+class AddMissingIndexes < ActiveRecord::Migration[8.0]
   def change
     # Foreign keys (ALWAYS index these)
     add_index :comments, :post_id
