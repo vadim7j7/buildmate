@@ -815,11 +815,11 @@ Extend existing projects:
     )
     parser.add_argument(
         "--default-model",
-        help="Override default model for agents without an explicit model (alias like 'opus' or full ID like 'claude-opus-4-6')",
+        help="Override default model for agents without an explicit model (alias like 'opus' or full ID like 'claude-opus-5-5')",
     )
     parser.add_argument(
         "--force-model",
-        help="Force ALL agents to use this model, ignoring per-agent overrides (alias like 'sonnet' or full ID like 'claude-sonnet-4-6')",
+        help="Force ALL agents to use this model, ignoring per-agent overrides (alias like 'sonnet' or full ID like 'claude-sonnet-5-5')",
     )
     parser.add_argument(
         "--version",

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Task Complete Hook (PostToolUse: Task)
+# Task Complete Hook (PostToolUse: Agent, formerly Task)
 # Logs when a Task (subagent) completes and captures its result summary.
 #
 # Input: JSON via stdin with tool_name, tool_input, tool_response
@@ -40,8 +40,8 @@ DESCRIPTION=$(echo "$INPUT" | jq -r '.tool_input.description // "unknown task"' 
 SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // "general-purpose"' 2>/dev/null) || SUBAGENT_TYPE="general-purpose"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null) || TIMESTAMP="unknown"
 
-# Only log Task tool completions
-if [ "$TOOL_NAME" != "Task" ]; then
+# Only log subagent completions (tool is "Agent"; older Claude Code called it "Task")
+if [ "$TOOL_NAME" != "Agent" ] && [ "$TOOL_NAME" != "Task" ]; then
     exit 0
 fi
 

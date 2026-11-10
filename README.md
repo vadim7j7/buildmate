@@ -275,7 +275,8 @@ buildmate/
 │   │   └── test/             # Test running
 │   ├── CLAUDE.md.j2          # Project CLAUDE.md template
 │   ├── README.md.j2          # .claude/README.md template
-│   └── settings.json         # Base settings
+│   ├── settings.json         # Base settings
+│   └── mcp.json              # Base MCP servers (installed as .mcp.json)
 ├── stacks/
 │   ├── ruby/                # Language parent (agents, gates, patterns, styles)
 │   ├── rails/               # extends: ruby (overrides agents, adds skills)
@@ -691,6 +692,7 @@ my-project/
 │   ├── settings.json     # Shared settings
 │   ├── settings.local.json  # Local settings (gitignored)
 │   └── README.md         # Usage instructions
+├── .mcp.json             # MCP servers (Puppeteer, dashboard)
 └── CLAUDE.md             # Project-level instructions
 ```
 
@@ -801,14 +803,14 @@ When cloning a page, the pipeline includes automated visual verification:
 
 ### MCP Browser Setup
 
-The bootstrap includes Puppeteer MCP configuration for browser automation:
+The bootstrap writes a project-root `.mcp.json` with the Puppeteer MCP server (merged with any servers already there) and pre-approves it via `enabledMcpjsonServers` in `.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "puppeteer": {
       "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-puppeteer"]
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
     }
   }
 }

@@ -209,6 +209,67 @@ class TestInstall:
             assert result.target_path == target
 
 
+class TestInstallMcpAndHooks:
+    """Tests for .mcp.json, hook matchers and Buildmate-only skills."""
+
+    def test_install_writes_mcp_json_not_settings(self):
+        """MCP servers go to <target>/.mcp.json, not .claude/settings.json."""
+        import json
+
+        composed = compose_stacks(["rails"])
+        output = render_all(composed)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            install(output, target, ["rails"])
+
+            settings = json.loads((target / ".claude" / "settings.json").read_text())
+            assert "mcpServers" not in settings
+            assert "puppeteer" in settings["enabledMcpjsonServers"]
+
+            mcp = json.loads((target / ".mcp.json").read_text())
+            args = mcp["mcpServers"]["puppeteer"]["args"]
+            assert "@modelcontextprotocol/server-puppeteer" in args
+
+    def test_install_merges_existing_mcp_json(self):
+        """Servers already in .mcp.json are kept."""
+        import json
+
+        composed = compose_stacks(["rails"])
+        output = render_all(composed)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            (target / ".mcp.json").write_text(
+                json.dumps({"mcpServers": {"mine": {"command": "my-server"}}})
+            )
+            install(output, target, ["rails"])
+
+            servers = json.loads((target / ".mcp.json").read_text())["mcpServers"]
+            assert servers["mine"] == {"command": "my-server"}
+            assert "puppeteer" in servers
+
+    def test_subagent_hook_matches_agent_tool(self):
+        """The subagent hook fires for the Agent tool and has no unknown keys."""
+        composed = compose_stacks(["rails"])
+        output = render_all(composed)
+
+        post = output.settings["hooks"]["PostToolUse"]
+        matchers = [m.get("matcher", "") for m in post]
+        assert any("Agent" in m.split("|") for m in matchers)
+        for event in output.settings["hooks"].values():
+            for entry in event:
+                for hook in entry["hooks"]:
+                    assert "blocking" not in hook
+
+    def test_new_stack_skill_not_installed(self):
+        """new-stack is for working on Buildmate itself, not target projects."""
+        composed = compose_stacks(["rails"])
+        output = render_all(composed)
+
+        assert "new-stack" not in output.skills
+
+
 class TestInstallResult:
     """Tests for InstallResult dataclass."""
 

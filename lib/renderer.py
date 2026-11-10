@@ -20,6 +20,9 @@ class RenderedOutput:
     claude_md: str = ""
     readme: str = ""
     settings: dict[str, Any] = field(default_factory=dict)
+    # MCP servers for the project-root .mcp.json (Claude Code does not read
+    # mcpServers from .claude/settings.json)
+    mcp_servers: dict[str, Any] = field(default_factory=dict)
     patterns: dict[str, Path] = field(default_factory=dict)  # filename -> source path
     styles: dict[str, Path] = field(default_factory=dict)  # filename -> source path
     skills: dict[str, Path] = field(default_factory=dict)  # skill_name -> source dir
@@ -383,6 +386,12 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
     if settings_file.exists():
         with open(settings_file) as f:
             output.settings = json.load(f)
+
+    # Load base MCP servers (written to <target>/.mcp.json)
+    mcp_file = BASE_DIR / "mcp.json"
+    if mcp_file.exists():
+        with open(mcp_file) as f:
+            output.mcp_servers = json.load(f).get("mcpServers", {})
 
     # Generate services.json config for dashboard
     if dashboard:

@@ -125,22 +125,54 @@ def create_settings_local_template(claude_dir: Path) -> None:
             f.write("\n")
 
 
+def write_mcp_json(mcp_path: Path, servers: dict[str, object]) -> None:
+    """
+    Write MCP servers to .mcp.json, keeping servers the project already has.
+
+    Servers Buildmate manages replace entries of the same name; any other
+    entries (and top-level keys) in an existing file are preserved.
+
+    Args:
+        mcp_path: Path to the project's .mcp.json
+        servers: Server name -> server config to add or replace
+    """
+    data: dict[str, object] = {}
+    if mcp_path.exists():
+        try:
+            with open(mcp_path) as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                data = loaded
+        except (json.JSONDecodeError, OSError):
+            print(f"  Warning: could not parse {mcp_path}; rewriting it")
+    existing = data.get("mcpServers")
+    if not isinstance(existing, dict):
+        existing = {}
+    existing.update(servers)
+    data["mcpServers"] = existing
+    with open(mcp_path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+
+
 def install_dashboard(
     target_path: Path,
     settings: dict[str, object],
     services_config: dict | None = None,
+    mcp_servers: dict[str, object] | None = None,
 ) -> None:
     """
     Install the MCP Dashboard to the target project.
 
     Creates .dashboard/ directory with server code, pre-built UI,
     Python venv, and start script. Modifies settings.json to add
-    MCP server config and tool permissions.
+    tool permissions, and adds the dashboard MCP server to mcp_servers.
 
     Args:
         target_path: Project root directory
         settings: The settings.json dict to modify in-place
         services_config: Optional services.json content for service manager
+        mcp_servers: The .mcp.json servers dict to modify in-place
     """
     dashboard_dir = target_path / ".dashboard"
     ensure_directory(dashboard_dir)
@@ -204,14 +236,15 @@ def install_dashboard(
         capture_output=True,
     )
 
-    # Add MCP server config to settings.json
-    if "mcpServers" not in settings:
-        settings["mcpServers"] = {}
-
-    settings["mcpServers"]["dashboard"] = {
-        "command": ".dashboard/.venv/bin/mcp-dashboard-tools",
-        "env": {"DASHBOARD_DB_PATH": ".dashboard/tasks.db"},
-    }
+    # Add MCP server config (written to .mcp.json) and pre-approve it
+    if mcp_servers is not None:
+        mcp_servers["dashboard"] = {
+            "command": ".dashboard/.venv/bin/mcp-dashboard-tools",
+            "env": {"DASHBOARD_DB_PATH": ".dashboard/tasks.db"},
+        }
+    enabled = settings.setdefault("enabledMcpjsonServers", [])
+    if "dashboard" not in enabled:
+        enabled.append("dashboard")
 
     # Add tool permissions — dashboard spawns Claude in -p (headless) mode
     # where tools must be pre-approved since there's no interactive terminal.
@@ -226,6 +259,7 @@ def install_dashboard(
         "Bash",
         "Glob",
         "Grep",
+        "Agent",
         "Task",
         "TodoWrite",
         "WebFetch",
@@ -437,7 +471,12 @@ def install(
         if dry_run:
             print("[DRY RUN] Would install MCP Dashboard to .dashboard/")
         else:
-            install_dashboard(target_path, output.settings, output.services_config)
+            install_dashboard(
+                target_path,
+                output.settings,
+                output.services_config,
+                output.mcp_servers,
+            )
 
     # Install settings.json
     settings_path = claude_dir / "settings.json"
@@ -448,6 +487,15 @@ def install(
             json.dump(output.settings, f, indent=2)
             f.write("\n")
     result.files_written.append(str(settings_path))
+
+    # Install .mcp.json at the project root (merged with any existing servers)
+    if output.mcp_servers:
+        mcp_path = target_path / ".mcp.json"
+        if dry_run:
+            print(f"[DRY RUN] Would write: {mcp_path}")
+        else:
+            write_mcp_json(mcp_path, output.mcp_servers)
+        result.files_written.append(str(mcp_path))
 
     # Install CLAUDE.md to project root
     claude_md_path = target_path / "CLAUDE.md"

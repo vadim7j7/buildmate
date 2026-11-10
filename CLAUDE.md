@@ -44,7 +44,7 @@ See `README.md` for complete documentation.
 Stacks are organized into **language parents** and **framework children**. Children inherit agents, quality gates, patterns, styles, and options from their parent via `extends`.
 
 ```
-ruby (parent)           → rails, sinatra
+ruby (parent)           → rails, rails-monolith, sinatra
 javascript (parent)     → nextjs, express, nuxt
 python (parent)         → flask, fastapi, django
 go (parent)             → gin, fiber, chi
@@ -56,6 +56,7 @@ standalone              → react-native, browser-extension, scraping
 |-------|---------|-------------|--------|
 | `ruby` | — | Generic Ruby development | backend-developer, backend-tester, backend-reviewer |
 | `rails` | `ruby` | Ruby on Rails API | backend-developer, backend-tester, backend-reviewer |
+| `rails-monolith` | `ruby` | Rails Monolith (ViewComponent + Hotwire) | backend-developer, backend-tester, backend-reviewer, view-developer, view-tester, view-reviewer |
 | `sinatra` | `ruby` | Sinatra Web Application | backend-developer, backend-tester, backend-reviewer |
 | `javascript` | — | Generic TypeScript/JS | *(none — children define their own)* |
 | `nextjs` | `javascript` | React + Next.js | frontend-developer, frontend-tester, frontend-reviewer |
@@ -142,6 +143,7 @@ buildmate/
 ├── stacks/                   # Stack-specific configurations
 │   ├── ruby/                # Language parent (extends: none)
 │   ├── rails/               # extends: ruby
+│   ├── rails-monolith/      # extends: ruby
 │   ├── sinatra/             # extends: ruby
 │   ├── javascript/          # Language parent (extends: none, no agents)
 │   ├── nextjs/              # extends: javascript
@@ -466,13 +468,13 @@ Frontend stacks (nextjs, react-native) include browser automation tools for anal
 - `ui-cloner` - Generates production-ready code in any format
 - `frontend-verifier` - Visual comparison of clone vs source with scoring (0-100) and fix loop (max 3 iterations, threshold 70)
 
-**Setup:** Requires MCP browser server configured in `.claude/settings.json`:
+**Setup:** Requires the MCP browser server in the project-root `.mcp.json` (Buildmate writes it and pre-approves it via `enabledMcpjsonServers` in `.claude/settings.json`):
 ```json
 {
   "mcpServers": {
     "puppeteer": {
       "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-puppeteer"]
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
     }
   }
 }
