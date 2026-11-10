@@ -71,13 +71,13 @@ patterns:
 
 variables:
   framework: Flask 3+
-  dev_port: 5000
+  dev_port: 5001
 
 verification:
   enabled: true
   auto_verify: true
   max_retries: 3
   dev_server:
-    command: uv run flask run --debug --port 5000
-    port: 5000
-    health_check: /api/health
+    command: uv run flask run --debug --port 5001
+    port: 5001
+    health_check: /health

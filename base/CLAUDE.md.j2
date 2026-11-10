@@ -9,9 +9,10 @@ agent delegates.
 
 ## Quick Start
 
-Say **"Use PM: [task description]"** in any conversation to trigger the full
-orchestration pipeline. The PM (project-manager) agent will break the task
-down, create a feature file, and drive the pipeline to completion.
+Run **`/pm <task>`** (or say **"Use PM: <task>"**) to start the full pipeline.
+The main agent becomes the PM: it plans the task with you, writes a feature
+file, then delegates to the agents below and drives the work to completion.
+The workflow lives in `.claude/skills/pm/orchestrator.md`.
 
 ## Agent Pipeline
 
@@ -23,7 +24,7 @@ Plan --> Implement --> Test --> Review --> (Eval --> Security --> Docs)
 
 | Stage      | Agent                    | Purpose                                    |
 |------------|--------------------------|-------------------------------------------|
-| Plan       | PM (orchestrator)        | Break task into sub-tasks, create feature |
+| Plan       | main agent (`/pm`)       | Break task into sub-tasks, create feature |
 | Implement  | *-developer              | Write production code                     |
 | Test       | *-tester                 | Write and run tests                       |
 | Review     | *-reviewer               | Code review, find issues                  |
@@ -40,6 +41,12 @@ Stages in parentheses are optional and run when explicitly requested.
 {% for agent in all_agents %}
 | `{{ agent.name }}` | {{ agent.description }} | {{ agent.model }} |
 {% endfor %}
+{% for agent in base_agents %}
+| `{{ agent.name }}` | {{ agent.description }} | {{ default_model }} |
+{% endfor %}
+
+Delegate with `Agent(subagent_type: "<agent name>")` so the agent's own model,
+tools and skills apply.
 
 ## Quality Gates
 
@@ -65,15 +72,20 @@ pass or max iterations are reached.
 {% if variables.locales %}
 ## Localization
 
-This project ships in **{{ variables.locale_count or (variables.locales.split(',') | length) }} languages**, kept identical across every app (mobile + landing):
+{% set stack_names = stacks | map(attribute='name') | list %}
+This project ships in **{{ variables.locale_count or (variables.locales.split(',') | length) }} languages**{% if stack_names | length > 1 %}, the same set in every app{% endif %}:
 
 `{{ variables.locales }}` (default: `{{ variables.default_locale }}`)
 
 - Every user-facing string must be localized — never hardcode display text.
 - The locale set is fixed at bootstrap; change it via the `languages` option, not by
   editing i18n config files. Add one translation catalog per locale above.
-- Mobile (`i18next` + `expo-localization`) and landing (`next-intl`) use the **same** set,
-  and store screenshots are captured per-locale from this list.
+{% if 'react-native' in stack_names %}
+- Mobile app: `i18next` + `expo-localization`; store screenshots are captured per locale.
+{% endif %}
+{% if 'nextjs' in stack_names %}
+- Web app: `next-intl` (routes under `[locale]`).
+{% endif %}
 
 {% endif %}
 ## Available Slash Commands
@@ -98,17 +110,19 @@ This project ships in **{{ variables.locale_count or (variables.locales.split(',
 | `/ship` | Commit, push, and create PR |
 | `/sync` | Sync branch with main/master |
 
-Configure automation in `.claude/settings.json`:
+Configure automation in `.claude/buildmate.json` (`"none"` by default):
 
 ```json
 {
   "pm": {
-    "git_workflow": "full"  // "none" | "branch" | "full"
+    "git_workflow": "none"
   }
 }
 ```
 
-With `"full"`, PM auto-creates branches and ships PRs on completion.
+`"branch"` creates a feature branch after plan approval; `"full"` also runs
+`/ship` (commit, push, PR) at the end. `/pm ... --branch | --ship | --no-git`
+overrides it for one task.
 
 ### Stack Commands
 {% for stack in stacks %}
@@ -133,11 +147,13 @@ touch .claude/context/features/$(date +%Y%m%d)-my-feature.md
 
 ## Session Memory
 
-The agent system includes automatic session persistence:
+Hooks keep context between sessions:
 
-- **After each response:** Context is saved to `.claude/context/active-work.md`
-- **On session start:** Previous context is loaded automatically
-- **Use `/recap`:** For detailed status check at any time
+- **When a session ends:** branch, uncommitted changes and in-progress features
+  are saved to `.claude/context/active-work.md`, and a summary of the session's
+  activity to `.claude/context/session-summary.md`.
+- **When a session starts:** the saved `active-work.md` is shown to Claude.
+- **`/recap`:** a fuller status check at any time.
 
 ## Delegation Rules
 

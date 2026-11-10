@@ -5,35 +5,26 @@ and clone websites.
 
 ## Setup
 
-### MCP Browser Configuration
+Buildmate installs the Playwright MCP server in the project-root `.mcp.json`
+and pre-approves it (`enabledMcpjsonServers` in `.claude/settings.json`):
 
-Add one of these to your `.claude/settings.json`:
-
-**Option 1: Puppeteer (Recommended)**
-```json
-{
-  "mcpServers": {
-    "puppeteer": {
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-puppeteer"]
-    }
-  }
-}
-```
-
-**Option 2: Playwright**
 ```json
 {
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
+      "args": ["-y", "@playwright/mcp@latest", "--headless", "--output-dir", ".agent-pipeline/screenshots"]
     }
   }
 }
 ```
 
-After adding, restart Claude Code for the MCP server to connect.
+Restart Claude Code after bootstrapping so the server connects (`/mcp` shows its status).
+
+Elements are targeted by the `ref` values returned by `browser_snapshot`, not by
+CSS selectors. To read HTML or computed styles by selector, use `browser_evaluate`
+with `document.querySelector(...)`. Screenshots given a `filename` are written to
+`.agent-pipeline/screenshots/`.
 
 ## Available Tools
 
@@ -48,8 +39,8 @@ Navigate to a URL and wait for the page to load.
 ### Screenshots
 
 ```
-browser_screenshot()                    # Full page
-browser_screenshot({ selector: ".hero" })  # Specific element
+browser_take_screenshot()                    # Full page
+browser_take_screenshot({ element: ".hero", ref: "<ref from browser_snapshot>" })  # Specific element
 ```
 
 Capture screenshots for visual analysis.
@@ -57,8 +48,8 @@ Capture screenshots for visual analysis.
 ### DOM Access
 
 ```
-browser_get_html()                      # Full page HTML
-browser_get_html({ selector: ".nav" })  # Specific element
+browser_evaluate({ function: `() => document.documentElement.outerHTML` })                      # Full page HTML
+browser_evaluate({ function: `() => document.querySelector('.nav')?.outerHTML` })  # Specific element
 ```
 
 Extract HTML structure for analysis.
@@ -67,12 +58,12 @@ Extract HTML structure for analysis.
 
 ```
 browser_evaluate({
-  script: `
+  function: `() => {
     return {
       title: document.title,
       colors: getComputedStyle(document.body).backgroundColor
     };
-  `
+  }`
 })
 ```
 
@@ -81,9 +72,9 @@ Run JavaScript to extract computed styles, data, etc.
 ### Interaction
 
 ```
-browser_click({ selector: ".menu-button" })
-browser_type({ selector: "input[name=email]", text: "test@example.com" })
-browser_scroll({ direction: "down", amount: 500 })
+browser_click({ element: ".menu-button", ref: "<ref from browser_snapshot>" })
+browser_type({ element: "input[name=email]", ref: "<ref from browser_snapshot>", text: "test@example.com" })
+browser_evaluate({ function: `() => window.scrollBy(0, 500)` })
 ```
 
 Interact with the page to reveal hidden content or test states.
@@ -95,17 +86,17 @@ Interact with the page to reveal hidden content or test states.
 ```javascript
 // Navigate and screenshot
 browser_navigate({ url: "https://example.com" });
-browser_screenshot();  // Analyze visually
+browser_take_screenshot();  // Analyze visually
 
 // Get structure
-browser_get_html();
+browser_evaluate({ function: `() => document.documentElement.outerHTML` });
 ```
 
 ### 2. Extract Design Tokens
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const body = document.body;
     const styles = getComputedStyle(body);
 
@@ -132,7 +123,7 @@ browser_evaluate({
       bodyFontSize: styles.fontSize,
       bodyLineHeight: styles.lineHeight,
     };
-  `
+  }`
 });
 ```
 
@@ -140,12 +131,12 @@ browser_evaluate({
 
 ```javascript
 // Screenshot specific components
-browser_screenshot({ selector: "header" });
-browser_screenshot({ selector: ".hero" });
-browser_screenshot({ selector: ".feature-card" });
+browser_take_screenshot({ element: "header", ref: "<ref from browser_snapshot>" });
+browser_take_screenshot({ element: ".hero", ref: "<ref from browser_snapshot>" });
+browser_take_screenshot({ element: ".feature-card", ref: "<ref from browser_snapshot>" });
 
 // Extract component HTML
-browser_get_html({ selector: ".feature-card" });
+browser_evaluate({ function: `() => document.querySelector('.feature-card')?.outerHTML` });
 ```
 
 ### 4. Test Responsive
@@ -153,13 +144,13 @@ browser_get_html({ selector: ".feature-card" });
 ```javascript
 // Resize viewport for mobile
 browser_evaluate({
-  script: `window.resizeTo(375, 812);`
+  function: `() => (window.resizeTo(375, 812);)`
 });
-browser_screenshot();
+browser_take_screenshot();
 
 // Back to desktop
 browser_evaluate({
-  script: `window.resizeTo(1440, 900);`
+  function: `() => (window.resizeTo(1440, 900);)`
 });
 ```
 
@@ -168,12 +159,12 @@ browser_evaluate({
 ```javascript
 // Hover state
 browser_evaluate({
-  script: `
+  function: `() => {
     const btn = document.querySelector('.cta-button');
     btn.dispatchEvent(new MouseEvent('mouseenter'));
-  `
+  }`
 });
-browser_screenshot({ selector: ".cta-button" });
+browser_take_screenshot({ element: ".cta-button", ref: "<ref from browser_snapshot>" });
 ```
 
 ## Cloning Workflow
@@ -299,9 +290,9 @@ Check generated code:
 
 ### MCP Not Connecting
 
-1. Check settings.json syntax (valid JSON)
+1. Check `.mcp.json` syntax (valid JSON) and run `/mcp` to see the server status
 2. Restart Claude Code
-3. Try `npx -y @anthropic-ai/mcp-server-puppeteer` manually
+3. Try `npx -y @playwright/mcp@latest --headless` manually
 
 ### JavaScript Sites Not Rendering
 

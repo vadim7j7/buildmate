@@ -64,13 +64,13 @@ variables:
   test_framework: Jest
   orm: Prisma
   validation: Zod
-  dev_port: 3000
+  dev_port: 4000
 
 verification:
   enabled: true
   auto_verify: true
   max_retries: 3
   dev_server:
-    command: npm run dev
-    port: 3000
+    command: PORT=4000 npm run dev
+    port: 4000
     health_check: /health

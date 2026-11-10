@@ -82,7 +82,7 @@ class QueueManager:
 
         full_prompt = (
             f"You have been assigned task ID: {task_id}.\n\n"
-            f"FIRST: Read the file .claude/agents/orchestrator.md — it contains your full "
+            f"FIRST: Read the file .claude/skills/pm/orchestrator.md — it contains your full "
             f"workflow instructions including how to use dashboard MCP tools, create subtasks, "
             f"update phases, and delegate work to specialist agents.\n\n"
             f"Follow the orchestrator workflow exactly as described in that file. "
@@ -98,8 +98,8 @@ class QueueManager:
         allowed_tools = self._read_allowed_tools(project_root)
 
         # Generate MCP config with absolute paths for -p mode.
-        # Claude -p doesn't auto-load .claude/settings.json MCP servers,
-        # so we must pass --mcp-config explicitly.
+        # Pass the project's MCP servers explicitly with absolute paths,
+        # so they load in -p mode without an approval prompt.
         mcp_config_path = self._write_mcp_config(project_root)
 
         cmd = [
@@ -368,17 +368,22 @@ class QueueManager:
     def _write_mcp_config(project_root: Path) -> Path | None:
         """Generate an MCP config file with absolute paths for Claude -p mode.
 
-        Reads mcpServers from .claude/settings.json and resolves all relative
-        command paths to absolute paths. Writes to .dashboard/mcp-config.json.
+        Reads mcpServers from the project-root .mcp.json (and, for projects
+        bootstrapped by older Buildmate versions, .claude/settings.json) and
+        resolves all relative command paths to absolute paths. Writes to
+        .dashboard/mcp-config.json.
         """
-        settings_path = project_root / ".claude" / "settings.json"
-        try:
-            with open(settings_path) as f:
-                settings = json.load(f)
-            mcp_servers = settings.get("mcpServers", {})
-            if not mcp_servers:
-                return None
-        except (FileNotFoundError, json.JSONDecodeError):
+        mcp_servers: dict = {}
+        for config_path in (
+            project_root / ".claude" / "settings.json",
+            project_root / ".mcp.json",
+        ):
+            try:
+                with open(config_path) as f:
+                    mcp_servers.update(json.load(f).get("mcpServers", {}) or {})
+            except (FileNotFoundError, json.JSONDecodeError, AttributeError):
+                continue
+        if not mcp_servers:
             return None
 
         # Resolve relative command paths to absolute

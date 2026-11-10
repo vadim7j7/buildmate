@@ -37,8 +37,8 @@ production-ready, accessible code that matches the visual design.
 ## Requirements
 
 **MCP Browser (recommended):**
-For best results, configure the Puppeteer or Playwright MCP server in your
-settings.json. This enables screenshots and full DOM access.
+The Playwright MCP server Buildmate installs in `.mcp.json` enables screenshots
+and full DOM access. Check it is connected with `/mcp`.
 
 **Without MCP Browser:**
 Falls back to WebFetch which provides HTML content but no screenshots
@@ -46,7 +46,7 @@ or JavaScript-rendered content.
 
 ## How It Works
 
-1. **Analyze the page.** Delegate to the site-analyzer agent to:
+1. **Analyze the page.** `Agent(subagent_type: "site-analyzer", ...)` to:
    - Fetch the page content (via MCP browser or WebFetch)
    - **Take source reference screenshots** (desktop + mobile) — saved to `.agent-pipeline/screenshots/source-desktop.png` and `source-mobile.png`
    - Extract structure, components, and design tokens
@@ -58,7 +58,13 @@ or JavaScript-rendered content.
    - Spacing scale
    - Border radii and shadows
 
-3. **Generate components.** Delegate to the ui-cloner agent to:
+3. **Plan, approve, generate.** The ui-cloner works in two calls, because a
+   subagent cannot ask the user:
+   - `Agent(subagent_type: "ui-cloner", prompt: "Plan the clone of <url> as <format>")`
+     returns a plan (also in `.agent-pipeline/ui-clone-plan.md`).
+   - Show the plan to the user and ask for approval (AskUserQuestion).
+   - `Agent(subagent_type: "ui-cloner", prompt: "Plan approved<, with changes: ...>. Generate.")`
+     generates the code. The ui-cloner will:
    - Create components in the specified format
    - Use appropriate styling approach for the format
    - Follow conventions for each framework/library
@@ -68,7 +74,7 @@ or JavaScript-rendered content.
    - Applies the theme
    - Handles responsive behavior
 
-5. **Verify with visual comparison.** Delegate to the frontend-verifier agent to:
+5. **Verify with visual comparison.** `Agent(subagent_type: "frontend-verifier", ...)` to:
    - Open the cloned page in the browser
    - Take screenshots of the clone at matching viewports
    - **Compare clone screenshots against source screenshots** (visual diff)

@@ -37,7 +37,10 @@ class TestInstall:
 
             agents_dir = target / ".claude" / "agents"
             assert agents_dir.exists()
-            assert (agents_dir / "orchestrator.md").exists()
+            assert (agents_dir / "grind.md").exists()
+            # The PM workflow is part of the pm skill, not a spawnable agent
+            assert not (agents_dir / "orchestrator.md").exists()
+            assert (target / ".claude" / "skills" / "pm" / "orchestrator.md").exists()
             assert (agents_dir / "backend-developer.md").exists()
 
     def test_install_creates_skills_directory(self):
@@ -225,11 +228,11 @@ class TestInstallMcpAndHooks:
 
             settings = json.loads((target / ".claude" / "settings.json").read_text())
             assert "mcpServers" not in settings
-            assert "puppeteer" in settings["enabledMcpjsonServers"]
+            assert "playwright" in settings["enabledMcpjsonServers"]
 
             mcp = json.loads((target / ".mcp.json").read_text())
-            args = mcp["mcpServers"]["puppeteer"]["args"]
-            assert "@modelcontextprotocol/server-puppeteer" in args
+            args = mcp["mcpServers"]["playwright"]["args"]
+            assert "@playwright/mcp@latest" in args
 
     def test_install_merges_existing_mcp_json(self):
         """Servers already in .mcp.json are kept."""
@@ -247,7 +250,7 @@ class TestInstallMcpAndHooks:
 
             servers = json.loads((target / ".mcp.json").read_text())["mcpServers"]
             assert servers["mine"] == {"command": "my-server"}
-            assert "puppeteer" in servers
+            assert "playwright" in servers
 
     def test_subagent_hook_matches_agent_tool(self):
         """The subagent hook fires for the Agent tool and has no unknown keys."""

@@ -132,7 +132,7 @@ Report the result:
 
 When used within the PM workflow:
 
-1. PM reads `pm.git_workflow` from `.claude/settings.json`
+1. PM reads `pm.git_workflow` from `.claude/buildmate.json`
 2. If `"branch"` or `"full"`, PM calls `/branch` after plan approval
 3. Branch name derived from feature file slug
 4. Issue linked if mentioned in requirements
@@ -175,7 +175,7 @@ For workspaces with multiple repositories (e.g., separate backend, web, mobile r
 
 ### Configuration
 
-In `.claude/settings.json`:
+In `.claude/buildmate.json`:
 
 ```json
 {
@@ -215,7 +215,7 @@ If found, use AskUserQuestion to confirm multi-repo setup.
 
 #### Step 0: Identify Target Repositories
 
-1. Read `pm.multi_repo` from settings
+1. Read `pm.multi_repo` from `.claude/buildmate.json`
 2. If `--repo` specified, use only that repo
 3. If `--stacks` specified, map stacks to repos via `stack_repo_map`
 4. Otherwise, use all configured repositories

@@ -336,7 +336,7 @@ Every stack (parent or child) **must** satisfy all items below. Use this as a ma
 #### 3. Variables (minimum required)
 
 - [ ] `framework` — framework name and version (e.g., `Rails 7+`, `FastAPI`, `Gin`)
-- [ ] `dev_port` — development server port (e.g., `3000`, `8080`)
+- [ ] `dev_port` — development server port. Frontends use `3000`; backends must not (they run next to a frontend): Rails `3001`, Express/Phoenix `4000`, Sinatra `4567`, Flask `5001` (macOS AirPlay takes 5000), FastAPI/Django `8000`, Go `8080`. The dev server `command` must start on that port.
 - [ ] `test_framework` — test runner name (e.g., `RSpec`, `pytest`, `Vitest`)
 - [ ] `language` — language and version (inherited from parent is OK, but verify the parent defines it)
 
@@ -418,26 +418,26 @@ After bootstrapping, the target project will have:
 ```
 my-project/
 ├── .claude/
-│   ├── agents/           # Agent definitions
-│   │   ├── orchestrator.md
-│   │   ├── grind.md
-│   │   ├── eval-agent.md
-│   │   ├── security-auditor.md
-│   │   └── <stack-specific>.md
-│   ├── skills/           # Slash commands
+│   ├── agents/           # Agent definitions (grind, eval-agent, verifiers, auditors, <stack-specific>.md)
+│   ├── skills/           # Slash commands; skills/pm/orchestrator.md is the /pm workflow
+│   ├── hooks/            # Session start/end, change tracking
 │   ├── patterns/         # Code pattern references
 │   ├── styles/           # Style guide references
 │   ├── context/
 │   │   └── features/     # Feature tracking
-│   ├── settings.json
+│   ├── settings.json     # Claude Code settings (permissions, hooks)
+│   ├── buildmate.json    # Buildmate options (git workflow, multi-repo, verification)
 │   └── README.md
+├── .mcp.json             # MCP servers (Playwright browser)
 └── CLAUDE.md
 ```
 
 ## Key Concepts
 
 ### Orchestrator
-The orchestrator agent coordinates feature development through a pipeline: Plan → Implement → Test → Review → Eval. It delegates to specialized agents for each stage.
+`/pm` runs the PM workflow (`base/skills/pm/orchestrator.md.j2`, rendered into the pm skill): Plan → Implement → Verify → Test → Review → Eval. The main session follows it and delegates each stage with `Agent(subagent_type: "<agent>")`. It is not installed as an agent, because a subagent cannot spawn others.
+
+Templates (`*.j2`) inside a skill folder are rendered at install time; shared template fragments live in `base/partials/`.
 
 ### Quality Gates
 Each stack defines quality gates (lint, test, typecheck) that must pass before code review. The grind agent runs fix-verify loops until all gates pass.
@@ -472,9 +472,9 @@ Frontend stacks (nextjs, react-native) include browser automation tools for anal
 ```json
 {
   "mcpServers": {
-    "puppeteer": {
+    "playwright": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+      "args": ["-y", "@playwright/mcp@latest", "--headless", "--output-dir", ".agent-pipeline/screenshots"]
     }
   }
 }
@@ -520,7 +520,7 @@ buildmate scraping /path/to/project --language=nodejs --browser=puppeteer
 ```
 
 ### Git Workflow Automation
-Optional automation for branches, commits, and PRs. Configure in `.claude/settings.json`:
+Optional automation for branches, commits, and PRs. Configure in `.claude/buildmate.json` (default `"none"`):
 
 ```json
 {

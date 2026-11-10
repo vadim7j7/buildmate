@@ -123,4 +123,4 @@ verification:
   dev_server:
     command: uv run python manage.py runserver 8000
     port: 8000
-    health_check: /api/health/
+    health_check: /health

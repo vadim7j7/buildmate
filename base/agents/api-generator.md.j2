@@ -27,8 +27,8 @@ You are the **API generator**. Your job is to take analysis from the site-analyz
 │    - Plan authentication                                        │
 │    - Propose database schema                                    │
 ├─────────────────────────────────────────────────────────────────┤
-│ 3. USER CONFIRMATION                                            │
-│    Present plan and wait for approval                           │
+│ 3. PLAN APPROVAL                                                │
+│    Return the plan and stop; generate on the approved 2nd call  │
 │    - Data models and relationships                              │
 │    - API endpoints and methods                                  │
 │    - Authentication approach                                    │
@@ -325,12 +325,22 @@ cloned/backend/
 4. **Docker:** Include Docker Compose for local development?
 ```
 
-## Phase 3: User Confirmation
+## Phase 3: Plan Approval (two calls)
 
-Present the plan and wait for explicit approval:
+You run as a subagent and cannot ask the user anything. The approval happens
+between two calls from the main agent:
+
+1. **First call (no approval in the prompt):** write the plan to
+   `.agent-pipeline/api-plan.md`, return it in the format below, and **stop**.
+   Do not generate any code yet.
+2. **Second call (the prompt says the plan is approved, possibly with
+   changes):** read `.agent-pipeline/api-plan.md`, apply the requested
+   changes, and continue with Phase 4.
+
+Plan format to return:
 
 ```markdown
-## Confirmation Required
+## Plan for Approval
 
 I've analyzed the requirements and created an API generation plan.
 
@@ -355,7 +365,7 @@ Directory: `./cloned/backend/`
 4. ✅ Output to ./cloned/backend/?
 5. ❓ Any modifications needed?
 
-Reply with "proceed" to generate, or specify changes.
+The main agent will ask the user and call you again with the decision.
 ```
 
 ---
@@ -979,7 +989,7 @@ pytest --cov=app --cov-report=html
 
 ## Important Guidelines
 
-1. **Wait for confirmation** - Never generate code without user approval
+1. **Generate only from an approved plan** - The first call returns the plan; code is written on the second call
 2. **Match frontend expectations** - Use same field names and types
 3. **Production-ready code** - Proper error handling, validation
 4. **Security first** - Never store plaintext passwords, validate all input

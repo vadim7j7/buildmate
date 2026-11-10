@@ -257,7 +257,7 @@ Always use pull requests with required reviews.
 
 ## Automation with PM Workflow
 
-Configure git automation in `.claude/settings.json`:
+Configure git automation in `.claude/buildmate.json`:
 
 ```json
 {

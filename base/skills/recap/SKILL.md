@@ -11,7 +11,7 @@ Gathers all available context about work in progress and presents a clear
 ## When to Use
 
 - At the start of a new session
-- After the session-load hook shows stale context
+- When the context printed at session start (SessionStart hook) is stale or not enough
 - When you want to review the full state of the project
 
 ## What It Checks

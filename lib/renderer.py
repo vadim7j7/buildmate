@@ -23,9 +23,14 @@ class RenderedOutput:
     # MCP servers for the project-root .mcp.json (Claude Code does not read
     # mcpServers from .claude/settings.json)
     mcp_servers: dict[str, Any] = field(default_factory=dict)
+    # Buildmate's own options (git workflow, multi-repo, verification),
+    # written to .claude/buildmate.json; not Claude Code settings
+    buildmate_config: dict[str, Any] = field(default_factory=dict)
     patterns: dict[str, Path] = field(default_factory=dict)  # filename -> source path
     styles: dict[str, Path] = field(default_factory=dict)  # filename -> source path
     skills: dict[str, Path] = field(default_factory=dict)  # skill_name -> source dir
+    # Rendered *.j2 files inside skill dirs: "<skill>/<relpath>" -> content
+    skill_files: dict[str, str] = field(default_factory=dict)
     hooks: dict[str, str] = field(
         default_factory=dict
     )  # filename -> content (or path if not template)
@@ -66,11 +71,102 @@ def create_jinja_env(template_dirs: list[Path]) -> Environment:
         return None
 
     env.filters["find_by_role"] = find_agent_by_role
+    env.filters["verifier"] = verifier_for
+
+    # Dev server settings for a stack (command, port, health_check)
+    env.filters["dev_server"] = dev_server_for
 
     # Test to check if string contains substring
     env.tests["contains"] = lambda value, substring: substring in value
 
     return env
+
+
+VERIFIER_BY_ROLE = {
+    "backend": "backend-verifier",
+    "frontend": "frontend-verifier",
+    "mobile": "mobile-verifier",
+}
+
+
+def verifier_for(stack: StackConfig) -> str | None:
+    """
+    Return the verifier agent for a stack, based on its developer agent's role.
+
+    A stack whose developer is ``backend-developer`` gets ``backend-verifier``,
+    and so on. Stacks with verification disabled, or whose developer role has
+    no verifier (extension, scraper), get None.
+
+    Args:
+        stack: Stack configuration
+
+    Returns:
+        Verifier agent name, or None
+    """
+    if stack.verification.get("enabled") is False:
+        return None
+    for agent in stack.agents:
+        if agent.name.endswith("-developer"):
+            verifier = VERIFIER_BY_ROLE.get(agent.name.split("-", 1)[0])
+            if verifier:
+                return verifier
+    return None
+
+
+def dev_server_for(stack: StackConfig) -> dict[str, Any]:
+    """
+    Return a stack's dev server settings with defaults filled in.
+
+    Args:
+        stack: Stack configuration
+
+    Returns:
+        Dict with ``command``, ``port`` and ``health_check`` (may be None)
+    """
+    dev = dict(stack.verification.get("dev_server") or {})
+    dev.setdefault("command", None)
+    dev["port"] = dev.get("port") or stack.variables.get("dev_port")
+    dev.setdefault("health_check", None)
+    return dev
+
+
+def parse_frontmatter(content: str) -> dict[str, Any]:
+    """
+    Read a Markdown file's YAML front matter.
+
+    Args:
+        content: File content
+
+    Returns:
+        The front matter as a dict (empty when missing or invalid)
+    """
+    if not content.startswith("---"):
+        return {}
+    end = content.find("\n---", 3)
+    if end == -1:
+        return {}
+    import yaml
+
+    try:
+        data = yaml.safe_load(content[3:end])
+    except yaml.YAMLError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def first_sentence(text: str) -> str:
+    """
+    Return the first sentence of a (possibly multi-line) description.
+
+    Args:
+        text: Description text
+
+    Returns:
+        The first sentence, on one line
+    """
+    flat = " ".join(str(text or "").split())
+    head, sep, _ = flat.partition(". ")
+    return head + ("." if sep else "")
 
 
 def build_template_context(
@@ -226,7 +322,47 @@ def collect_skills(config: ComposedConfig) -> dict[str, Path]:
                 if parent_skill.exists():
                     skills[skill_name] = parent_skill
 
+    # Skills added by selected options (e.g. nextjs state=zustand -> new-store)
+    for skill_name in config.all_skills:
+        if skill_name in skills:
+            continue
+        for stack in config.stacks:
+            candidates = [stack.stack_path / "skills" / skill_name]
+            if stack.parent_stack_path:
+                candidates.append(stack.parent_stack_path / "skills" / skill_name)
+            found = next((c for c in candidates if c.is_dir()), None)
+            if found:
+                skills[skill_name] = found
+                break
+
     return skills
+
+
+def render_skill_templates(
+    env: Environment, context: dict[str, Any], skills: dict[str, Path]
+) -> dict[str, str]:
+    """
+    Render ``*.j2`` files that live inside skill directories.
+
+    The installer copies each skill directory verbatim but skips ``*.j2``
+    files; their rendered output (``.j2`` dropped) is written in their place.
+
+    Args:
+        env: Jinja2 environment rooted at the repo
+        context: Template context
+        skills: skill_name -> source directory
+
+    Returns:
+        Dictionary of "<skill>/<relative path>" -> rendered content
+    """
+    rendered = {}
+    for skill_name, skill_dir in skills.items():
+        for template_file in sorted(skill_dir.rglob("*.j2")):
+            template_path = template_file.relative_to(V2_ROOT).as_posix()
+            rel = template_file.relative_to(skill_dir).as_posix()[: -len(".j2")]
+            template = env.get_template(template_path)
+            rendered[f"{skill_name}/{rel}"] = template.render(**context)
+    return rendered
 
 
 def collect_hooks(config: ComposedConfig) -> tuple[dict[str, str], dict[str, Path]]:
@@ -355,8 +491,23 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
 
     output = RenderedOutput()
 
-    # Render base agents
-    output.agents.update(render_base_agents(env, context))
+    # Render base agents; drop verifiers that no selected stack uses
+    base_agents = render_base_agents(env, context)
+    used_verifiers = {verifier_for(stack) for stack in config.stacks}
+    for verifier in VERIFIER_BY_ROLE.values():
+        if verifier not in used_verifiers:
+            base_agents.pop(f"{verifier}.md", None)
+    output.agents.update(base_agents)
+
+    # Expose base agents (grind, verifiers, auditors...) to CLAUDE.md and /pm
+    context["base_agents"] = [
+        {
+            "name": meta.get("name", filename[:-3]),
+            "description": first_sentence(meta.get("description", "")),
+        }
+        for filename, content in sorted(base_agents.items())
+        for meta in [parse_frontmatter(content)]
+    ]
 
     # Render stack-specific agents
     for stack in config.stacks:
@@ -370,8 +521,9 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
     output.patterns = config.all_patterns
     output.styles = config.all_styles
 
-    # Collect skills
+    # Collect skills, then render templates inside them (e.g. pm/orchestrator.md)
     output.skills = collect_skills(config)
+    output.skill_files = render_skill_templates(env, context, output.skills)
 
     # Collect project-root scaffold (rendered .j2 / verbatim files)
     output.scaffold = collect_scaffold(env, context, config)
@@ -387,6 +539,12 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
         with open(settings_file) as f:
             output.settings = json.load(f)
 
+    # Load Buildmate's own config defaults (written to .claude/buildmate.json)
+    buildmate_file = BASE_DIR / "buildmate.json"
+    if buildmate_file.exists():
+        with open(buildmate_file) as f:
+            output.buildmate_config = json.load(f)
+
     # Load base MCP servers (written to <target>/.mcp.json)
     mcp_file = BASE_DIR / "mcp.json"
     if mcp_file.exists():
@@ -395,37 +553,25 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
 
     # Generate services.json config for dashboard
     if dashboard:
-        import yaml
-
         svc_list = []
         for stack in config.stacks:
-            # Read raw YAML to get verification section (not on StackConfig)
-            raw_yaml_path = stack.stack_path / "stack.yaml"
-            if raw_yaml_path.exists():
-                with open(raw_yaml_path) as f:
-                    raw = yaml.safe_load(f)
-                verification = raw.get("verification", {})
-                dev_server = verification.get("dev_server", {})
-                command = dev_server.get("command")
-                if command:
-                    port = dev_server.get("port") or stack.variables.get("dev_port")
-                    svc_list.append(
-                        {
-                            "id": stack.name,
-                            "name": f"{stack.display_name} Dev Server",
-                            "command": command,
-                            "cwd": stack.working_dir,
-                            "port": int(port) if port else None,
-                        }
-                    )
+            dev = dev_server_for(stack)
+            if dev["command"]:
+                svc_list.append(
+                    {
+                        "id": stack.name,
+                        "name": f"{stack.display_name} Dev Server",
+                        "command": dev["command"],
+                        "cwd": stack.working_dir,
+                        "port": int(dev["port"]) if dev["port"] else None,
+                    }
+                )
         if svc_list:
             output.services_config = {"services": svc_list}
 
     # Auto-populate multi_repo config for multi-stack compositions
     if len(config.stacks) > 1:
-        if "pm" not in output.settings:
-            output.settings["pm"] = {}
-        output.settings["pm"]["multi_repo"] = {
+        output.buildmate_config.setdefault("pm", {})["multi_repo"] = {
             "enabled": True,
             "repositories": {
                 s.working_dir: f"./{s.working_dir}" for s in config.stacks

@@ -22,7 +22,7 @@ find_project_root() {
     echo "$PWD"
 }
 
-PROJECT_ROOT=$(find_project_root)
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(find_project_root)}"
 CONTEXT_DIR="$PROJECT_ROOT/.claude/context"
 ACTIVITY_LOG="$CONTEXT_DIR/agent-activity.log"
 SUMMARY_FILE="$CONTEXT_DIR/session-summary.md"
@@ -43,9 +43,12 @@ mkdir -p "$CONTEXT_DIR" 2>/dev/null || exit 0
 
 # Count activities from this session (if log exists)
 if [ -f "$ACTIVITY_LOG" ]; then
-    FILE_EDITS=$(grep -c "Edit:\|Write:" "$ACTIVITY_LOG" 2>/dev/null || echo "0")
-    TASKS_COMPLETED=$(grep -c "Task completed:" "$ACTIVITY_LOG" 2>/dev/null || echo "0")
-    RECENT_CHANGES=$(tail -20 "$ACTIVITY_LOG" 2>/dev/null || echo "No recent activity")
+    # Only the lines after the last "Session started" marker (see session-start.sh)
+    SESSION_LOG=$(awk '/Session started:/ {buf=""; next} {buf = buf $0 "\n"} END {printf "%s", buf}' "$ACTIVITY_LOG" 2>/dev/null)
+    FILE_EDITS=$(printf "%b" "$SESSION_LOG" | grep -c "Edit:\|Write:" 2>/dev/null)
+    TASKS_COMPLETED=$(printf "%b" "$SESSION_LOG" | grep -c "Task completed:" 2>/dev/null)
+    RECENT_CHANGES=$(printf "%b" "$SESSION_LOG" | tail -20)
+    [ -z "$RECENT_CHANGES" ] && RECENT_CHANGES="No activity this session"
 else
     FILE_EDITS=0
     TASKS_COMPLETED=0

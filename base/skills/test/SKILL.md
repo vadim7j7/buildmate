@@ -31,8 +31,9 @@ auto-detecting the available test runner.
    - `Cargo.toml` for Rust (`cargo test`)
    - Falls back to the stack's default test command if detection fails.
 
-2. **Delegate to the stack's tester agent.** Use the Agent tool to invoke the
-   tester sub-agent with the following context:
+2. **Delegate to the stack's tester agent.** Call
+   `Agent(subagent_type: "<role>-tester")`, using the tester's name from
+   `.claude/agents/` (e.g. `backend-tester`, `frontend-tester`), with:
    - Which test framework was detected
    - Which files or directories to test (all if none specified)
    - Whether coverage was requested

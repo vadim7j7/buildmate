@@ -74,6 +74,6 @@ verification:
   auto_verify: true
   max_retries: 3
   dev_server:
-    command: go run cmd/server/main.go
+    command: PORT=8080 go run ./cmd/server
     port: 8080
     health_check: /health

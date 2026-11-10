@@ -234,7 +234,7 @@ For workspaces with multiple repositories, `/sync` coordinates syncing across al
 
 ### Configuration
 
-Uses the same configuration as `/branch` in `.claude/settings.json`:
+Uses the same configuration as `/branch` in `.claude/buildmate.json`:
 
 ```json
 {

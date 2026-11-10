@@ -103,7 +103,7 @@ class TestBootstrapCLI:
             )
             assert result.returncode == 0
             assert Path(tmpdir, ".claude").exists()
-            assert Path(tmpdir, ".claude", "agents", "orchestrator.md").exists()
+            assert Path(tmpdir, ".claude", "skills", "pm", "orchestrator.md").exists()
             assert Path(tmpdir, ".claude", "agents", "backend-developer.md").exists()
             assert Path(tmpdir, "CLAUDE.md").exists()
 
@@ -245,7 +245,6 @@ class TestBootstrapOutput:
     def test_output_has_all_base_agents(self, bootstrapped_rails):
         """Output should have all base agents."""
         agents_dir = bootstrapped_rails / ".claude" / "agents"
-        assert (agents_dir / "orchestrator.md").exists()
         assert (agents_dir / "grind.md").exists()
         assert (agents_dir / "eval-agent.md").exists()
         assert (agents_dir / "security-auditor.md").exists()
@@ -258,7 +257,7 @@ class TestBootstrapOutput:
 
     def test_output_agent_content_valid(self, bootstrapped_rails):
         """Agent files should have valid content."""
-        orchestrator = bootstrapped_rails / ".claude" / "agents" / "orchestrator.md"
+        orchestrator = bootstrapped_rails / ".claude" / "agents" / "grind.md"
         content = orchestrator.read_text()
 
         # Should have frontmatter

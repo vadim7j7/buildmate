@@ -26,21 +26,22 @@ the standard execution mode for the implement-test-review pipeline.
 
    | Stage      | Agent                    | Artefact                        |
    |------------|--------------------------|---------------------------------|
-   | implement  | implementer              | `.agent-pipeline/implement.md`  |
-   | test       | tester                   | `.agent-pipeline/test.md`       |
-   | review     | reviewer                 | `.agent-pipeline/review.md`     |
+   | implement  | the stack's `*-developer` | `.agent-pipeline/implement.md` |
+   | test       | the stack's `*-tester`    | `.agent-pipeline/test.md`      |
+   | review     | the stack's `*-reviewer`  | `.agent-pipeline/review.md`    |
    | eval       | eval-agent               | `.agent-pipeline/eval.md`       |
    | security   | security-auditor         | `.agent-pipeline/security.md`   |
    | docs       | documentation-specialist | `.agent-pipeline/docs.md`       |
 
-2. **Initialise pipeline directory.** Run `scripts/run-pipeline.sh init` to
+2. **Initialise pipeline directory.** Run `.claude/skills/sequential/scripts/run-pipeline.sh init` to
    create `.agent-pipeline/` and write `pipeline.json` with the stage list
    and initial status.
 
 3. **Execute stages in order.** For each stage:
    a. Mark the stage as `in_progress` in `pipeline.json`.
    b. Gather context from all previous stages' artefacts.
-   c. Delegate to the appropriate agent via the Agent tool, passing:
+   c. Delegate with `Agent(subagent_type: "<agent name>")`, using the agent
+      names in `.claude/agents/` (e.g. `backend-developer`), passing:
       - The task description
       - All previous stage artefacts as context
       - The feature file from `.claude/context/features/` if applicable

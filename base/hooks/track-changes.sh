@@ -23,7 +23,7 @@ find_project_root() {
     echo "$PWD"
 }
 
-PROJECT_ROOT=$(find_project_root)
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(find_project_root)}"
 CONTEXT_DIR="$PROJECT_ROOT/.claude/context"
 ACTIVITY_LOG="$CONTEXT_DIR/agent-activity.log"
 

@@ -1,0 +1,59 @@
+{#- Dev server start/stop for a verifier. Set `verifier_name` before including. -#}
+{% set my_stacks = [] %}
+{% for s in stacks %}
+{% if (s | verifier) == verifier_name %}
+{% set _ = my_stacks.append(s) %}
+{% endif %}
+{% endfor %}
+## Dev Server
+
+**Rule: only stop servers you started.** If a server is already listening on the
+port, use it and leave it running: it is probably the user's.
+
+{% for s in my_stacks %}
+{% set dev = s | dev_server %}
+### {{ s.display_name }}
+
+- Working directory: `{{ s.working_dir }}`
+- Start command: {% if dev.command %}`{{ dev.command }}`{% else %}not configured; use the project's dev script (README, package.json, Makefile){% endif %}
+
+- Port: `{{ dev.port or 'see the start command' }}`
+{% if dev.health_check %}
+- Health check: `GET {{ dev.health_check }}` (if the route does not exist yet, add it as part of the work, or check `/` instead)
+{% endif %}
+
+{% if dev.command and dev.port %}
+```bash
+PORT={{ dev.port }}
+mkdir -p .agent-pipeline
+if lsof -ti :$PORT -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "Port $PORT already in use: using the running server, will NOT stop it"
+else
+  (cd {{ s.working_dir }} && {{ dev.command }}) > .agent-pipeline/dev-server-{{ s.name }}.log 2>&1 &
+  for i in $(seq 1 60); do
+    curl -s -o /dev/null http://localhost:$PORT{{ dev.health_check or '/' }} && break
+    sleep 1
+  done
+  # Port was free before, so whatever listens now was started here
+  lsof -ti :$PORT -sTCP:LISTEN >> .agent-pipeline/dev-server.pids
+fi
+```
+
+If the server never answers, read `.agent-pipeline/dev-server-{{ s.name }}.log`.
+{% endif %}
+
+{% endfor %}
+### Stop what you started
+
+Run this when you finish, whether the verification passed or failed:
+
+```bash
+if [ -f .agent-pipeline/dev-server.pids ]; then
+  xargs kill < .agent-pipeline/dev-server.pids 2>/dev/null || true
+  rm -f .agent-pipeline/dev-server.pids
+fi
+```
+
+Never kill a process by port alone (`lsof -ti :PORT | xargs kill`): that also
+kills servers the user started.
+

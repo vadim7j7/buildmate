@@ -85,12 +85,13 @@ Before code review, these checks must pass:
 .claude/
 ├── agents/          # Agent definitions
 ├── skills/          # Slash command implementations
-├── hooks/           # Event hooks (session save/load)
+├── hooks/           # Hooks (session start/end, change tracking)
 ├── context/
 │   └── features/    # Feature tracking files
 ├── patterns/        # Code pattern references
 ├── styles/          # Style guides
-├── settings.json    # Shared settings
+├── settings.json    # Claude Code settings (permissions, hooks)
+├── buildmate.json   # Buildmate options (git workflow, multi-repo, verification)
 └── README.md        # This file
 ```
 
@@ -111,7 +112,7 @@ Feature files track:
 
 ## Session Memory
 
-Your session context is automatically saved to `.claude/context/active-work.md` after each response.
+When a session ends, its context is saved to `.claude/context/active-work.md`; the next session starts with it.
 
 Use `/recap` to restore context in a new session and see:
 - Current branch and git status
@@ -123,17 +124,19 @@ Use `/recap` to restore context in a new session and see:
 
 | File | Purpose |
 |------|---------|
-| `.claude/settings.json` | Shared settings (committed) |
+| `.claude/settings.json` | Claude Code settings: permissions, hooks (committed) |
+| `.claude/buildmate.json` | Buildmate options: git workflow, multi-repo, verification (committed) |
+| `.mcp.json` | MCP servers (Playwright browser) |
 | `.claude/settings.local.json` | Personal overrides (gitignored) |
 
 ### Git Workflow Automation
 
-Configure automatic branch creation and PR submission in `settings.json`:
+Configure automatic branch creation and PR submission in `.claude/buildmate.json`:
 
 ```json
 {
   "pm": {
-    "git_workflow": "full"
+    "git_workflow": "none"
   }
 }
 ```

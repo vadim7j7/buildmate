@@ -142,13 +142,13 @@ variables:
   test_framework: RSpec
   orm: ActiveRecord
   linter: RuboCop
-  dev_port: 3000
+  dev_port: 3001
 
 verification:
   enabled: true
   auto_verify: true
   max_retries: 3
   dev_server:
-    command: bundle exec rails server
-    port: 3000
+    command: bundle exec rails server -p 3001
+    port: 3001
     health_check: /health

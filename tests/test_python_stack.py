@@ -189,7 +189,7 @@ class TestLoadFlaskStack:
 
         assert "verification" in raw
         assert raw["verification"]["enabled"] is True
-        assert raw["verification"]["dev_server"]["port"] == 5000
+        assert raw["verification"]["dev_server"]["port"] == 5001
 
     def test_flask_patterns_merged(self):
         """Both python and flask patterns should be present."""
@@ -205,7 +205,7 @@ class TestLoadFlaskStack:
         assert config.variables["framework"] == "Flask 3+"
         assert config.variables["language"] == "Python 3.12+"
         assert config.variables["test_framework"] == "pytest"
-        assert config.variables["dev_port"] == 5000
+        assert config.variables["dev_port"] == 5001
 
     def test_flask_compatible_with(self):
         """Flask compatible_with should be union of python + flask."""

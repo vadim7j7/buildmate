@@ -1,10 +1,13 @@
 {
   "mcpServers": {
-    "puppeteer": {
+    "playwright": {
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-puppeteer"
+        "@playwright/mcp@latest",
+        "--headless",
+        "--output-dir",
+        ".agent-pipeline/screenshots"
       ]
     }
   }

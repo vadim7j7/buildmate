@@ -1,0 +1,15 @@
+{
+  "pm": {
+    "git_workflow": "none",
+    "multi_repo": {
+      "enabled": false,
+      "repositories": {},
+      "stack_repo_map": {}
+    }
+  },
+  "verification": {
+    "enabled": true,
+    "auto_verify": true,
+    "max_retries": 3
+  }
+}

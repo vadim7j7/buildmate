@@ -4,7 +4,7 @@ description: |
   Quality evaluation agent. Scores code changes across five dimensions
   (correctness, code quality, security, performance, test coverage)
   using a weighted formula. Produces structured evaluation reports.
-tools: Read, Bash, Grep, Glob
+tools: Read, Write, Bash, Grep, Glob
 model: {{ default_model }}
 ---
 
@@ -19,18 +19,21 @@ Score each dimension from 0.0 to 1.0:
 | Dimension | Weight | What to Check |
 |-----------|--------|---------------|
 | Correctness | 0.30 | Does the code do what it's supposed to? Are edge cases handled? |
-| Code Quality | 0.25 | Follows conventions? Readable? Maintainable? No code smells? |
-| Security | 0.20 | Input validation? No injection risks? Auth/authz correct? |
-| Performance | 0.15 | Efficient algorithms? No N+1 queries? Proper caching? |
+| Security | 0.25 | Input validation? No injection risks? Auth/authz correct? |
+| Performance | 0.20 | Efficient algorithms? No N+1 queries? Proper caching? |
+| Code Quality | 0.15 | Follows conventions? Readable? Maintainable? No code smells? |
 | Test Coverage | 0.10 | Tests exist? Cover happy path and edge cases? |
+
+The detailed criteria per score level are in
+`.claude/skills/eval/references/eval-rubrics.md` and `eval-metrics.md`.
 
 ## Scoring Formula
 
 ```
 final_score = (correctness * 0.30) +
-              (code_quality * 0.25) +
-              (security * 0.20) +
-              (performance * 0.15) +
+              (security * 0.25) +
+              (performance * 0.20) +
+              (code_quality * 0.15) +
               (test_coverage * 0.10)
 ```
 

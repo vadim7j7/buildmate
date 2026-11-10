@@ -1,6 +1,7 @@
 #!/bin/bash
 # Pre-commit Hook
-# Runs quality gates before allowing a commit.
+# Blocks commits with debugging artifacts and warns about large files.
+# Quality gates are run by the /ship skill and the grind agent.
 # Install: cp .claude/hooks/pre-commit.sh .git/hooks/pre-commit
 
 set -e
@@ -19,22 +20,13 @@ find_project_root() {
     echo "$PWD"
 }
 
-PROJECT_ROOT=$(find_project_root)
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(find_project_root)}"
 cd "$PROJECT_ROOT"
 
 echo "Running pre-commit quality gates..."
 
-# Check for quality gate commands in CLAUDE.md
-if [ -f "CLAUDE.md" ]; then
-    # Try to extract and run lint command
-    if grep -q "lint.*:" CLAUDE.md; then
-        echo "Running linter..."
-        # Stack-specific lint commands would go here
-    fi
-fi
-
 # Prevent commits with debugging artifacts
-if git diff --cached --name-only | xargs grep -l "binding.pry\|debugger\|console.log.*DEBUG\|TODO.*REMOVE" 2>/dev/null; then
+if git diff --cached --name-only --diff-filter=ACM | grep -v "^\.claude/" | xargs grep -l "binding.pry\|debugger\|console.log.*DEBUG\|TODO.*REMOVE" 2>/dev/null; then
     echo "ERROR: Found debugging artifacts in staged files"
     echo "Please remove binding.pry, debugger statements, DEBUG console.logs, or TODO REMOVE comments"
     exit 1

@@ -256,7 +256,6 @@ buildmate/
 │   └── installer.py          # Install rendered output to target
 ├── base/
 │   ├── agents/               # Base agent templates (shared across all stacks)
-│   │   ├── orchestrator.md.j2    # PM/workflow coordinator
 │   │   ├── grind.md.j2           # Fix-verify loop agent
 │   │   ├── eval-agent.md.j2      # Quality evaluation agent
 │   │   ├── security-auditor.md.j2 # Security audit agent
@@ -275,7 +274,10 @@ buildmate/
 │   │   └── test/             # Test running
 │   ├── CLAUDE.md.j2          # Project CLAUDE.md template
 │   ├── README.md.j2          # .claude/README.md template
-│   ├── settings.json         # Base settings
+│   ├── skills/pm/orchestrator.md.j2 # /pm workflow (rendered into the pm skill)
+│   ├── partials/             # Shared template fragments (dev-server.md.j2)
+│   ├── settings.json         # Base Claude Code settings (permissions, hooks)
+│   ├── buildmate.json        # Defaults for .claude/buildmate.json
 │   └── mcp.json              # Base MCP servers (installed as .mcp.json)
 ├── stacks/
 │   ├── ruby/                # Language parent (agents, gates, patterns, styles)
@@ -639,7 +641,7 @@ When composing multiple stacks (e.g., `rails+nextjs`):
 5. **Patterns/styles are merged** - All pattern and style files from all stacks
 6. **Compatibility is checked** - Warning if stacks aren't in each other's `compatible_with`
 
-The orchestrator template automatically detects multiple stacks and generates appropriate delegation logic for each.
+The `/pm` workflow template detects multiple stacks and generates delegation prompts for each.
 
 ### Compatibility Matrix
 
@@ -666,7 +668,6 @@ After bootstrapping, the target project will have:
 my-project/
 ├── .claude/
 │   ├── agents/           # Rendered agent definitions
-│   │   ├── orchestrator.md
 │   │   ├── grind.md
 │   │   ├── eval-agent.md
 │   │   ├── security-auditor.md
@@ -675,9 +676,11 @@ my-project/
 │   │   ├── delegate/
 │   │   ├── test/
 │   │   ├── review/
+│   │   ├── pm/           # /pm skill + orchestrator.md (the workflow)
 │   │   ├── recap/        # Session context loading
 │   │   └── ...
 │   ├── hooks/            # Lifecycle hooks
+│   │   ├── session-start.sh
 │   │   ├── track-changes.sh
 │   │   ├── task-complete.sh
 │   │   ├── session-end.sh
@@ -689,10 +692,11 @@ my-project/
 │   │   ├── active-work.md      # Previous session state (auto-generated)
 │   │   ├── session-summary.md  # Last session summary (auto-generated)
 │   │   └── agent-activity.log  # Activity log (auto-generated)
-│   ├── settings.json     # Shared settings
+│   ├── settings.json     # Claude Code settings (permissions, hooks)
+│   ├── buildmate.json    # Buildmate options (git workflow, multi-repo, verification)
 │   ├── settings.local.json  # Local settings (gitignored)
 │   └── README.md         # Usage instructions
-├── .mcp.json             # MCP servers (Puppeteer, dashboard)
+├── .mcp.json             # MCP servers (Playwright, dashboard)
 └── CLAUDE.md             # Project-level instructions
 ```
 
@@ -720,10 +724,11 @@ session-end.sh saves summary
 
 | Hook | Trigger | Purpose |
 |------|---------|---------|
+| `session-start.sh` | SessionStart | Shows the saved `active-work.md` to Claude; marks the session start in the activity log |
 | `track-changes.sh` | PostToolUse: Edit\|Write | Logs file modifications |
 | `task-complete.sh` | PostToolUse: Agent | Logs subagent task completions |
-| `session-end.sh` | Stop | Generates session summary |
-| `session-save.sh` | Manual | Saves active work context |
+| `session-save.sh` | SessionEnd | Saves active work context (branch, changes, features) |
+| `session-end.sh` | SessionEnd | Writes this session's activity summary |
 
 ### Loading Previous Context
 
@@ -737,7 +742,7 @@ Returns a formatted summary of previous session state, in-progress features, and
 
 **Option 2: Use PM workflow**
 
-The orchestrator's Phase 1.0 automatically checks for previous session context before planning.
+The SessionStart hook shows the saved context, and `/pm` picks up an in-progress feature file before planning.
 
 ### Generated Files
 
@@ -803,14 +808,14 @@ When cloning a page, the pipeline includes automated visual verification:
 
 ### MCP Browser Setup
 
-The bootstrap writes a project-root `.mcp.json` with the Puppeteer MCP server (merged with any servers already there) and pre-approves it via `enabledMcpjsonServers` in `.claude/settings.json`:
+The bootstrap writes a project-root `.mcp.json` with the Playwright MCP server (merged with any servers already there) and pre-approves it via `enabledMcpjsonServers` in `.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
-    "puppeteer": {
+    "playwright": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+      "args": ["-y", "@playwright/mcp@latest", "--headless", "--output-dir", ".agent-pipeline/screenshots"]
     }
   }
 }
@@ -921,7 +926,7 @@ buildmate nextjs /path/to/app --no-auto-verify
 | Agent | Stack | Testing Method |
 |-------|-------|----------------|
 | `backend-verifier` | Rails, FastAPI, Express, Django, Sinatra, Flask, Gin, Fiber, Chi, Phoenix | HTTP requests (curl/httpie) |
-| `frontend-verifier` | Next.js, Nuxt | MCP browser (Puppeteer) |
+| `frontend-verifier` | Next.js, Nuxt | MCP browser (Playwright) |
 | `mobile-verifier` | React Native | Jest + TypeScript |
 
 ## Web Scraping
@@ -1041,7 +1046,7 @@ Optional automation for creating branches, committing changes, and creating pull
 
 ### Configuration
 
-Add to `.claude/settings.json`:
+Set in `.claude/buildmate.json` (default `"none"`):
 
 ```json
 {

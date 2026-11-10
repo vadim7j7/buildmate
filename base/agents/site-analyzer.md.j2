@@ -4,8 +4,8 @@ description: |
   Website analysis specialist. Performs deep analysis of websites to extract structure,
   components, data models, API endpoints, authentication methods, design tokens, and
   interactions. Produces detailed reports for full-stack cloning.
-tools: Read, Write, Grep, Glob, WebFetch
-model: opus
+tools: Read, Write, Bash, Grep, Glob, WebFetch, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_evaluate, mcp__playwright__browser_resize, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_console_messages, mcp__playwright__browser_wait_for, mcp__playwright__browser_close
+model: {{ default_model }}
 ---
 
 # Site Analyzer
@@ -74,11 +74,15 @@ When browser MCP is available, use these tools:
 | Tool | Purpose |
 |------|---------|
 | `browser_navigate` | Load the target URL |
-| `browser_screenshot` | Capture full page or specific elements |
-| `browser_get_html` | Extract DOM structure |
-| `browser_evaluate` | Run JS to extract styles, data, network info |
-| `browser_click` | Interact with elements |
-| `browser_type` | Fill form inputs |
+| `browser_snapshot` | Accessibility snapshot of the page; gives the `ref` of each element |
+| `browser_take_screenshot` | Capture the page (`fullPage: true`) or one element (`element` + `ref`); `filename` saves it under `.agent-pipeline/screenshots/` |
+| `browser_evaluate` | Run JS (`function: "() => ..."`) to extract HTML, styles, data |
+| `browser_resize` | Set the viewport (`width`, `height`) |
+| `browser_click` / `browser_type` | Interact with an element by `element` description + `ref` |
+
+These are the Playwright MCP tools (`.mcp.json` server `playwright`). Elements are
+targeted by the `ref` values from `browser_snapshot`, not by CSS selectors; to read
+HTML or styles by selector, use `browser_evaluate` with `document.querySelector`.
 
 ### Capture Source Reference Screenshots
 
@@ -92,21 +96,21 @@ When browser MCP is available, use these tools:
 browser_navigate({ url: "TARGET_URL" })
 
 // 3. Desktop screenshot (1440×900)
-browser_screenshot({ path: ".agent-pipeline/screenshots/source-desktop.png" })
+browser_take_screenshot({ filename: "source-desktop.png", fullPage: true })
 
 // 4. Mobile screenshot (375×812) — resize viewport first
-browser_evaluate({ script: "window.resizeTo(375, 812)" })
-browser_screenshot({ path: ".agent-pipeline/screenshots/source-mobile.png" })
+browser_resize({ width: 375, height: 812 })
+browser_take_screenshot({ filename: "source-mobile.png", fullPage: true })
 
 // 5. Reset to desktop viewport
-browser_evaluate({ script: "window.resizeTo(1440, 900)" })
+browser_resize({ width: 1440, height: 900 })
 ```
 
 ### Extract Components Script
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const components = [];
 
     // Find repeated patterns (likely components)
@@ -128,7 +132,7 @@ browser_evaluate({
         .filter(c => c.length > 2)
       )].slice(0, 50)
     };
-  `
+  }`
 })
 ```
 
@@ -136,7 +140,7 @@ browser_evaluate({
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     // Look for data in various places
     const entities = {};
 
@@ -161,7 +165,7 @@ browser_evaluate({
     entities.listCount = lists.length;
 
     return entities;
-  `
+  }`
 })
 ```
 
@@ -169,7 +173,7 @@ browser_evaluate({
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const auth = {
       methods: [],
       loginForm: false,
@@ -210,7 +214,7 @@ browser_evaluate({
     }
 
     return auth;
-  `
+  }`
 })
 ```
 
@@ -218,7 +222,7 @@ browser_evaluate({
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     // Intercept fetch/XHR would require earlier injection
     // Instead, look for clues in the page
     const endpoints = [];
@@ -245,7 +249,7 @@ browser_evaluate({
     });
 
     return [...new Set(endpoints)];
-  `
+  }`
 })
 ```
 

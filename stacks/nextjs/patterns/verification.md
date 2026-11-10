@@ -33,24 +33,24 @@ browser_navigate({ url: "http://localhost:3000" })
 
 ```javascript
 // Full page
-browser_screenshot()
+browser_take_screenshot()
 
 // Specific component
-browser_screenshot({ selector: ".hero-section" })
+browser_take_screenshot({ element: ".hero-section", ref: "<ref from browser_snapshot>" })
 ```
 
 ### 4. Verify Component Renders
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const el = document.querySelector('.hero-section');
     return el ? {
       found: true,
       visible: el.offsetParent !== null,
       rect: el.getBoundingClientRect()
     } : { found: false };
-  `
+  }`
 })
 ```
 
@@ -58,7 +58,7 @@ browser_evaluate({
 
 ```javascript
 browser_evaluate({
-  script: `window.__consoleErrors || []`
+  function: `() => (window.__consoleErrors || [])`
 })
 ```
 
@@ -66,12 +66,12 @@ browser_evaluate({
 
 ```javascript
 // Mobile
-browser_evaluate({ script: `window.resizeTo(375, 812)` })
-browser_screenshot()
+browser_resize({ width: 375, height: 812 })
+browser_take_screenshot()
 
 // Desktop
-browser_evaluate({ script: `window.resizeTo(1440, 900)` })
-browser_screenshot()
+browser_resize({ width: 1440, height: 900 })
+browser_take_screenshot()
 ```
 
 ## Component Verification
@@ -80,7 +80,7 @@ browser_screenshot()
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const checks = {
       title: document.querySelector('h1'),
       cta: document.querySelector('.cta-button'),
@@ -93,7 +93,7 @@ browser_evaluate({
       found: !!el,
       text: el?.textContent?.trim().substring(0, 50)
     }));
-  `
+  }`
 })
 ```
 
@@ -101,17 +101,17 @@ browser_evaluate({
 
 ```javascript
 // Click button
-browser_click({ selector: ".cta-button" })
-browser_screenshot()
+browser_click({ element: ".cta-button", ref: "<ref from browser_snapshot>" })
+browser_take_screenshot()
 
 // Fill form
-browser_type({ selector: "input[name=email]", text: "test@example.com" })
-browser_click({ selector: "button[type=submit]" })
-browser_screenshot()
+browser_type({ element: "input[name=email]", ref: "<ref from browser_snapshot>", text: "test@example.com" })
+browser_click({ element: "button[type=submit]", ref: "<ref from browser_snapshot>" })
+browser_take_screenshot()
 
 // Check result
 browser_evaluate({
-  script: `document.querySelector('.success-message')?.textContent`
+  function: `() => (document.querySelector('.success-message')?.textContent)`
 })
 ```
 
@@ -120,10 +120,10 @@ browser_evaluate({
 ```javascript
 // Verify skeleton shows during load
 browser_evaluate({
-  script: `
+  function: `() => {
     const skeletons = document.querySelectorAll('[data-loading], .skeleton');
     return skeletons.length;
-  `
+  }`
 })
 ```
 
@@ -131,7 +131,7 @@ browser_evaluate({
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const issues = [];
 
     // Images need alt
@@ -171,7 +171,7 @@ browser_evaluate({
     });
 
     return { issues, hasSkipLink, headingCount: headings.length };
-  `
+  }`
 })
 ```
 
@@ -179,7 +179,7 @@ browser_evaluate({
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const perf = performance.getEntriesByType('navigation')[0];
     const lcp = performance.getEntriesByType('largest-contentful-paint')[0];
 
@@ -190,7 +190,7 @@ browser_evaluate({
       lcp: lcp?.startTime,
       resourceCount: performance.getEntriesByType('resource').length
     };
-  `
+  }`
 })
 ```
 

@@ -1,168 +1,72 @@
 ---
 name: pm
-description: Invoke the PM orchestration workflow to plan and delegate feature development. ALWAYS follows the full pipeline - no shortcuts.
+description: Plan a feature and deliver it through the full agent pipeline (plan, implement, verify, test, review, evaluate). Use when the user runs /pm or says "Use PM:".
+argument-hint: "<feature request> [--branch | --ship | --no-git]"
 ---
 
 # /pm — Project Manager Workflow
 
-Invokes the PM orchestration workflow for feature development.
-
-> **CRITICAL: When /pm is invoked, you MUST follow the full orchestrator workflow.**
->
-> Do NOT skip steps or decide to "do it directly" because a task seems simple.
-> The user explicitly requested the PM workflow — respect that request.
-> Even simple tasks benefit from proper planning, delegation, and review.
+Runs the PM pipeline for a feature: you plan it with the user, then delegate the
+work to the specialist agents and track it to completion.
 
 ## Usage
 
 ```
 /pm Build a user authentication system with OAuth
-/pm Add pagination to the product listing page
+/pm Add pagination to the product listing page --branch
+Use PM: Add seeds to generate fake data
+```
+
+| Flag | Behaviour |
+|------|-----------|
+| `--branch` | Create a feature branch after plan approval |
+| `--ship` | Create a branch and run `/ship` (commit, push, PR) at the end |
+| `--no-git` | No git automation, whatever `.claude/buildmate.json` says |
+
+Without a flag, `pm.git_workflow` in `.claude/buildmate.json` decides (default `"none"`).
+
+## Step 1: Read the workflow
+
+Read `orchestrator.md` in this skill's folder (`.claude/skills/pm/orchestrator.md`).
+It lists the agents, the quality gates for each stack, the delegation prompts and
+the phase-by-phase instructions for this project.
+
+## Step 2: Follow every phase
+
+1. **Planning** — understand the request, write the feature file, get approval
+2. **Implementation** — delegate to the developer agent(s), then verify
+3. **Testing** — delegate to the tester agent(s), then the `grind` agent for quality gates
+4. **Review** — delegate to the reviewer agent(s); at most 2 fix rounds
+5. **Evaluation & documentation** — `eval-agent` and `documentation-specialist`
+6. **Completion** — `/ship` if configured, then report to the user
+
+## Rules
+
+1. **Follow the full pipeline**, even for small tasks: the user asked for it.
+2. **Delegate; don't implement.** You coordinate. Developer, tester and reviewer
+   agents write and check the code.
+3. **Name the agent:** `Agent(subagent_type: "<agent-name>", ...)`. That applies
+   the agent's own model, tools and skills from `.claude/agents/<agent-name>.md`.
+4. **Track progress** in the feature file (`.claude/context/features/<slug>.md`)
+   and in your task list.
+
+## Example
+
+```
 /pm Add seeds to generate fake data
+
+1. Read .claude/skills/pm/orchestrator.md
+2. Write .claude/context/features/seed-data.md and get the plan approved
+3. Agent(subagent_type: "backend-developer", prompt: "Add seed data for ...")
+4. Agent(subagent_type: "backend-tester", prompt: "Test the seeds ...")
+5. Agent(subagent_type: "grind", prompt: "Run the quality gates ...")
+6. Agent(subagent_type: "backend-reviewer", prompt: "Review ...")
+7. Report to the user
 ```
 
-Or use the alternative syntax:
-```
-Use PM: Build a user authentication system with OAuth
-```
+## Related skills
 
-### Git Workflow Flags
-
-Override project git settings for this task:
-
-```
-/pm Add user auth --branch              # Create branch, manual PR
-/pm Add user auth --ship                # Full automation (branch + PR)
-/pm Add user auth --no-git              # No git automation (override settings)
-```
-
-| Flag | Behavior |
-|------|----------|
-| `--branch` | Create feature branch after plan approval |
-| `--ship` | Create branch + auto-create PR on completion |
-| `--no-git` | Disable git automation (even if configured) |
-
-## What This Does
-
-1. **Loads the orchestrator workflow** from `.claude/agents/orchestrator.md`
-2. **Follows the 6-phase pipeline:**
-   - Phase 1: Planning (interactive with user)
-   - Phase 2: Implementation (delegates to developer agents)
-   - Phase 2.5: Verification (verifiers test via HTTP/browser)
-   - Phase 3: Testing (delegates to tester agents)
-   - Phase 4: Review (delegates to reviewer agents)
-   - Phase 5: Evaluation & Documentation
-   - Phase 6: Completion (final report)
-
-## MANDATORY Workflow
-
-### Step 1: Load Orchestrator
-
-**You MUST read the orchestrator first:**
-
-```
-Read .claude/agents/orchestrator.md
-```
-
-This file contains:
-- Available agents and their roles
-- Quality gates for each stack
-- Delegation templates
-- Phase-by-phase instructions
-
-### Step 2: Follow ALL Phases
-
-**You MUST execute each phase as instructed in the orchestrator:**
-
-1. **Phase 1 (Planning):** Check previous context, understand requirements, create feature file, get user approval
-2. **Phase 2 (Implementation):** Delegate to developer agents via Agent tool
-3. **Phase 3 (Testing):** Delegate to tester agents via Agent tool
-4. **Phase 4 (Review):** Delegate to reviewer agents via Agent tool
-5. **Phase 5 (Completion):** Update feature status, report to user
-
-## CRITICAL Rules
-
-1. **NEVER skip the orchestrator** — Always read `.claude/agents/orchestrator.md` first
-2. **NEVER implement directly** — You are the PM, you delegate. Specialist agents do the work.
-3. **NEVER decide a task is "too simple"** — If user invoked /pm, follow the full workflow
-4. **ALWAYS use Agent tool** — Spawn agents with `subagent_type: general-purpose`
-5. **ALWAYS track progress** — Create feature file, use TodoWrite
-
-## Why Delegation Matters
-
-Even for "simple" tasks like adding seeds:
-- **Developer agent** knows the framework patterns and conventions
-- **Tester agent** ensures the seeds work correctly
-- **Reviewer agent** catches issues you might miss
-- **Feature file** tracks what was done for future reference
-
-## Example: "Add seeds to generate fake data"
-
-**WRONG approach (do NOT do this):**
-```
-"This is simple, let me just write the seeds directly..."
-```
-
-**CORRECT approach:**
-```
-1. Read .claude/agents/orchestrator.md
-2. Create feature file: .claude/context/features/seed-data.md
-3. Phase 2: Delegate to backend-developer:
-   Agent (subagent_type: general-purpose):
-   "You are the backend-developer agent. Read .claude/agents/backend-developer.md.
-   Your task: Add seed data for development..."
-4. Phase 3: Delegate to backend-tester
-5. Phase 4: Delegate to backend-reviewer
-6. Phase 5: Report completion
-```
-
-## Git Workflow Configuration
-
-Configure default git behavior in `.claude/settings.json`:
-
-```json
-{
-  "pm": {
-    "git_workflow": "none"
-  }
-}
-```
-
-| Setting | Behavior |
-|---------|----------|
-| `"none"` | No git automation (default) |
-| `"branch"` | Auto-create branch after plan approval |
-| `"full"` | Auto-create branch + PR on completion |
-
-### First-Time Setup
-
-If no setting exists and you start a feature, the orchestrator will ask:
-
-```
-How should I handle git for this feature?
-○ Don't manage git (I'll handle it)
-○ Create a feature branch, I'll create the PR
-○ Full automation (branch + PR on completion)
-```
-
-Your choice is saved for future features.
-
-### Related Skills
-
-- `/branch` — Create a feature branch manually
-- `/ship` — Commit, push, and create PR manually
-- `/sync` — Sync branch with main/master
-
-## Delegation Template
-
-```
-Agent (subagent_type: general-purpose):
-"You are the backend-developer agent. Read .claude/agents/backend-developer.md for your role and instructions.
-
-Your task: <specific implementation task>
-
-Requirements:
-<list requirements>
-
-When complete, report what you implemented and any concerns."
-```
+- `/branch` — create a feature branch
+- `/ship` — run the gates, commit, push and open a PR
+- `/sync` — sync the branch with main/master
+- `/recap` — load the saved context of earlier sessions

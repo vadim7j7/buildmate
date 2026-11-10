@@ -1,0 +1,536 @@
+# PM Orchestration Workflow
+
+{% if stacks|length > 1 %}
+Coordinates work across: {{ stacks|map(attribute='display_name')|join(', ') }}
+{% else %}
+Stack: {{ stacks[0].display_name }}
+{% endif %}
+
+**You, the main agent, are the PM.** You follow this workflow yourself and
+delegate implementation, testing and review to specialist subagents with the
+Agent tool. Subagents cannot spawn other subagents, so never hand the
+orchestration itself to one.
+
+{% if dashboard %}
+## Dashboard Integration (MCP Tools)
+
+The MCP Dashboard is enabled. Use these tools to track progress in the dashboard UI:
+
+| Tool | When to Use |
+|------|-------------|
+| `dashboard_register_task(title, description)` | Start of workflow — register the root task. Returns `{id: "..."}` |
+| `dashboard_create_subtask(parent_id, title, assigned_agent)` | Before each delegation — create a tracking subtask |
+| `dashboard_update_status(task_id, status, result)` | After a subtask completes or fails |
+| `dashboard_update_phase(task_id, phase)` | At the start of each pipeline phase |
+| `dashboard_log(task_id, message, agent)` | Log notable events visible in the dashboard |
+| `dashboard_ask_question(task_id, question, question_type, options)` | Ask user a question (blocks until answered) |
+| `dashboard_get_task(task_id)` | Check task state, children, pending questions |
+| `dashboard_add_artifact(task_id, file_path, artifact_type, label, metadata)` | Register a file artifact (screenshot, report, eval result) for display in the UI |
+
+**task_id convention:** The root task ID is returned by `dashboard_register_task`. Store it and pass it to all subsequent calls. Subtask IDs are returned by `dashboard_create_subtask`.
+
+**Status values:** `pending`, `in_progress`, `completed`, `failed`, `blocked`
+**Phase values:** `planning`, `implementation`, `testing`, `review`, `evaluation`, `completion`
+
+Subagents have no dashboard access: you register every artifact and update every status yourself.
+
+{% endif %}
+---
+
+## Available Agents
+
+Delegate with `Agent(subagent_type: "<agent name>", prompt: ...)`. Each agent's
+file in `.claude/agents/` sets its model, tools and preloaded skills; naming the
+agent as `subagent_type` is what applies them.
+
+| Agent | Role |
+|-------|------|
+{% for agent in all_agents %}
+| `{{ agent.name }}` | {{ agent.description }} |
+{% endfor %}
+{% for agent in base_agents %}
+| `{{ agent.name }}` | {{ agent.description }} |
+{% endfor %}
+
+---
+
+## Skill Routing
+
+Before planning, check whether the request matches a specialised skill:
+
+| Intent | Skill |
+|--------|-------|
+{% set ns_route = namespace(frontend=false) %}
+{% for stack in stacks %}{% if (stack | verifier) == 'frontend-verifier' %}{% set ns_route.frontend = true %}{% endif %}{% endfor %}
+{% if ns_route.frontend %}
+| Copy, clone or replicate a web page (a URL plus "copy", "clone", "match this page") | `/clone-page <url>` |
+| Analyse a website's design or structure | `/analyze-site <url>` |
+{% endif %}
+| Security audit | `/security` |
+| Run tests only | `/test` |
+| Code review only | `/review` |
+
+Read the skill's `SKILL.md` and follow it instead of this pipeline. If no skill
+matches, continue below.
+
+---
+
+## Quality Gates
+
+{% for stack in stacks %}
+### {{ stack.display_name }}
+{% if stack.working_dir != "." %}
+Commands already `cd` into `{{ stack.working_dir }}`; run them from the project root.
+{% endif %}
+
+| Gate | Command | Auto-fix |
+|------|---------|----------|
+{% for gate_name, gate in stack.quality_gates.items() %}
+| {{ gate_name | title }} | `{{ gate.command }}` | {% if gate.fix_command %}`{{ gate.fix_command }}`{% else %}N/A{% endif %} |
+{% endfor %}
+
+{% endfor %}
+---
+
+## Git Workflow Configuration
+
+Read `pm.git_workflow` from `.claude/buildmate.json`:
+
+| Value | Behaviour |
+|-------|-----------|
+| `"none"` (default) | No git automation — the user handles git |
+| `"branch"` | Create a feature branch after plan approval; the user opens the PR |
+| `"full"` | Create a branch after plan approval and run `/ship` (commit, push, PR) at the end |
+
+A `--branch`, `--ship` or `--no-git` flag on `/pm` overrides the setting for this task.
+
+{% if stacks|length > 1 %}
+### Multi-Repository Support
+
+`pm.multi_repo` in `.claude/buildmate.json` maps stacks to repositories:
+
+```json
+{
+  "pm": {
+    "multi_repo": {
+      "enabled": true,
+      "repositories": {
+{% for stack in stacks %}
+        "{{ stack.working_dir }}": "./{{ stack.working_dir }}"{% if not loop.last %},{% endif %}
+
+{% endfor %}
+      },
+      "stack_repo_map": {
+{% for stack in stacks %}
+        "{{ stack.name }}": "{{ stack.working_dir }}"{% if not loop.last %},{% endif %}
+
+{% endfor %}
+      }
+    }
+  }
+}
+```
+
+When multi-repo is enabled, `/branch`, `/ship` and `/sync` act on every repo the
+feature touches.
+{% endif %}
+
+---
+
+## Phase 1: Planning (interactive)
+
+Ask clarifying questions (AskUserQuestion) when requirements are ambiguous, the
+scope is unclear, or several approaches are valid. Once the user approves the
+plan, Phases 2–5 run without further questions.
+
+{% if dashboard %}
+```
+task = dashboard_register_task(title="<task title from user request>", description="<description>")
+dashboard_update_phase(task_id=task.id, phase="planning")
+```
+{% endif %}
+
+### 1.1 Pick up previous context
+
+If the session started with saved context (from the SessionStart hook) or the
+request continues earlier work, read `.claude/context/features/*.md` for an
+in-progress feature file and continue it instead of starting over.
+
+### 1.2 Understand the request
+
+- Read the request carefully
+{% if stacks|length > 1 %}
+- Decide which stacks are involved ({{ stacks|map(attribute='name')|join(', ') }})
+{% endif %}
+- Look at the existing code with Grep and Glob
+- Read the relevant pattern and style files:
+{% for stack in stacks %}
+  - {{ stack.display_name }}:{% for pattern in stack.patterns %} `.claude/patterns/{{ pattern | basename }}`{% if not loop.last %},{% endif %}{% endfor %}{% for style in stack.styles %}, `.claude/styles/{{ style | basename }}`{% endfor %}
+
+{% endfor %}
+
+### 1.3 Create a feature file
+
+Write `.claude/context/features/<feature-slug>.md`:
+
+```markdown
+# Feature: <Feature Name>
+
+## Status: PLANNING
+<!-- PLANNING | IN_PROGRESS | TESTING | IN_REVIEW | COMPLETE | BLOCKED -->
+
+## Overview
+<What this feature does and why>
+
+## Requirements
+- [ ] <Requirement 1>
+- [ ] <Requirement 2>
+
+## Technical Approach
+{% for stack in stacks %}
+### {{ stack.display_name }}
+- Components: <what to build>
+- Files: <which files>
+{% endfor %}
+{% if stacks|length > 1 %}
+
+## API Contract
+Agree on the contract before implementation so stacks can work in parallel:
+GET /api/v1/resource -> { data: [...], meta: { page, total } }
+POST /api/v1/resource -> { id, ...fields }
+{% endif %}
+
+## Tasks
+| # | Task | Agent | Status |
+|---|------|-------|--------|
+| 1 | <task> | <agent> | PENDING |
+
+## Completion Criteria
+- [ ] All requirements implemented
+- [ ] Tests written and passing
+- [ ] Quality gates pass
+- [ ] Code review approved
+```
+
+Also track the tasks in your task-list tool so the user can follow progress.
+
+### 1.4 Get the plan approved
+
+{% if dashboard %}
+**You MUST call `dashboard_ask_question` and wait for approval** (do not use AskUserQuestion here):
+
+```
+result = dashboard_ask_question(
+    task_id="<root_task_id>",
+    question="Please review the plan above. Approve to proceed or provide feedback.",
+    question_type="plan_review",
+    options=["Approve", "Needs changes"],
+    context="<feature file content or plan summary>",
+    agent="orchestrator"
+)
+# "Approve" -> Phase 2; anything else -> revise the plan and ask again
+```
+{% else %}
+Show the plan (the feature file) and ask for approval. For a trivial change you
+may proceed without explicit approval, and say so.
+{% endif %}
+
+### 1.5 Git setup
+
+If `pm.git_workflow` is `"branch"` or `"full"` (or `--branch`/`--ship` was
+given): run `/branch <feature-slug>` and note the branch in the feature file.
+If `/branch` fails (uncommitted changes, branch exists), tell the user and let
+them resolve it.
+
+{% if dashboard %}
+### 1.6 Create all pipeline subtasks (dashboard)
+
+Right after approval, create every subtask in `pending` status so the dashboard
+shows the full pipeline:
+
+```
+{% for stack in stacks %}
+{% set dev_agent = stack.agents | find_by_role('developer') %}
+{% if dev_agent %}
+impl_subtask_{{ stack.name }} = dashboard_create_subtask(parent_id="<root_task_id>", title="Implement {{ stack.display_name }} features", assigned_agent="{{ dev_agent.name }}")
+{% endif %}
+{% if stack | verifier %}
+verify_subtask_{{ stack.name }} = dashboard_create_subtask(parent_id="<root_task_id>", title="Verify {{ stack.display_name }}", assigned_agent="{{ stack | verifier }}")
+{% endif %}
+{% set test_agent = stack.agents | find_by_role('tester') %}
+{% if test_agent %}
+test_subtask_{{ stack.name }} = dashboard_create_subtask(parent_id="<root_task_id>", title="Write and run {{ stack.display_name }} tests", assigned_agent="{{ test_agent.name }}")
+{% endif %}
+{% endfor %}
+grind_subtask = dashboard_create_subtask(parent_id="<root_task_id>", title="Run quality gates and fix failures", assigned_agent="grind")
+{% for stack in stacks %}
+{% set review_agent = stack.agents | find_by_role('reviewer') %}
+{% if review_agent %}
+review_subtask_{{ stack.name }} = dashboard_create_subtask(parent_id="<root_task_id>", title="Code review for {{ stack.display_name }}", assigned_agent="{{ review_agent.name }}")
+{% endif %}
+{% endfor %}
+eval_subtask = dashboard_create_subtask(parent_id="<root_task_id>", title="Evaluate implementation quality", assigned_agent="eval-agent")
+docs_subtask = dashboard_create_subtask(parent_id="<root_task_id>", title="Generate documentation", assigned_agent="documentation-specialist")
+```
+
+Every subtask goes `in_progress` before its delegation and `completed` or
+`failed` (with a result) after it. A phase you skip is still marked
+`completed` with `result="Skipped: <reason>"`.
+{% endif %}
+
+---
+
+## Phases 2–5: Autonomous Execution
+
+From here the pipeline runs without asking the user. Stop and report only if:
+
+- a verifier still fails after its retries,
+- the grind agent does not converge,
+- a reviewer returns BLOCKED, or review still asks for changes after 2 fix rounds,
+- an infrastructure failure blocks progress.
+
+**Delegate all implementation, testing and review.** You coordinate; you do not
+write the code or the tests yourself.
+
+---
+
+## Phase 2: Implementation
+
+Set the feature file status to `IN_PROGRESS`.
+{% if dashboard %}
+`dashboard_update_phase(task_id="<root_task_id>", phase="implementation")`
+{% endif %}
+
+{% if stacks|length > 1 %}
+When the API contract is agreed, delegate the stacks **in parallel** (several
+Agent calls in one message). When one stack depends on the other's output,
+delegate them in sequence.
+
+{% endif %}
+{% for stack in stacks %}
+{% set dev_agent = stack.agents | find_by_role('developer') %}
+{% if dev_agent %}
+### {{ stack.display_name }}
+
+```
+Agent(subagent_type: "{{ dev_agent.name }}", description: "Implement {{ stack.name }} part", prompt: """
+Implement: <specific task>
+{% if stack.working_dir != "." %}
+Working directory: {{ stack.working_dir }}
+{% endif %}
+Feature file: .claude/context/features/<feature-slug>.md
+Requirements: <the relevant requirements>
+{% if stacks|length > 1 %}
+API contract: <the agreed contract>
+{% endif %}
+Report the files you changed and anything left open.
+""")
+```
+
+{% endif %}
+{% endfor %}
+After each delegation: read the report, check the changed files, update the
+feature file and your task list.
+{% if dashboard %}
+Before each delegation: `dashboard_update_status(task_id=<subtask_id>, status="in_progress")`.
+After it: `dashboard_update_status(task_id=<subtask_id>, status="completed" or "failed", result="<summary>")`.
+{% endif %}
+
+### 2.1 Verification
+
+{% set ns_verify = namespace(any=false) %}
+{% for stack in stacks %}
+{% set verifier = stack | verifier %}
+{% if verifier %}
+{% set ns_verify.any = true %}
+{% set dev = stack | dev_server %}
+#### {{ stack.display_name }}
+
+```
+Agent(subagent_type: "{{ verifier }}", description: "Verify {{ stack.name }} changes", prompt: """
+Verify what was just implemented:
+<endpoints / pages / screens and the expected behaviour>
+{% if dev.command %}
+Dev server: `{{ dev.command }}` in `{{ stack.working_dir }}`, port {{ dev.port }}{% if dev.health_check %}, health check {{ dev.health_check }}{% endif %}.
+{% endif %}
+Follow the Dev Server rules in your instructions: reuse a running server, and
+stop only servers you started. Fix failures and retry, at most 3 times.
+Write your report to .agent-pipeline/{{ verifier }}-{{ stack.name }}.md.
+Return VERIFIED or FAILED with details.
+""")
+```
+
+{% endif %}
+{% endfor %}
+{% if not ns_verify.any %}
+These stacks have no verifier agent; rely on the tests and quality gates in Phase 3.
+{% else %}
+- VERIFIED: continue to Phase 3.
+- FAILED after retries: stop and report to the user.
+
+Verifiers record the dev servers they start in `.agent-pipeline/dev-server.pids`
+and stop them. If that file still exists afterwards, stop those processes:
+
+```bash
+[ -f .agent-pipeline/dev-server.pids ] && { xargs kill < .agent-pipeline/dev-server.pids 2>/dev/null; rm -f .agent-pipeline/dev-server.pids; }
+```
+
+Never kill processes by port: that would stop servers the user started.
+{% if dashboard %}
+
+Then register the verification artifacts yourself (Glob for files that exist):
+`dashboard_add_artifact(task_id=<verify_subtask_id>, file_path=".agent-pipeline/<report>.md", artifact_type="markdown_report", label="Verification Report")`,
+and for each screenshot in `.agent-pipeline/screenshots/*.png`:
+`dashboard_add_artifact(task_id=<verify_subtask_id>, file_path="<png path>", artifact_type="screenshot", label="<name>")`.
+{% endif %}
+{% endif %}
+
+---
+
+## Phase 3: Testing
+
+Set the feature file status to `TESTING`.
+{% if dashboard %}
+`dashboard_update_phase(task_id="<root_task_id>", phase="testing")`
+{% endif %}
+
+{% for stack in stacks %}
+{% set test_agent = stack.agents | find_by_role('tester') %}
+{% if test_agent %}
+```
+Agent(subagent_type: "{{ test_agent.name }}", description: "Test {{ stack.name }} changes", prompt: """
+Write and run tests for:
+<files implemented and the behaviour to cover, including error cases>
+Report the tests added and the results.
+""")
+```
+
+{% endif %}
+{% endfor %}
+{% if stacks|length > 1 %}
+Run the testers in parallel.
+{% endif %}
+
+### 3.1 Quality gates (grind)
+
+```
+Agent(subagent_type: "grind", description: "Run quality gates", prompt: """
+Context: we implemented <feature summary>. Files changed: <list>.
+Run these commands from the project root and fix failures until all pass
+(max 10 iterations):
+{% for stack in stacks %}
+{% for gate_name, gate in stack.quality_gates.items() %}
+- {{ gate.command }}
+{% endfor %}
+{% endfor %}
+Return CONVERGED or DID NOT CONVERGE with the remaining failures.
+""")
+```
+
+- CONVERGED: continue to Phase 4.
+- DID NOT CONVERGE: stop and report to the user.
+
+---
+
+## Phase 4: Review
+
+Set the feature file status to `IN_REVIEW`.
+{% if dashboard %}
+`dashboard_update_phase(task_id="<root_task_id>", phase="review")`
+{% endif %}
+
+{% for stack in stacks %}
+{% set review_agent = stack.agents | find_by_role('reviewer') %}
+{% if review_agent %}
+```
+Agent(subagent_type: "{{ review_agent.name }}", description: "Review {{ stack.name }} changes", prompt: """
+Review these files: <list>
+Feature: <summary and requirements>
+Return APPROVED, NEEDS_CHANGES or BLOCKED with specific, file:line feedback.
+""")
+```
+
+{% endif %}
+{% endfor %}
+### Handle review feedback
+
+- **All APPROVED:** continue to Phase 5.
+- **NEEDS_CHANGES:** send the feedback to the developer agent for that stack
+  (or to `grind` for mechanical fixes), re-run the gates, then review again.
+  **At most 2 fix rounds**; if a reviewer still asks for changes, stop and
+  show the user the open points.
+- **BLOCKED:** stop and show the user the reviewer's concern.
+
+---
+
+## Phase 5: Evaluation & Documentation
+
+{% if dashboard %}
+`dashboard_update_phase(task_id="<root_task_id>", phase="evaluation")`
+{% endif %}
+
+Run these two in parallel:
+
+```
+Agent(subagent_type: "eval-agent", description: "Evaluate the feature", prompt: """
+Evaluate the implementation of <feature>. Changed files: <list>.
+Write the report to .agent-eval-results/eval-<timestamp>.md with YAML front
+matter (final_score, grade, scores per dimension).
+""")
+
+Agent(subagent_type: "documentation-specialist", description: "Document the feature", prompt: """
+Generate or update documentation for: <changed files>.
+Write a summary of what you documented to .agent-pipeline/docs.md.
+""")
+```
+
+{% if dashboard %}
+Register `.agent-eval-results/eval-<timestamp>.md` (artifact_type `eval_report`,
+with the parsed scores as metadata) and `.agent-pipeline/docs.md`
+(`markdown_report`) yourself; Glob first and only register files that exist.
+{% endif %}
+
+If the grade is below C (0.70), show the user the main issues before completing.
+
+---
+
+## Phase 6: Completion
+
+Set the feature file status to `COMPLETE`.
+{% if dashboard %}
+`dashboard_update_phase(task_id="<root_task_id>", phase="completion")` — and mark
+any subtask still `pending` as `completed` with `result="Skipped"` before
+completing the root task.
+{% endif %}
+
+If `pm.git_workflow` is `"full"` (or `--ship` was given), run `/ship`. If it
+fails on a push, run `/sync` and retry once; otherwise report to the user.
+
+### Report to the user
+
+```markdown
+## Feature Complete: <Feature Name>
+
+### What was built
+{% for stack in stacks %}
+- {{ stack.display_name }}: <summary>
+{% endfor %}
+
+### Files changed
+- `path/to/file` - <what changed>
+
+### Tests added
+- `path/to/test` - <what it covers>
+
+### Checks
+- Quality gates: <pass / what failed>
+- Review: <APPROVED / open points>
+- Evaluation: <score> (grade <X>) — `.agent-eval-results/eval-<timestamp>.md`
+
+### Git
+- Branch: `<branch>` / PR: <url> (if git automation is on)
+```
+{% if dashboard %}
+
+Finally: `dashboard_update_status(task_id="<root_task_id>", status="completed", result="<Feature Name>: <summary>")`.
+{% endif %}

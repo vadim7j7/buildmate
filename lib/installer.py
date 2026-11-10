@@ -89,6 +89,7 @@ def update_gitignore(target_path: Path) -> None:
         ".agent-status/",
         ".agent-pipeline/",
         ".agent-eval-results/",
+        ".agent-worktrees/",
         ".claude/settings.local.json",
         ".claude/context/agent-activity.log",
         ".claude/context/session-summary.md",
@@ -123,6 +124,57 @@ def create_settings_local_template(claude_dir: Path) -> None:
         with open(settings_local, "w") as f:
             json.dump(template, f, indent=2)
             f.write("\n")
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    """
+    Merge override into a copy of base; nested dicts are merged, other values replaced.
+
+    Args:
+        base: Default values
+        override: Values that win
+
+    Returns:
+        The merged dict
+    """
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def read_existing_buildmate_config(claude_dir: Path) -> dict:
+    """
+    Read the project's current Buildmate options so a re-install keeps them.
+
+    Reads .claude/buildmate.json, and the legacy ``pm`` key that older
+    Buildmate versions wrote into .claude/settings.json.
+
+    Args:
+        claude_dir: The project's .claude directory
+
+    Returns:
+        Existing options (empty when there are none)
+    """
+    existing: dict = {}
+    legacy = claude_dir / "settings.json"
+    current = claude_dir / "buildmate.json"
+    for path, key in ((legacy, "pm"), (current, None)):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        if key is None:
+            existing = deep_merge(existing, data)
+        elif isinstance(data.get(key), dict):
+            existing = deep_merge(existing, {key: data[key]})
+    return existing
 
 
 def write_mcp_json(mcp_path: Path, servers: dict[str, object]) -> None:
@@ -273,14 +325,8 @@ def install_dashboard(
         "mcp__dashboard__dashboard_ask_question",
         "mcp__dashboard__dashboard_get_task",
         "mcp__dashboard__dashboard_add_artifact",
-        # MCP puppeteer tools (for frontend verification)
-        "mcp__puppeteer__puppeteer_navigate",
-        "mcp__puppeteer__puppeteer_screenshot",
-        "mcp__puppeteer__puppeteer_click",
-        "mcp__puppeteer__puppeteer_fill",
-        "mcp__puppeteer__puppeteer_select",
-        "mcp__puppeteer__puppeteer_hover",
-        "mcp__puppeteer__puppeteer_evaluate",
+        # Playwright MCP browser tools (frontend verification, site cloning)
+        "mcp__playwright",
     ]
     for perm in dashboard_permissions:
         if perm not in allow_list:
@@ -350,6 +396,9 @@ def install(
 
     claude_dir = target_path / ".claude"
 
+    # Keep the project's Buildmate options (git workflow etc.) across re-installs
+    existing_buildmate_config = read_existing_buildmate_config(claude_dir)
+
     # Handle existing .claude/
     if claude_dir.exists():
         if not force:
@@ -410,8 +459,22 @@ def install(
         else:
             if skill_dst.exists():
                 shutil.rmtree(skill_dst)
-            shutil.copytree(source_dir, skill_dst)
+            # *.j2 files are templates; their rendered output is written below
+            shutil.copytree(
+                source_dir, skill_dst, ignore=shutil.ignore_patterns("*.j2")
+            )
         result.skills_count += 1
+
+    # Write rendered skill templates (e.g. skills/pm/orchestrator.md)
+    for rel_path, content in output.skill_files.items():
+        file_dst = claude_dir / "skills" / rel_path
+        if dry_run:
+            print(f"[DRY RUN] Would write: {file_dst}")
+        else:
+            ensure_directory(file_dst.parent)
+            with open(file_dst, "w") as f:
+                f.write(content)
+        result.files_written.append(str(file_dst))
 
     # Install hooks
     for filename, source_path in output.hook_files.items():
@@ -487,6 +550,18 @@ def install(
             json.dump(output.settings, f, indent=2)
             f.write("\n")
     result.files_written.append(str(settings_path))
+
+    # Install .claude/buildmate.json (Buildmate's own options, not Claude Code settings)
+    if output.buildmate_config or existing_buildmate_config:
+        buildmate_path = claude_dir / "buildmate.json"
+        config = deep_merge(output.buildmate_config, existing_buildmate_config)
+        if dry_run:
+            print(f"[DRY RUN] Would write: {buildmate_path}")
+        else:
+            with open(buildmate_path, "w") as f:
+                json.dump(config, f, indent=2)
+                f.write("\n")
+        result.files_written.append(str(buildmate_path))
 
     # Install .mcp.json at the project root (merged with any existing servers)
     if output.mcp_servers:

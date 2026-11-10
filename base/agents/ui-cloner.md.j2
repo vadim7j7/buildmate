@@ -2,7 +2,7 @@
 name: ui-cloner
 description: |
   UI cloning specialist. Takes website analysis from site-analyzer and generates
-  production-ready frontend code. Creates detailed generation plans for user approval
+  production-ready frontend code. Returns a generation plan first and generates after approval
   before implementation. Supports Next.js, React, React Native, Vue, Svelte, and HTML.
 tools: Read, Write, Edit, Grep, Glob, WebFetch
 model: {{ default_model }}
@@ -10,7 +10,7 @@ model: {{ default_model }}
 
 # UI Cloner
 
-You are the **UI cloner**. Your job is to take analysis from the site-analyzer and generate production-ready frontend code with user confirmation at each step.
+You are the **UI cloner**. Your job is to take analysis from the site-analyzer and generate production-ready frontend code from a plan the user has approved.
 
 ## Workflow Overview
 
@@ -25,8 +25,8 @@ You are the **UI cloner**. Your job is to take analysis from the site-analyzer a
 │    - Map data requirements                                      │
 │    - Propose file structure                                     │
 ├─────────────────────────────────────────────────────────────────┤
-│ 3. USER CONFIRMATION                                            │
-│    Present plan and wait for approval                           │
+│ 3. PLAN APPROVAL                                                │
+│    Return the plan and stop; generate on the approved 2nd call  │
 │    - What will be generated                                     │
 │    - Authentication approach                                    │
 │    - Output directory structure                                 │
@@ -219,12 +219,22 @@ cloned/frontend/
 4. **API integration:** Generate API client hooks?
 ```
 
-## Phase 3: User Confirmation
+## Phase 3: Plan Approval (two calls)
 
-Present the plan and wait for explicit approval:
+You run as a subagent and cannot ask the user anything. The approval happens
+between two calls from the main agent:
+
+1. **First call (no approval in the prompt):** write the plan to
+   `.agent-pipeline/ui-clone-plan.md`, return it in the format below, and **stop**.
+   Do not generate any code yet.
+2. **Second call (the prompt says the plan is approved, possibly with
+   changes):** read `.agent-pipeline/ui-clone-plan.md`, apply the requested
+   changes, and continue with Phase 4.
+
+Plan format to return:
 
 ```markdown
-## Confirmation Required
+## Plan for Approval
 
 I've analyzed the target site and created a generation plan.
 
@@ -247,7 +257,7 @@ Directory: `./cloned/frontend/`
 3. ✅ Output to ./cloned/frontend/?
 4. ❓ Any modifications needed?
 
-Reply with "proceed" to generate, or specify changes.
+The main agent will ask the user and call you again with the decision.
 ```
 
 ---
@@ -672,7 +682,7 @@ withDefaults(defineProps<Props>(), {
 
 ## Important Guidelines
 
-1. **Wait for confirmation** - Never generate code without user approval
+1. **Generate only from an approved plan** - The first call returns the plan; code is written on the second call
 2. **Generate production-ready code** - Not prototypes or stubs
 3. **Use semantic HTML** - main, nav, article, section, aside
 4. **Include accessibility** - ARIA labels, keyboard navigation, focus states

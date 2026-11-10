@@ -198,6 +198,18 @@ def cmd_validate(stack_name: str):
 
     try:
         errors = validate_stack_file(stack_file, raise_on_error=False)
+        if not errors:
+            import yaml
+
+            from lib.schema import check_stack_files
+
+            raw = yaml.safe_load(stack_file.read_text()) or {}
+            file_errors, warnings = check_stack_files(stack_file.parent, raw)
+            errors.extend(file_errors)
+            for warning in warnings:
+                print(f"  Warning: {warning}")
+            if warnings:
+                print()
         if errors:
             print("Validation failed:")
             for error in errors:

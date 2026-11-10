@@ -34,14 +34,9 @@ Completes your work by running all quality gates, committing uncommitted changes
 
 ### Step 1: Run Quality Gates
 
-Before shipping, ensure all quality gates pass:
-
-```bash
-# Read quality gates from stack config or run standard checks
-npm run lint 2>/dev/null || bundle exec rubocop 2>/dev/null || ruff check . 2>/dev/null
-npm test 2>/dev/null || bundle exec rspec 2>/dev/null || pytest 2>/dev/null
-npx tsc --noEmit 2>/dev/null || true
-```
+Run every command in the **Quality Gates** table of the project's `CLAUDE.md`,
+from the project root (multi-folder projects' commands already `cd` into their
+folder). Each must exit 0; do not hide failures with `|| true` or `2>/dev/null`.
 
 If any gate fails:
 - Report the failure
@@ -91,7 +86,9 @@ Smart commit message generation:
 
 3. Commit:
 ```bash
-git add -A  # Or specific files if preferred
+# Stage the files this work changed, by name; leave unrelated changes
+# (and anything that looks like a secret or local config) unstaged
+git add <changed files>
 git commit -m "$(cat <<'EOF'
 <type>(<scope>): <description>
 
@@ -265,7 +262,7 @@ For workspaces with multiple repositories, `/ship` coordinates commits, pushes, 
 
 ### Configuration
 
-Uses the same configuration as `/branch` in `.claude/settings.json`:
+Uses the same configuration as `/branch` in `.claude/buildmate.json`:
 
 ```json
 {
@@ -323,7 +320,7 @@ Run quality gates in each repo based on its stack:
 For each repo with changes:
 
 ```bash
-(cd $repo && git add -A && git commit -m "$MESSAGE")
+(cd $repo && git add <changed files in $repo> && git commit -m "$MESSAGE")
 ```
 
 Use the same commit message format, or customize per repo based on changes.

@@ -22,6 +22,7 @@ compatible_with:
   - elixir
   - phoenix
   - nextjs
+  - nuxt
 
 options:
   ui:

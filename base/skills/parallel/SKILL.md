@@ -30,7 +30,7 @@ enables concurrent work on independent tasks without branch conflicts.
 3. **Enforce concurrency limit.** Maximum of **5** concurrent worktrees. If
    more tasks are provided, queue them and run in batches.
 
-4. **Create worktrees.** For each task, run `scripts/spawn-worktree.sh` to:
+4. **Create worktrees.** For each task, run `.claude/skills/parallel/scripts/spawn-worktree.sh` to:
    - Create a new git worktree branching from the current HEAD
    - Branch naming convention: `agent-parallel/<timestamp>-<task-slug>`
    - Set up the worktree environment (copy `.claude/` config if needed)
@@ -47,7 +47,7 @@ enables concurrent work on independent tasks without branch conflicts.
    each worktree to report overall progress.
 
 7. **Collect results.** When all agents complete, run
-   `scripts/collect-results.sh` to:
+   `.claude/skills/parallel/scripts/collect-results.sh` to:
    - Read `.agent-status/result.md` from each worktree
    - Aggregate results into a unified report
    - Identify any failures
@@ -56,7 +56,7 @@ enables concurrent work on independent tasks without branch conflicts.
    - Merge the worktree's branch back into the original branch
    - Resolve conflicts if possible, or flag them for manual resolution
 
-9. **Clean up.** Run `scripts/cleanup-worktrees.sh` to remove all temporary
+9. **Clean up.** Run `.claude/skills/parallel/scripts/cleanup-worktrees.sh` to remove all temporary
    worktrees and branches.
 
 10. **Report summary:**

@@ -138,6 +138,8 @@ class StackConfig:
     options: dict[str, StackOption] = field(default_factory=dict)
     extends: str | None = None
     parent_stack_path: Path | None = None
+    # Self-verification settings (enabled, dev_server: {command, port, health_check})
+    verification: dict[str, Any] = field(default_factory=dict)
 
     # Scaffold: project-root files copied into the target project
     scaffold_enabled: bool = False
@@ -195,6 +197,7 @@ class StackConfig:
             variables=data.get("variables", {}),
             options=options,
             extends=data.get("extends"),
+            verification=data.get("verification") or {},
             scaffold_enabled=scaffold.get("enabled", False),
             scaffold_source=scaffold.get("source", "scaffold"),
             stack_path=stack_path,

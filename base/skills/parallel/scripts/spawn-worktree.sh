@@ -61,9 +61,10 @@ fi
 # Set up worktree environment
 # ---------------------------------------------------------------------------
 
-# Copy .claude/ configuration if it exists in the repo root
-if [[ -d "${REPO_ROOT}/.claude" ]]; then
-  cp -r "${REPO_ROOT}/.claude" "${WORKTREE_DIR}/.claude"
+# Copy .claude/ configuration when it is not tracked by git (a tracked
+# .claude/ is already in the worktree; copying would nest .claude/.claude)
+if [[ -d "${REPO_ROOT}/.claude" && ! -d "${WORKTREE_DIR}/.claude" ]]; then
+  cp -R "${REPO_ROOT}/.claude" "${WORKTREE_DIR}/.claude"
 fi
 
 # Create the agent status directory for progress tracking

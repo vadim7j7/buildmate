@@ -258,7 +258,7 @@ class TestLoadFiber:
             raw = yaml.safe_load(f)
 
         assert "verification" in raw
-        assert raw["verification"]["dev_server"]["port"] == 3000
+        assert raw["verification"]["dev_server"]["port"] == 8080
 
     def test_validate_fiber_stack(self):
         """Fiber stack should pass validation."""

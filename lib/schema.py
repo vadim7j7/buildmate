@@ -118,17 +118,23 @@ def check_compatibility(stack_configs: list[dict[str, Any]]) -> list[str]:
         return []
 
     errors: list[str] = []
-    stack_names = [s["name"] for s in stack_configs]
 
-    for config in stack_configs:
-        name = config["name"]
-        compatible_with = config.get("compatible_with", [])
+    def lists(config: dict[str, Any], other: dict[str, Any]) -> bool:
+        """True if config declares other (or other's parent) compatible."""
+        compatible_with = config.get("compatible_with") or []
+        return other["name"] in compatible_with or (
+            bool(other.get("extends")) and other["extends"] in compatible_with
+        )
 
-        for other_name in stack_names:
-            if other_name != name and other_name not in compatible_with:
+    # A pair is compatible when either side declares it (directly or via the
+    # other's parent stack), so a new stack only has to list its partners once.
+    for i, config in enumerate(stack_configs):
+        for other in stack_configs[i + 1 :]:
+            if not (lists(config, other) or lists(other, config)):
                 errors.append(
-                    f"Stack '{name}' is not compatible with '{other_name}'. "
-                    f"Add '{other_name}' to compatible_with in {name}/stack.yaml"
+                    f"Stack '{config['name']}' is not compatible with "
+                    f"'{other['name']}'. Add '{other['name']}' to compatible_with "
+                    f"in {config['name']}/stack.yaml"
                 )
 
     return errors
@@ -159,3 +165,109 @@ def check_agent_conflicts(stack_configs: list[dict[str, Any]]) -> list[str]:
             agent_sources[agent_name] = stack_name
 
     return warnings
+
+
+def check_stack_files(
+    stack_dir: Path, config: dict[str, Any]
+) -> tuple[list[str], list[str]]:
+    """
+    Check that a stack's referenced files exist and that its files are referenced.
+
+    Looks at ``patterns:``, ``styles:`` and ``skills:`` at the top level, in
+    agents, and in option choices. A referenced pattern or style must exist in
+    the stack or its parent; a referenced skill must exist in the stack, its
+    parent or ``base/skills``. Files and skill folders on disk that nothing
+    references are reported as warnings, as are directories the installer
+    never reads (``infrastructure/``).
+
+    Args:
+        stack_dir: Path to ``stacks/<name>``
+        config: The stack's raw stack.yaml content
+
+    Returns:
+        (errors, warnings)
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    stacks_root = stack_dir.parent
+    parent_dir = stacks_root / config["extends"] if config.get("extends") else None
+    base_skills = stacks_root.parent / "base" / "skills"
+
+    def references(cfg: dict[str, Any]) -> tuple[set[str], set[str], set[str]]:
+        pats = set(cfg.get("patterns") or [])
+        stys = set(cfg.get("styles") or [])
+        skls = set(cfg.get("skills") or [])
+        for agent in cfg.get("agents") or []:
+            skls.update(agent.get("skills") or [])
+        for option in (cfg.get("options") or {}).values():
+            for choice in (option.get("choices") or {}).values():
+                choice = choice or {}
+                pats.update(choice.get("patterns") or [])
+                stys.update(choice.get("styles") or [])
+                skls.update(choice.get("skills") or [])
+        return pats, stys, skls
+
+    patterns, styles, skills = references(config)
+
+    # A child may override a file or skill its parent references (same path)
+    if parent_dir and (parent_dir / "stack.yaml").exists():
+        import yaml
+
+        parent_config = yaml.safe_load((parent_dir / "stack.yaml").read_text()) or {}
+        p_pats, p_stys, p_skls = references(parent_config)
+        patterns |= p_pats
+        styles |= p_stys
+        skills |= p_skls
+
+    def exists(rel: str) -> bool:
+        return (stack_dir / rel).exists() or bool(
+            parent_dir and (parent_dir / rel).exists()
+        )
+
+    for rel in sorted(patterns | styles):
+        if not exists(rel):
+            errors.append(f"Referenced file not found: {rel}")
+    for skill in sorted(skills):
+        if not (
+            exists(f"skills/{skill}/SKILL.md")
+            or (base_skills / skill / "SKILL.md").exists()
+        ):
+            errors.append(f"Skill '{skill}' has no SKILL.md (stack, parent or base)")
+
+    for kind, referenced in (("patterns", patterns), ("styles", styles)):
+        folder = stack_dir / kind
+        if folder.is_dir():
+            for f in sorted(folder.iterdir()):
+                if (
+                    f.is_file()
+                    and not f.name.startswith(".")
+                    and f"{kind}/{f.name}" not in referenced
+                ):
+                    warnings.append(f"Unreferenced file: {kind}/{f.name}")
+
+    # Skills a child stack may reference from this stack (when this is a parent)
+    child_skills: set[str] = set()
+    for other in stacks_root.iterdir():
+        other_yaml = other / "stack.yaml"
+        if other.is_dir() and other_yaml.exists() and other != stack_dir:
+            try:
+                import yaml
+
+                other_config = yaml.safe_load(other_yaml.read_text()) or {}
+            except Exception:
+                continue
+            if other_config.get("extends") == stack_dir.name:
+                child_skills.update(other_config.get("skills") or [])
+                for agent in other_config.get("agents") or []:
+                    child_skills.update(agent.get("skills") or [])
+
+    skills_dir = stack_dir / "skills"
+    if skills_dir.is_dir():
+        for d in sorted(skills_dir.iterdir()):
+            if d.is_dir() and d.name not in skills and d.name not in child_skills:
+                warnings.append(f"Unreferenced skill: skills/{d.name}")
+
+    if (stack_dir / "infrastructure").is_dir():
+        warnings.append("infrastructure/ is never installed (lib/ does not read it)")
+
+    return errors, warnings

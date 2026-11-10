@@ -19,7 +19,8 @@ class TestRenderAll:
 
         assert isinstance(output, RenderedOutput)
         assert len(output.agents) > 0
-        assert "orchestrator.md" in output.agents
+        assert "orchestrator.md" not in output.agents
+        assert "pm/orchestrator.md" in output.skill_files
         assert "grind.md" in output.agents
         assert "backend-developer.md" in output.agents
 
@@ -55,17 +56,16 @@ class TestRenderAll:
         assert "frontend-developer.md" in output.agents
 
         # Orchestrator should mention both stacks
-        orchestrator_content = output.agents["orchestrator.md"]
+        orchestrator_content = output.skill_files["pm/orchestrator.md"]
         assert (
             "rails" in orchestrator_content.lower() or "Rails" in orchestrator_content
         )
 
     def test_render_includes_base_agents(self):
-        """Should include base agents (orchestrator, grind, eval, security)."""
+        """Should include base agents (grind, eval, security)."""
         composed = compose_stacks(["rails"])
         output = render_all(composed)
 
-        assert "orchestrator.md" in output.agents
         assert "grind.md" in output.agents
         assert "eval-agent.md" in output.agents
         assert "security-auditor.md" in output.agents

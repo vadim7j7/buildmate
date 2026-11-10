@@ -20,29 +20,11 @@ You are the **mobile verifier**. Your job is to test React Native implementation
 4. **Check TypeScript** for type errors
 5. **Verify platform compatibility**
 6. **Check for common RN issues**
-7. **Stop the Expo dev server** if you started it (see Server Cleanup)
+7. **Stop the Expo dev server** if you started it (see Dev Server)
 8. **Report results** or fix and retry
 
-## Dev Server Management
-
-### Check Expo Status
-
-```bash
-# Check if Expo is running
-curl -s http://localhost:8081/status
-```
-
-### Start Expo if Needed
-
-```bash
-cd {{ working_dir }} && npx expo start --no-dev --minify &
-
-# Wait for bundler
-for i in {1..60}; do
-  curl -s http://localhost:8081/status && break
-  sleep 1
-done
-```
+{% set verifier_name = 'mobile-verifier' %}
+{% include 'base/partials/dev-server.md.j2' %}
 
 ## Component Testing
 
@@ -305,17 +287,7 @@ Coverage:    92%
 
 ## Server Cleanup
 
-**IMPORTANT:** If you started the Expo dev server yourself during this verification, you **must** stop it before finishing. Leaving background servers running wastes resources and blocks ports.
-
-```bash
-# Kill any process listening on the Expo port
-lsof -ti :8081 | xargs kill -9 2>/dev/null || true
-```
-
-**Rules:**
-- If the server was **already running** when you started (you did NOT start it), leave it alone
-- If **you started** the server, kill it after verification completes (whether VERIFIED or FAILED)
-- Track whether you started the server by checking `lsof -i :8081` **before** starting it
+Stop only the servers you started: see **Stop what you started** under Dev Server above.
 
 ## Fix and Retry Loop
 

@@ -62,21 +62,21 @@ curl -X POST http://localhost:3000/api/users \
 browser_navigate({ url: "http://localhost:3000/pricing" })
 
 // Take screenshot for visual verification
-browser_screenshot()
+browser_take_screenshot()
 
 // Check component renders
 browser_evaluate({
-  script: `document.querySelector('.hero-section') !== null`
+  function: `() => (document.querySelector('.hero-section') !== null)`
 })
 
 // Check for console errors
 browser_evaluate({
-  script: `window.__consoleErrors || []`
+  function: `() => (window.__consoleErrors || [])`
 })
 
 // Check accessibility basics
 browser_evaluate({
-  script: `
+  function: `() => {
     const issues = [];
     document.querySelectorAll('img:not([alt])').forEach(() =>
       issues.push('Image missing alt text')
@@ -85,7 +85,7 @@ browser_evaluate({
       issues.push('Button missing label')
     );
     return issues;
-  `
+  }`
 })
 ```
 
@@ -154,33 +154,21 @@ verify → fail → analyze → fix → verify → pass
 
 ## Configuration
 
-In your project's `.claude/settings.json`:
+`.claude/buildmate.json` (written by Buildmate):
 
 ```json
 {
   "verification": {
     "enabled": true,
-    "autoVerify": true,
-    "maxRetries": 3,
-    "devServer": {
-      "command": "npm run dev",
-      "port": 3000,
-      "healthCheck": "/api/health",
-      "startupTimeout": 30000
-    },
-    "browser": {
-      "headless": true,
-      "viewport": { "width": 1280, "height": 720 }
-    }
+    "auto_verify": true,
+    "max_retries": 3
   }
 }
 ```
 
-To disable during bootstrap:
-
-```bash
-buildmate nextjs /path/to/app --no-verify
-```
+Set `"enabled": false` to skip verification in the PM pipeline. The dev server
+command, port and health check of each stack are in the verifier agents'
+**Dev Server** section (`.claude/agents/*-verifier.md`).
 
 ## Example Workflows
 

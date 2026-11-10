@@ -8,13 +8,12 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 model: {{ default_model }}
 ---
 
-{% set ns = namespace(port=3000, dir='.', stack_name='') %}
-{% set backend_stacks = ['rails', 'fastapi', 'express', 'django', 'sinatra', 'flask', 'gin', 'fiber', 'chi', 'phoenix'] %}
+{% set ns = namespace(port=8000, dir='.', found=false) %}
 {% for s in stacks %}
-{% if s.name in backend_stacks %}
-{% set ns.port = s.variables.dev_port | default(8000) %}
-{% set ns.dir = s.working_dir | default('.') %}
-{% set ns.stack_name = s.name %}
+{% if not ns.found and (s | verifier) == 'backend-verifier' %}
+{% set ns.port = (s | dev_server).port or 8000 %}
+{% set ns.dir = s.working_dir %}
+{% set ns.found = true %}
 {% endif %}
 {% endfor %}
 # Backend Verifier
@@ -31,78 +30,11 @@ You are the **backend verifier**. Your job is to test backend implementations by
 3. **Make HTTP requests** to test endpoints
 4. **Validate responses** against expectations
 5. **Check error handling** with invalid inputs
-6. **Stop the dev server** if you started it (see Server Cleanup)
+6. **Stop the dev server** if you started it (see Dev Server)
 7. **Report results** or fix and retry
 
-## Dev Server Management
-
-### Check if Server Running
-
-```bash
-# Check health endpoint
-curl -s -o /dev/null -w "%{http_code}" http://localhost:{{ ns.port }}/health
-
-# Or check if port is in use
-lsof -i :{{ ns.port }} | grep LISTEN
-```
-
-### Start Server if Needed
-
-{% for s in stacks %}
-{% if s.name in backend_stacks %}
-{% if s.name == 'rails' %}
-```bash
-# Rails
-cd {{ ns.dir }} && bundle exec rails server -p {{ ns.port }} -d
-```
-{% elif s.name == 'fastapi' %}
-```bash
-# FastAPI
-cd {{ ns.dir }} && uvicorn main:app --port {{ ns.port }} &
-```
-{% elif s.name == 'django' %}
-```bash
-# Django
-cd {{ ns.dir }} && python manage.py runserver {{ ns.port }} &
-```
-{% elif s.name == 'express' %}
-```bash
-# Express
-cd {{ ns.dir }} && npm run dev &
-```
-{% elif s.name == 'sinatra' %}
-```bash
-# Sinatra
-cd {{ ns.dir }} && bundle exec ruby app.rb -p {{ ns.port }} &
-```
-{% elif s.name == 'flask' %}
-```bash
-# Flask
-cd {{ ns.dir }} && flask run --port {{ ns.port }} &
-```
-{% elif s.name == 'gin' or s.name == 'fiber' or s.name == 'chi' %}
-```bash
-# Go ({{ s.name | title }})
-cd {{ ns.dir }} && go run . &
-```
-{% elif s.name == 'phoenix' %}
-```bash
-# Phoenix
-cd {{ ns.dir }} && mix phx.server &
-```
-{% endif %}
-{% endif %}
-{% endfor %}
-
-### Wait for Server Ready
-
-```bash
-# Wait up to 30 seconds for server
-for i in {1..30}; do
-  curl -s http://localhost:{{ ns.port }}/health && break
-  sleep 1
-done
-```
+{% set verifier_name = 'backend-verifier' %}
+{% include 'base/partials/dev-server.md.j2' %}
 
 ## HTTP Testing
 
@@ -283,17 +215,7 @@ When verification fails:
 
 ## Server Cleanup
 
-**IMPORTANT:** If you started the dev server yourself during this verification, you **must** stop it before finishing. Leaving background servers running wastes resources and blocks ports.
-
-```bash
-# Kill any process listening on the dev port
-lsof -ti :{{ ns.port }} | xargs kill -9 2>/dev/null || true
-```
-
-**Rules:**
-- If the server was **already running** when you started (you did NOT start it), leave it alone
-- If **you started** the server, kill it after verification completes (whether VERIFIED or FAILED)
-- Track whether you started the server by checking `lsof -i :{{ ns.port }}` **before** starting it
+Stop only the servers you started: see **Stop what you started** under Dev Server above.
 
 ## Saving Results
 

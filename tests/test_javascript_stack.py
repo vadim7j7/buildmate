@@ -153,7 +153,7 @@ class TestLoadExpress:
             raw = yaml.safe_load(f)
 
         assert "verification" in raw
-        assert raw["verification"]["dev_server"]["port"] == 3000
+        assert raw["verification"]["dev_server"]["port"] == 4000
 
     def test_express_variables(self):
         """Express should have framework-specific variables."""

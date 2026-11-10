@@ -22,8 +22,8 @@ code, and writes a scored report to `.agent-eval-results/`.
 ## How It Works
 
 1. **Load rubrics.** Read the scoring rubrics from:
-   - `references/eval-rubrics.md` -- dimension weights and descriptions
-   - `references/eval-metrics.md` -- per-level scoring criteria (0.0-1.0)
+   - `.claude/skills/eval/references/eval-rubrics.md` -- dimension weights and descriptions
+   - `.claude/skills/eval/references/eval-metrics.md` -- per-level scoring criteria (0.0-1.0)
 
 2. **Identify scope.** Determine which files to evaluate:
    - All changed files vs the base branch (default)

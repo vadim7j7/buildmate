@@ -24,7 +24,7 @@ can be used for learning, inspiration, or as input for `/clone-page`.
 ## Requirements
 
 **MCP Browser (recommended):**
-Configure Puppeteer or Playwright MCP for screenshots and full DOM access.
+The Playwright MCP server (installed in `.mcp.json`) gives screenshots and full DOM access.
 
 **Without MCP Browser:**
 Uses WebFetch for HTML content (limited for JavaScript-heavy sites).

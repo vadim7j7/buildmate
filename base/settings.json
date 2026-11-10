@@ -1,12 +1,4 @@
 {
-  "pm": {
-    "git_workflow": "full",
-    "multi_repo": {
-      "enabled": false,
-      "repositories": {},
-      "stack_repo_map": {}
-    }
-  },
   "permissions": {
     "allow": [
       "Read",
@@ -19,21 +11,43 @@
       "Bash(cat *)",
       "Bash(head *)",
       "Bash(tail *)",
-      "Bash(wc *)"
+      "Bash(wc *)",
+      "mcp__playwright"
     ],
-    "deny": []
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git branch -D*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh repo delete*)",
+      "Bash(gh release delete*)"
+    ]
   },
   "enabledMcpjsonServers": [
-    "puppeteer"
+    "playwright"
   ],
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/track-changes.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/track-changes.sh"
           }
         ]
       },
@@ -42,17 +56,21 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/task-complete.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/task-complete.sh"
           }
         ]
       }
     ],
-    "Stop": [
+    "SessionEnd": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/session-end.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-save.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-end.sh"
           }
         ]
       }

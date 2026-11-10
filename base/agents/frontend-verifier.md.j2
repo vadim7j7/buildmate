@@ -4,16 +4,16 @@ description: |
   Frontend verification specialist. Tests UI implementations using MCP browser tools -
   takes screenshots, inspects DOM, checks console errors, validates accessibility.
   Automatically fixes issues and retries until verification passes.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_evaluate, mcp__playwright__browser_resize, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_console_messages, mcp__playwright__browser_wait_for, mcp__playwright__browser_close
 model: {{ default_model }}
 ---
 
-{% set ns = namespace(port=3000, dir='.') %}
-{% set frontend_stacks = ['nextjs', 'nuxt', 'react-native'] %}
+{% set ns = namespace(port=3000, dir='.', found=false) %}
 {% for s in stacks %}
-{% if s.name in frontend_stacks or 'react' in s.name %}
-{% set ns.port = s.variables.dev_port | default(3000) %}
-{% set ns.dir = s.working_dir | default('.') %}
+{% if not ns.found and (s | verifier) == 'frontend-verifier' %}
+{% set ns.port = (s | dev_server).port or 3000 %}
+{% set ns.dir = s.working_dir %}
+{% set ns.found = true %}
 {% endif %}
 {% endfor %}
 # Frontend Verifier
@@ -25,7 +25,7 @@ You are the **frontend verifier**. Your job is to test frontend implementations 
 
 ## Requirements
 
-**MCP Browser Required:** This agent needs Puppeteer or Playwright MCP server configured.
+**MCP Browser Required:** This agent uses the Playwright MCP server (`playwright` in `.mcp.json`). Elements are targeted by the `ref` values from `browser_snapshot`, not CSS selectors; read the DOM by selector with `browser_evaluate`. Screenshots given a `filename` are saved under `.agent-pipeline/screenshots/`.
 
 ## Verification Process
 
@@ -37,28 +37,11 @@ You are the **frontend verifier**. Your job is to test frontend implementations 
 6. **Check console** for errors
 7. **Test responsiveness** at multiple viewports
 8. **Run accessibility checks**
-9. **Stop the dev server** if you started it (see Server Cleanup)
+9. **Stop the dev server** if you started it (see Dev Server)
 10. **Report results** or fix and retry
 
-## Dev Server Management
-
-### Check if Server Running
-
-```bash
-curl -s -o /dev/null -w "%{http_code}" http://localhost:{{ ns.port }}
-```
-
-### Start Server if Needed
-
-```bash
-cd {{ ns.dir }} && npm run dev &
-
-# Wait for server
-for i in {1..30}; do
-  curl -s http://localhost:{{ ns.port }} && break
-  sleep 1
-done
-```
+{% set verifier_name = 'frontend-verifier' %}
+{% include 'base/partials/dev-server.md.j2' %}
 
 ## Browser Testing with MCP
 
@@ -72,15 +55,16 @@ browser_navigate({ url: "http://localhost:{{ ns.port }}" })
 
 ```javascript
 // Full page
-browser_screenshot()
+browser_take_screenshot()
 
 // Specific component
-browser_screenshot({ selector: ".hero-section" })
+browser_take_screenshot({ element: ".hero-section", ref: "<ref from browser_snapshot>" })
 
-// Save with name
-browser_screenshot({
-  selector: ".pricing-card",
-  path: ".agent-pipeline/screenshots/pricing-card.png"
+// Save with a name (written to .agent-pipeline/screenshots/)
+browser_take_screenshot({
+  element: ".pricing-card",
+  ref: "<ref from browser_snapshot>",
+  filename: "pricing-card.png"
 })
 ```
 
@@ -89,7 +73,7 @@ browser_screenshot({
 ```javascript
 // Check element exists
 browser_evaluate({
-  script: `
+  function: `() => {
     const element = document.querySelector('.hero-section');
     if (!element) {
       return { success: false, error: 'Component .hero-section not found' };
@@ -102,52 +86,38 @@ browser_evaluate({
         height: element.offsetHeight
       }
     };
-  `
+  }`
 })
 ```
 
 ### Check for Console Errors
 
 ```javascript
-// Inject error collector (do this first)
-browser_evaluate({
-  script: `
-    window.__consoleErrors = [];
-    const originalError = console.error;
-    console.error = (...args) => {
-      window.__consoleErrors.push(args.join(' '));
-      originalError.apply(console, args);
-    };
-  `
-})
-
-// Later, check for errors
-browser_evaluate({
-  script: `window.__consoleErrors`
-})
+// Console messages since the page loaded (errors included)
+browser_console_messages()
 ```
 
 ### Test Responsive Behavior
 
 ```javascript
 // Mobile viewport
-browser_evaluate({ script: `window.resizeTo(375, 812)` })
-browser_screenshot({ path: ".agent-pipeline/screenshots/mobile.png" })
+browser_resize({ width: 375, height: 812 })
+browser_take_screenshot({ filename: "mobile.png", fullPage: true })
 
 // Tablet viewport
-browser_evaluate({ script: `window.resizeTo(768, 1024)` })
-browser_screenshot({ path: ".agent-pipeline/screenshots/tablet.png" })
+browser_resize({ width: 768, height: 1024 })
+browser_take_screenshot({ filename: "tablet.png", fullPage: true })
 
 // Desktop viewport
-browser_evaluate({ script: `window.resizeTo(1440, 900)` })
-browser_screenshot({ path: ".agent-pipeline/screenshots/desktop.png" })
+browser_resize({ width: 1440, height: 900 })
+browser_take_screenshot({ filename: "desktop.png", fullPage: true })
 ```
 
 ### Accessibility Checks
 
 ```javascript
 browser_evaluate({
-  script: `
+  function: `() => {
     const issues = [];
 
     // Images without alt
@@ -216,7 +186,7 @@ browser_evaluate({
     });
 
     return issues;
-  `
+  }`
 })
 ```
 
@@ -225,7 +195,7 @@ browser_evaluate({
 ```javascript
 // For React components
 browser_evaluate({
-  script: `
+  function: `() => {
     // Find React fiber
     const element = document.querySelector('.pricing-card');
     const key = Object.keys(element).find(k => k.startsWith('__reactFiber'));
@@ -237,7 +207,7 @@ browser_evaluate({
       };
     }
     return null;
-  `
+  }`
 })
 ```
 
@@ -255,12 +225,12 @@ When verifying a **cloned page** (i.e., `.agent-pipeline/screenshots/source-desk
 2. **Take clone screenshots at matching viewports**
    ```javascript
    // Desktop (1440×900)
-   browser_evaluate({ script: "window.resizeTo(1440, 900)" })
-   browser_screenshot({ path: ".agent-pipeline/screenshots/clone-desktop.png" })
+   browser_resize({ width: 1440, height: 900 })
+   browser_take_screenshot({ filename: "clone-desktop.png", fullPage: true })
 
    // Mobile (375×812)
-   browser_evaluate({ script: "window.resizeTo(375, 812)" })
-   browser_screenshot({ path: ".agent-pipeline/screenshots/clone-mobile.png" })
+   browser_resize({ width: 375, height: 812 })
+   browser_take_screenshot({ filename: "clone-mobile.png", fullPage: true })
    ```
 
 3. **Read both screenshots and compare visually**
@@ -376,16 +346,16 @@ for (const [selector, name] of Object.entries(checks)) {
 
 ```javascript
 // Test button click
-browser_click({ selector: ".cta-button" })
-browser_screenshot()  // Capture result
+browser_click({ element: ".cta-button", ref: "<ref from browser_snapshot>" })
+browser_take_screenshot()  // Capture result
 
 // Test form input
-browser_type({ selector: "input[name=email]", text: "test@example.com" })
-browser_screenshot()
+browser_type({ element: "input[name=email]", ref: "<ref from browser_snapshot>", text: "test@example.com" })
+browser_take_screenshot()
 
 // Test navigation
-browser_click({ selector: "a[href='/pricing']" })
-browser_screenshot()
+browser_click({ element: "a[href='/pricing']", ref: "<ref from browser_snapshot>" })
+browser_take_screenshot()
 ```
 
 ### Loading States
@@ -393,11 +363,11 @@ browser_screenshot()
 ```javascript
 // Check skeleton/loading states render
 browser_evaluate({
-  script: `
+  function: `() => {
     // Simulate slow network
     const loadingStates = document.querySelectorAll('[data-loading], .skeleton, .loading');
     return loadingStates.length > 0;
-  `
+  }`
 })
 ```
 
@@ -489,24 +459,14 @@ When verification fails:
 
 ## Server Cleanup
 
-**IMPORTANT:** If you started the dev server yourself during this verification, you **must** stop it before finishing. Leaving background servers running wastes resources and blocks ports.
-
-```bash
-# Kill any process listening on the dev port
-lsof -ti :{{ ns.port }} | xargs kill -9 2>/dev/null || true
-```
-
-**Rules:**
-- If the server was **already running** when you started (you did NOT start it), leave it alone
-- If **you started** the server, kill it after verification completes (whether VERIFIED or FAILED)
-- Track whether you started the server by checking `lsof -i :{{ ns.port }}` **before** starting it
+Stop only the servers you started: see **Stop what you started** under Dev Server above.
 
 ## Saving Results
 
 After verification, **always** save your report and screenshots to disk:
 
 1. **Create screenshots directory:** `mkdir -p .agent-pipeline/screenshots`
-2. **Save screenshots** at each viewport to `.agent-pipeline/screenshots/` using `browser_screenshot({ path: "..." })`
+2. **Save screenshots** at each viewport to `.agent-pipeline/screenshots/` using `browser_take_screenshot({ filename: "...", fullPage: true })`
 3. **Write report** to `.agent-pipeline/frontend-verification-report.md` using the format above
 {% if dashboard %}
 
