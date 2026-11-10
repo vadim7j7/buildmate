@@ -83,7 +83,7 @@ manifest: {
 }
 ```
 
-Never add remote origins to `script-src` — stores reject it. See `patterns/security.md`.
+Never add remote origins to `script-src` — stores reject it. See `.claude/patterns/security.md`.
 
 ## 6. Audit regularly
 

@@ -20,7 +20,7 @@ Generates a Nuxt 4 composable in `app/composables/` with SSR-safe data loading
 
 ## How It Works
 
-1. **Read reference patterns** from `patterns/nuxt-patterns.md` and `styles/typescript.md`
+1. **Read reference patterns** from `.claude/patterns/nuxt-patterns.md` and `.claude/styles/typescript.md`
 2. **Generate composable**:
    - reads via `useFetch` / `useAsyncData` called synchronously in the composable
      (which itself is called from `<script setup>`), exposing `data`, `status`, `error`, `refresh`

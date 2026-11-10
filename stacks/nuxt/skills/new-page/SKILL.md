@@ -20,7 +20,7 @@ loading states, and error handling.
 
 ## How It Works
 
-1. **Read reference patterns** from `patterns/nuxt-patterns.md` and `styles/typescript.md`
+1. **Read reference patterns** from `.claude/patterns/nuxt-patterns.md` and `.claude/styles/typescript.md`
 2. **Generate page component** with `<script setup lang="ts">`, `await useFetch(...)` at
    setup time, and loading/error states from `status` (`'pending' | 'success' | 'error'`)
    and `error` — not the removed `pending` flag

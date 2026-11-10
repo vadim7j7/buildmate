@@ -31,14 +31,7 @@ Django code is synchronous by default (views, services, ORM).
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Python style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -53,7 +46,7 @@ Grep for existing URLs:        */urls.py, config/urls.py
 Project layout (use it for every new file): `manage.py` and `config/` (settings, urls)
 at the root, each app at the root as `<app>/` (never `src/<app>/`), tests in
 `<app>/tests/`, shared fixtures in the root `conftest.py`. Business logic goes in
-`<app>/services/` (see `patterns/backend-patterns.md`).
+`<app>/services/` (see `.claude/patterns/backend-patterns.md`).
 
 Match the existing code style exactly.
 

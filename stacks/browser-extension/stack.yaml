@@ -170,16 +170,21 @@ quality_gates:
 
 working_dir: "."
 
+# Always read: entrypoints, messaging, storage and the security/permissions rules
+# every extension change must respect.
 patterns:
   - patterns/wxt-entrypoints.md
-  - patterns/background.md
-  - patterns/content-scripts.md
   - patterns/messaging.md
   - patterns/storage.md
   - patterns/permissions.md
-  - patterns/cross-browser.md
-  - patterns/ui-surfaces.md
   - patterns/security.md
+
+# Read only when the task touches the topic.
+reference_patterns:
+  - patterns/background.md
+  - patterns/content-scripts.md
+  - patterns/ui-surfaces.md
+  - patterns/cross-browser.md
   - patterns/testing.md
   - patterns/publishing.md
 

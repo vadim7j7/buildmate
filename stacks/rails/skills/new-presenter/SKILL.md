@@ -23,8 +23,8 @@ suitable for JSON serialization. Also generates the corresponding spec file.
 
 1. **Read reference patterns.** Load the presenter pattern from:
    - `skills/new-presenter/references/presenter-examples.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine the class name.** Parse the argument:
    - `Profile` becomes `ProfilePresenter` in `app/presenters/profile_presenter.rb`

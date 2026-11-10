@@ -29,14 +29,7 @@ following Nuxt 4 conventions with Vue 3 Composition API.
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns for pages, composables, server routes
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - TypeScript style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns. Nuxt 4 keeps app code in `app/`
 (if the project still has these folders at the root, use those instead):

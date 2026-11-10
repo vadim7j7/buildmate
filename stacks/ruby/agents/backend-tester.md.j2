@@ -28,15 +28,9 @@ that verify code correctness and catch edge cases.
 
 ## Before Writing Tests
 
-**ALWAYS** read these files first:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns to understand what you're testing
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Style conventions
-{% endfor %}
-3. Existing specs in `spec/` - Follow established test patterns
+Then look at the existing specs in `spec/` and follow their structure.
 
 ## Test File Structure
 

@@ -18,7 +18,7 @@ Generates an Express controller class with CRUD handler methods that delegate to
 
 ## How It Works
 
-1. **Read reference patterns** from `patterns/express-patterns.md` and `styles/typescript.md`
+1. **Read reference patterns** from `.claude/patterns/express-patterns.md` and `.claude/styles/typescript.md`
 2. **Generate controller** with `async` arrow function handlers (no `try/catch` + `next(error)`: Express 5 forwards rejections); parse `req.query` / `req.params` with Zod into new variables (`req.query` is read-only)
 3. **Generate or update service** if it doesn't exist
 4. **Generate test file** for the controller

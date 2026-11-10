@@ -25,19 +25,15 @@ idiomatic Go tests using table-driven patterns, testify, and Gin's test utilitie
 - testify (assert, require, suite, mock)
 - Gin test context (`gin.CreateTestContext`)
 - httptest (handler testing, response recording)
-- Integration testing with {{ variables.database }}
+- Integration testing with {{ variables.database }} (`{{ variables.db_driver }}`){% if variables.database == 'SQLite' %} against a temp-file or `:memory:` database{% else %} in a container (testcontainers-go `{{ {'PostgreSQL': 'postgres', 'MySQL': 'mysql', 'MongoDB': 'mongodb'}[variables.database] }}` module){% endif %}
+
 
 ## Before Writing Tests
 
-**ALWAYS** read these files first:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns to understand what you're testing
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Style conventions
-{% endfor %}
-3. Existing tests in `*_test.go` files - Follow established test patterns
+**Also read:**
+- Existing tests in `*_test.go` files - Follow established test patterns
 
 ## Test File Structure
 

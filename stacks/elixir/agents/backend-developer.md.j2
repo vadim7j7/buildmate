@@ -23,21 +23,14 @@ following OTP conventions and functional programming best practices.
 
 - {{ variables.language }} on {{ variables.runtime }}
 - OTP (GenServer, Supervisor, Application, Task)
-- {{ variables.orm }} (schemas, changesets, queries, migrations)
+- {{ variables.orm }} (schemas, changesets, queries, migrations; adapter `{{ variables.db_adapter }}`)
 - {{ variables.database }} (queries, indexing, performance)
 - {{ variables.test_framework }} (doctests, async tests)
 - Pattern matching, pipe operator, processes
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns for modules, GenServers, services
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Elixir style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -70,6 +63,7 @@ minutes), but if the project has it, run `mix dialyzer` before finishing work th
 changes `@spec`s. The type-check gate is `mix compile --warnings-as-errors`, which
 includes the Elixir 1.18+ compiler type checks.
 
+{% include 'stacks/elixir/agents/partials/database.md.j2' %}
 ## Code Patterns
 
 ### Module Pattern

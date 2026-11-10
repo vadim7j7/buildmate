@@ -31,7 +31,7 @@ export default defineBackground(() => {
   onMessage('ping', () => 'pong');
 
   onMessage('saveItem', async ({ data, sender }) => {
-    // validate the sender before doing privileged work — see patterns/security.md
+    // validate the sender before doing privileged work — see .claude/patterns/security.md
     if (!sender.tab) throw new Error('unexpected sender');
     const id = await persist(data);
     return { id };

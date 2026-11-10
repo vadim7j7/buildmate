@@ -26,9 +26,9 @@ a view file.
 
 ### 1. Read Patterns
 
-- `patterns/rails-monolith-patterns.md`
-- `patterns/forms-patterns.md` (if generating new/edit)
-- `styles/erb-style.md`
+- `.claude/patterns/rails-monolith-patterns.md`
+- `.claude/patterns/forms-patterns.md` (if generating new/edit)
+- `.claude/styles/erb-style.md`
 
 ### 2. Verify the Controller and Action Exist
 

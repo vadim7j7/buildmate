@@ -11,7 +11,10 @@ Organize routes into logical groups with shared middleware.
 
 ```go
 func SetupRouter(h *handler.Handler, mw *middleware.Middleware) *gin.Engine {
-	r := gin.Default()
+	// gin.New + Recovery + our slog logger. gin.Default would add gin.Logger
+	// too and every request would be logged twice.
+	r := gin.New()
+	r.Use(middleware.RequestLogger(), gin.Recovery())
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -41,6 +44,8 @@ func SetupRouter(h *handler.Handler, mw *middleware.Middleware) *gin.Engine {
 ```
 
 ### Rules
+- Build the engine with `gin.New()` plus `gin.Recovery()` and one request logger; never
+  `gin.Default()` alongside a custom logger (double request logs)
 - `GET /health` returns `200` JSON, outside `/api` and auth (verification polls it)
 - Serve the engine from `cmd/server/main.go` via `http.Server` with `PORT` (default 8080)
   and graceful shutdown, not `r.Run()`

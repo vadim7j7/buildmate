@@ -48,7 +48,7 @@ The app is **server-first**:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` for conventions
+- `.claude/patterns/frontend-patterns.md` for conventions
 - `skills/new-container/references/container-examples.md` for examples
 - The project's UI library style guide (in `styles/`)
 - Existing client components and the Server Actions in `src/lib/actions/`

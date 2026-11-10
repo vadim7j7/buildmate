@@ -23,8 +23,8 @@ class-name, and HTML-building methods to views and ViewComponents. They contain
 
 ### 1. Read Patterns
 
-- `patterns/rails-monolith-patterns.md`
-- `styles/erb-style.md`
+- `.claude/patterns/rails-monolith-patterns.md`
+- `.claude/styles/erb-style.md`
 - Existing helpers in `app/helpers/`
 
 ### 2. Generate the Helper Module

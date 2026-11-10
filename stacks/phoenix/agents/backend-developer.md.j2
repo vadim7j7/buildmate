@@ -23,21 +23,14 @@ Elixir web applications using Phoenix, LiveView, and Ecto.
 
 - {{ variables.framework }} (contexts, controllers, LiveView, channels)
 - {{ variables.language }} on {{ variables.runtime }}
-- {{ variables.orm }} (schemas, changesets, queries, migrations)
+- {{ variables.orm }} (schemas, changesets, queries, migrations; adapter `{{ variables.db_adapter }}`)
 - {{ variables.template_engine }} templates
 - {{ variables.realtime }} for real-time features
 - {{ variables.test_framework }} (ConnTest, LiveViewTest)
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Elixir style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -69,10 +62,13 @@ end
 `mix dialyzer` when the project has it. The type-check gate is
 `mix compile --warnings-as-errors` (includes the Elixir 1.18+ type checks).
 
+A new app is generated with `mix phx.new my_app{% if variables.database == 'MySQL' %} --database mysql{% elif variables.database == 'SQLite' %} --database sqlite3{% endif %}`.
+
 The dev server is verified with `GET /health` on port 4000, which `phx.new` does
 not create. If `lib/my_app_web/controllers/health_controller.ex` is missing, add it
 and its route (see *Health Check* below) before anything else.
 
+{% include 'stacks/elixir/agents/partials/database.md.j2' %}
 ## Code Patterns
 
 ### Context Pattern

@@ -24,8 +24,8 @@ that exercises the behavior in a headless browser.
 ### 1. Read Existing Patterns
 
 Before generating, read:
-- `patterns/stimulus-patterns.md`
-- `styles/stimulus-style.md`
+- `.claude/patterns/stimulus-patterns.md`
+- `.claude/styles/stimulus-style.md`
 - Existing controllers in `app/javascript/controllers/` to match conventions
 
 ### 2. Determine Surface Area

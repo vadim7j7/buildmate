@@ -21,8 +21,8 @@ Registers the helper in the main application.
 ## How It Works
 
 1. **Read reference patterns.** Load the helper pattern from:
-   - `patterns/sinatra-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/sinatra-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine helper name.** Parse the argument to determine the module name and file path.
 

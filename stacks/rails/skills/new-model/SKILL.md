@@ -23,8 +23,8 @@ migration, factory, and model spec.
 
 1. **Read reference patterns.** Load the model pattern from:
    - `skills/new-model/references/model-examples.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine the model name and attributes.** Parse the argument and ask for
    or infer attributes based on the model name and context.

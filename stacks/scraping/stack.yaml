@@ -27,16 +27,20 @@ options:
     default: python
     choices:
       python:
-        description: Scrapy, BeautifulSoup, Playwright (recommended)
+        description: httpx, BeautifulSoup, Scrapy (recommended)
         patterns:
           - patterns/scrapy.md
         styles:
           - styles/python-scraping.md
+        # Scrapy is Python-only: the skill is installed only with this choice
+        skills:
+          - new-spider
         variables:
           language: Python
           package_manager: uv
           test_framework: pytest
-          frameworks: Scrapy, BeautifulSoup, Playwright
+          # Browser library comes from the `browser` option (browser_tool)
+          frameworks: httpx, BeautifulSoup, Scrapy
           http_client: httpx
           parser: BeautifulSoup, lxml
         quality_gates:
@@ -51,16 +55,15 @@ options:
             command: uv run pytest
             description: Run pytest test suite
       nodejs:
-        description: Puppeteer, Cheerio, Playwright
-        patterns:
-          - patterns/puppeteer.md
+        description: axios, Cheerio (TypeScript)
         styles:
           - styles/nodejs-scraping.md
         variables:
           language: Node.js
           package_manager: npm
           test_framework: Jest
-          frameworks: Puppeteer, Cheerio, Playwright
+          # Browser library comes from the `browser` option (browser_tool)
+          frameworks: axios, Cheerio
           http_client: axios
           parser: Cheerio
         quality_gates:
@@ -84,7 +87,9 @@ options:
         variables:
           browser_tool: Playwright
       puppeteer:
-        description: Chrome/Chromium automation
+        description: Chrome/Chromium automation (Node.js only; Python projects should use playwright)
+        patterns:
+          - patterns/puppeteer.md
         variables:
           browser_tool: Puppeteer
       selenium:
@@ -126,7 +131,6 @@ agents:
       - Grep
       - Glob
     skills:
-      - new-spider
       - new-scraper
       - analyze-target
 
@@ -160,13 +164,10 @@ skills:
   - review
   - docs
   - verify
-  - new-spider
   - new-scraper
   - test-scraper
   - analyze-target
   - analyze-site
-  - clone-page
-  - clone-site
 
 quality_gates:
   lint:
@@ -183,14 +184,15 @@ quality_gates:
 working_dir: "."
 
 patterns:
-  - patterns/anti-detection.md
-  - patterns/pagination.md
-  - patterns/authentication.md
   - patterns/data-validation.md
   - patterns/error-handling.md
   - patterns/rate-limiting.md
-  - patterns/component-extraction.md
-  - patterns/design-token-extraction.md
+
+# Installed too, read only when the task touches the topic
+reference_patterns:
+  - patterns/anti-detection.md
+  - patterns/pagination.md
+  - patterns/authentication.md
   - patterns/api-discovery.md
 
 styles:

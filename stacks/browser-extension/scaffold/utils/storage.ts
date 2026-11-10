@@ -1,7 +1,7 @@
 import { storage } from 'wxt/utils/storage';
 
 // Typed, reactive storage items. Keys are namespaced by area: local: / sync: / session:.
-// Bump `version` and add `migrations` when the shape changes. See patterns/storage.md
+// Bump `version` and add `migrations` when the shape changes. See .claude/patterns/storage.md
 export interface Settings {
   theme: 'light' | 'dark';
   enabled: boolean;

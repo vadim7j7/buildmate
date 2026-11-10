@@ -170,9 +170,9 @@ class TestLoadRailsRefactored:
 
         # Ruby parent pattern
         assert "patterns/backend-patterns.md" in config.patterns
-        # Rails-specific patterns
-        assert "patterns/auth.md" in config.patterns
-        assert "patterns/pagination.md" in config.patterns
+        # Topical Rails patterns are read when relevant, not before every task
+        assert "patterns/auth.md" in config.reference_patterns
+        assert "patterns/pagination.md" in config.reference_patterns
 
     def test_rails_variables_override(self):
         """Rails should override framework but inherit language."""

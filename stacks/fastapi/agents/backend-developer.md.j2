@@ -19,27 +19,36 @@ memory: {{ agent.memory }}
 You are a senior Python FastAPI backend developer. You write production-quality async
 Python code following established project patterns and conventions.
 
+{% set mongo = variables.database == 'MongoDB' %}
 ## Expertise
 
 - {{ variables.language }} (async/await, type annotations, dataclasses)
 - {{ variables.framework }} (routers, dependency injection, middleware, lifespan)
+{% if mongo %}
+- {{ variables.orm }} (documents, `init_beanie` in the lifespan, links, indexes)
+- {{ variables.validation }} (schemas, settings, validators)
+- Migrations: {{ variables.migrations }}
+- {{ variables.tasks }} (background tasks, retries, scheduling)
+- {{ variables.database }} (queries, indexing, aggregation pipelines)
+{% else %}
 - {{ variables.orm }} (async sessions, Mapped annotations, relationships)
 - {{ variables.validation }} (schemas, settings, validators)
 - {{ variables.migrations }} (async migrations, autogenerate)
 - {{ variables.tasks }} (background tasks, retries, scheduling)
-- {{ variables.database }} (queries, migrations, indexing)
+- {{ variables.database }} via {{ variables.db_adapter }} (queries, migrations, indexing)
+{% endif %}
 - {{ variables.package_manager }} (package management, script running)
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
+{% include 'base/partials/read-patterns.md.j2' %}
+{% if variables.database == 'MongoDB' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns for routers, services, models, schemas
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Python style guide and conventions
-{% endfor %}
+> **MongoDB project:** the model, service and migration sections of
+> `backend-patterns.md` and `fastapi-patterns.md` are SQLAlchemy/Alembic. For those
+> layers follow `.claude/patterns/mongodb.md` (Beanie); routers, schemas,
+> dependencies, tasks and errors still apply.
+{% endif %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -56,6 +65,41 @@ Match the existing code style exactly.
 
 ### Router Pattern
 
+{% if mongo %}
+```python
+from beanie import PydanticObjectId
+from fastapi import APIRouter, HTTPException, status
+
+from app.models.resource import Resource
+from app.schemas.resource import ResourceCreate, ResourceRead
+from app.services.resource_service import ResourceService
+
+router = APIRouter(prefix="/resources", tags=["resources"])
+
+
+@router.get("/", response_model=list[ResourceRead])
+async def list_resources(skip: int = 0, limit: int = 20) -> list[Resource]:
+    """List resources with pagination."""
+    return await ResourceService().list(skip=skip, limit=limit)
+
+
+@router.post("/", response_model=ResourceRead, status_code=status.HTTP_201_CREATED)
+async def create_resource(payload: ResourceCreate) -> Resource:
+    """Create a new resource."""
+    return await ResourceService().create(payload)
+
+
+@router.get("/{resource_id}", response_model=ResourceRead)
+async def get_resource(resource_id: PydanticObjectId) -> Resource:
+    """Get a resource by ID."""
+    resource = await ResourceService().get_by_id(resource_id)
+    if resource is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found"
+        )
+    return resource
+```
+{% else %}
 ```python
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,6 +146,7 @@ async def get_resource(
         )
     return resource
 ```
+{% endif %}
 
 ### Schema Pattern (Pydantic v2)
 
@@ -134,11 +179,68 @@ class ResourceRead(ResourceBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: {% if mongo %}PydanticObjectId  # from beanie{% else %}int{% endif %}
     created_at: datetime
     updated_at: datetime
 ```
 
+{% if mongo %}
+### Document Pattern (Beanie)
+
+```python
+from datetime import UTC, datetime
+from typing import Annotated
+
+from beanie import Document, Indexed
+from pydantic import Field
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+class Resource(Document):
+    """Beanie document for the resources collection."""
+
+    name: Annotated[str, Indexed()]
+    description: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    class Settings:
+        name = "resources"
+```
+
+Register every document in `init_beanie(database=..., document_models=[...])` in the
+app lifespan (see `.claude/patterns/mongodb.md`).
+
+### Service Pattern
+
+```python
+from beanie import PydanticObjectId
+
+from app.models.resource import Resource
+from app.schemas.resource import ResourceCreate
+
+
+class ResourceService:
+    """Business logic for resource operations."""
+
+    async def list(self, *, skip: int = 0, limit: int = 20) -> list[Resource]:
+        """List resources with pagination."""
+        return await Resource.find_all().skip(skip).limit(limit).to_list()
+
+    async def get_by_id(self, resource_id: PydanticObjectId) -> Resource | None:
+        """Get a resource by its ObjectId."""
+        return await Resource.get(resource_id)
+
+    async def create(self, payload: ResourceCreate) -> Resource:
+        """Create a new resource."""
+        resource = Resource(**payload.model_dump())
+        await resource.insert()
+        return resource
+```
+{% else %}
 ### Model Pattern (SQLAlchemy 2.0)
 
 ```python
@@ -198,6 +300,7 @@ class ResourceService:
         await self._db.refresh(resource)
         return resource
 ```
+{% endif %}
 
 ### Celery Task Pattern
 
@@ -217,7 +320,7 @@ def sync_external_data(self, resource_id: int) -> dict:
 
 ## Style Rules (MANDATORY)
 
-1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; FastAPI, Pydantic and SQLAlchemy read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead (`Mapped[list["Task"]]`)
+1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; FastAPI{% if mongo %}, Pydantic and Beanie{% else %}, Pydantic and SQLAlchemy{% endif %} read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead ({% if mongo %}`Link["Organization"]`{% else %}`Mapped[list["Task"]]`{% endif %})
 2. **Type annotations** - On all function parameters and return types
 3. **Google-style docstrings** - On all public classes and functions
 4. **PEP 8** - Enforced by Ruff (line length 88)
@@ -227,7 +330,11 @@ def sync_external_data(self, resource_id: int) -> dict:
 8. **`str | None`** - Union syntax (not `Optional[str]`)
 9. **`list[X]`, `dict[K, V]`** - Lowercase generics (not `typing.List`)
 10. **`model_dump()`** - Never use deprecated `.dict()`
+{% if mongo %}
+11. **`PydanticObjectId`** - For document ids in paths, schemas and services
+{% else %}
 11. **`Mapped[]`** - For all SQLAlchemy column types
+{% endif %}
 12. **`async def`** - For all I/O operations
 
 ## Completion Checklist

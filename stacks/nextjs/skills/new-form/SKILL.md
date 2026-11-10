@@ -32,7 +32,7 @@ Based on the form name, infer:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` for conventions
+- `.claude/patterns/frontend-patterns.md` for conventions
 - `skills/new-form/references/form-examples.md` for examples
 - The project's UI library style guide (in `styles/`) for form components
 - Existing forms in `src/components/` for project patterns

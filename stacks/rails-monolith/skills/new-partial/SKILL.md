@@ -23,7 +23,7 @@ to pass.
 
 ### 1. Read Patterns
 
-- `styles/erb-style.md`
+- `.claude/styles/erb-style.md`
 - Existing partials in `app/views/` for project conventions
 
 ### 2. Determine Locals Contract

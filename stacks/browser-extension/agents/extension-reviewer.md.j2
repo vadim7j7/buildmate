@@ -22,14 +22,10 @@ You read code; you do not modify it. You report findings ranked by severity.
 
 ## Review Inputs
 
-Before reviewing, read:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-- `patterns/{{ pattern | basename }}`
-{% endfor %}
-{% for style in stack.styles %}
-- `styles/{{ style | basename }}`
-{% endfor %}
+**Also read:**
+
 - `wxt.config.ts` — the manifest, permissions, and modules
 - The diff / files under review
 

@@ -43,7 +43,7 @@ external backend (it talks to its own database), skip this skill: put queries in
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` for conventions
+- `.claude/patterns/frontend-patterns.md` for conventions
 - `skills/new-api-service/references/api-service-examples.md` for examples
 - `src/services/request.ts` for the base request wrapper
 - Existing services in `src/services/` and data functions in `src/lib/data/`

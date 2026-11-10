@@ -28,8 +28,8 @@ or controller authentication logic.
 
 2. **Read reference patterns.** Load patterns from:
    - `skills/new-concern/references/concern-examples.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 3. **Generate the concern file.** Create the concern with:
    - `frozen_string_literal: true`

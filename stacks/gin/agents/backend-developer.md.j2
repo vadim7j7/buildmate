@@ -24,19 +24,12 @@ applications using the Gin HTTP framework.
 - {{ variables.framework }} (router groups, middleware, handlers, binding)
 - {{ variables.language }} (interfaces, goroutines, channels, generics)
 - {{ variables.validation }} (struct tag validation)
-- {{ variables.orm }} with {{ variables.database }}
+- {{ variables.database }} via {{ variables.orm }}, driver `{{ variables.db_driver }}`
 - {{ variables.test_framework }} (table-driven tests, httptest)
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Go style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -131,8 +124,10 @@ import (
 )
 
 func SetupRouter(h *handler.Handler, mw *middleware.Middleware) *gin.Engine {
+	// gin.New, not gin.Default: Default adds gin.Logger, which would log every
+	// request a second time next to our slog RequestLogger.
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery())
+	r.Use(middleware.RequestLogger(), gin.Recovery())
 
 	// Health check: public, outside /api and auth.
 	r.GET("/health", func(c *gin.Context) {
@@ -314,6 +309,8 @@ func handleError(c *gin.Context, err error) {
 	}
 }
 ```
+
+{% include 'stacks/go/agents/partials/data-access.md.j2' %}
 
 ## Style Rules (MANDATORY)
 

@@ -77,8 +77,8 @@ browser.runtime.onStartup.addListener(() => { /* browser launched */ });
 ## 5. Message-routing hub
 
 The background is the natural place to centralise privileged work. Pair it with typed
-messaging (`patterns/messaging.md`) and **validate the sender** before acting
-(`patterns/security.md`).
+messaging (`.claude/patterns/messaging.md`) and **validate the sender** before acting
+(`.claude/patterns/security.md`).
 
 ```typescript
 import { onMessage } from '@/utils/messaging';

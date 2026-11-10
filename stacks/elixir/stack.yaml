@@ -17,20 +17,26 @@ options:
     default: postgresql
     choices:
       postgresql:
-        description: PostgreSQL with Postgrex driver
+        description: PostgreSQL with Ecto and Postgrex
         variables:
           database: PostgreSQL
-          db_adapter: Postgrex
+          orm: Ecto (ecto_sql) with Postgrex
+          db_adapter: Ecto.Adapters.Postgres
+          db_driver: postgrex
       mysql:
-        description: MySQL with MyXQL driver
+        description: MySQL with Ecto and MyXQL
         variables:
           database: MySQL
-          db_adapter: MyXQL
+          orm: Ecto (ecto_sql) with MyXQL
+          db_adapter: Ecto.Adapters.MyXQL
+          db_driver: myxql
       sqlite:
-        description: SQLite with Exqlite driver
+        description: SQLite with Ecto and ecto_sqlite3 (Exqlite)
         variables:
           database: SQLite
-          db_adapter: Exqlite
+          orm: Ecto (ecto_sql) with ecto_sqlite3
+          db_adapter: Ecto.Adapters.SQLite3
+          db_driver: ecto_sqlite3
 
 agents:
   - name: backend-developer
@@ -113,5 +119,8 @@ variables:
   runtime: BEAM/OTP 27+
   test_framework: ExUnit
   linter: Credo
+  # Fallbacks only: the db option (default postgresql) always sets orm, db_adapter, db_driver and database.
   orm: Ecto
+  db_adapter: Ecto.Adapters.Postgres
+  db_driver: postgrex
   database: PostgreSQL

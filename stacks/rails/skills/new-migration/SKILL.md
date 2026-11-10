@@ -25,7 +25,7 @@ indices, and working with JSONB columns.
 
 1. **Read reference patterns.** Load migration patterns from:
    - `skills/new-migration/references/migration-examples.md`
-   - `patterns/backend-patterns.md`
+   - `.claude/patterns/backend-patterns.md`
 
 2. **Generate the migration file.**
 

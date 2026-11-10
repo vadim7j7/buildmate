@@ -22,10 +22,10 @@ and Turbo-aware redirect statuses.
 ## How It Works
 
 1. **Read reference patterns.** Load:
-   - `patterns/rails-monolith-patterns.md`
-   - `patterns/forms-patterns.md`
-   - `patterns/flash-and-redirect-patterns.md`
-   - `styles/erb-style.md`
+   - `.claude/patterns/rails-monolith-patterns.md`
+   - `.claude/patterns/forms-patterns.md`
+   - `.claude/patterns/flash-and-redirect-patterns.md`
+   - `.claude/styles/erb-style.md`
 
 2. **Determine namespace + class name.** Parse the argument:
    - `Profiles` → `ProfilesController` (HTML primary)

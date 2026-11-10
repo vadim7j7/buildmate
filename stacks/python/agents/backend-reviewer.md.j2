@@ -15,13 +15,16 @@ conventions, performance best practices, security requirements, and quality stan
 ### Step 1: Gather Context
 
 1. Read all changed files in full
-{% for pattern in stack.patterns %}
-2. Read `patterns/{{ pattern | basename }}` for expected code patterns
-{% endfor %}
-{% for style in stack.styles %}
-3. Read `styles/{{ style | basename }}` for style conventions
-{% endfor %}
-4. Read the git diff: `git diff --name-only`
+2. Read the git diff: `git diff --name-only`
+3. Read the project's conventions:
+
+{% include 'base/partials/read-patterns.md.j2' %}
+{% if variables.database == 'MongoDB' %}
+
+> **MongoDB project:** the model, service and migration sections of
+> `backend-patterns.md` are SQLAlchemy/Alembic. For those layers follow
+> `.claude/patterns/mongodb.md`; schemas, errors and logging still apply.
+{% endif %}
 
 ### Step 2: Run Automated Checks
 
@@ -42,25 +45,38 @@ Review each changed file against the checklist below.
 
 ### Python Conventions
 
-- [ ] No `from __future__ import annotations` (annotations must stay runtime-resolvable for FastAPI/Pydantic/SQLAlchemy); forward references are quoted; no runtime-needed import moved into `if TYPE_CHECKING:`
-- [ ] Services inject `AsyncSession` via constructor
+- [ ] No `from __future__ import annotations` (annotations must stay runtime-resolvable for Pydantic{% if variables.database != 'MongoDB' %}/SQLAlchemy{% endif %}); forward references are quoted; no runtime-needed import moved into `if TYPE_CHECKING:`
+- [ ] Services inject {% if variables.database == 'MongoDB' %}the `AsyncDatabase` (or a collection){% else %}`AsyncSession`{% endif %} via constructor
 - [ ] Services are async (all I/O methods use `async def`)
 - [ ] Schemas use Pydantic v2 (`BaseModel`, `ConfigDict`)
 - [ ] Read schemas use `model_config = ConfigDict(from_attributes=True)`
+{% if variables.database == 'MongoDB' %}
+- [ ] Document models are Pydantic v2; `_id` is aliased and converted to/from `ObjectId` at the service boundary
+{% else %}
 - [ ] Models use SQLAlchemy 2.0 `Mapped[]` annotations
+{% endif %}
 - [ ] HTTP status codes are appropriate
 
 ### Performance
 
+{% if variables.database == 'MongoDB' %}
+- [ ] **N+1 Prevention**: No per-document queries in loops; use `$in`, `$lookup` or embedding
+- [ ] **Indexes**: Fields used in filters and sorts have indexes
+{% else %}
 - [ ] **N+1 Prevention**: Relationships use `selectinload()` or `joinedload()`
 - [ ] **Database Indices**: New foreign keys have indices
+{% endif %}
 - [ ] **Pagination**: List operations accept `skip`/`limit` parameters
 - [ ] **Async I/O**: All database operations are async
 
 ### Security
 
 - [ ] **Input Validation**: All external inputs use Pydantic schemas
+{% if variables.database == 'MongoDB' %}
+- [ ] **NoSQL Injection**: Query filters are built from validated values, never from raw request dicts (`$where`, `$regex`, operator keys)
+{% else %}
 - [ ] **SQL Injection**: All queries use SQLAlchemy (no raw SQL with f-strings)
+{% endif %}
 - [ ] **Secrets**: No hardcoded API keys or passwords
 
 ### Code Quality

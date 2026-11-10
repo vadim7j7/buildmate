@@ -24,8 +24,8 @@ single `call` method. Also generates the corresponding RSpec spec file.
 1. **Read reference patterns.** Load the service pattern from:
    - `skills/new-service/references/service-examples.md`
    - `skills/new-service/references/service-structure.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine namespace and class name.** Parse the argument to determine the
    module namespace and class name:

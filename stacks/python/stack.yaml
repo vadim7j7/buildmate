@@ -38,7 +38,8 @@ options:
         variables:
           database: MongoDB
           db_adapter: pymongo (AsyncMongoClient)
-          orm: Beanie (on PyMongo Async API)
+          orm: PyMongo Async API (AsyncMongoClient) + Pydantic v2 models
+          migrations: none for schema (indexes created at startup, data fixes as scripts)
 
 agents:
   - name: backend-developer

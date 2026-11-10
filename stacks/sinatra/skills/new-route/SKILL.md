@@ -21,9 +21,9 @@ service class and a test file. Registers the route module in the main app.
 ## How It Works
 
 1. **Read reference patterns.** Load the route pattern from:
-   - `patterns/sinatra-patterns.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/sinatra-patterns.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine resource name.** Parse the argument to determine the resource name,
    file paths, and URL prefix.

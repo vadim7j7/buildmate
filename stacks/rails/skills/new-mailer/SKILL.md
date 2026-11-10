@@ -26,8 +26,8 @@ Generates an ActionMailer for sending transactional emails, including:
 
 1. **Read reference patterns.** Load mailer patterns from:
    - `skills/new-mailer/references/mailer-examples.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine mailer name and actions.** Parse the argument and infer:
    - Mailer class name (e.g., `UserMailer`)

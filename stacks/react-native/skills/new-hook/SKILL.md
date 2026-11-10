@@ -36,7 +36,7 @@ Based on the hook name, identify the category:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/mobile-patterns.md` for conventions
+- `.claude/patterns/mobile-patterns.md` for conventions
 - `skills/new-hook/references/hook-examples.md` for examples
 - Existing hooks in `src/hooks/` for project patterns
 

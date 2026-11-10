@@ -24,19 +24,12 @@ applications using the lightweight and idiomatic Chi router.
 - {{ variables.framework }} (sub-routers, middleware stack, route patterns)
 - {{ variables.language }} (interfaces, goroutines, channels, generics)
 - net/http stdlib compatibility
-- {{ variables.orm }} with {{ variables.database }}
+- {{ variables.database }} via {{ variables.orm }}, driver `{{ variables.db_driver }}`
 - {{ variables.test_framework }} (table-driven tests, httptest)
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Go style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -321,6 +314,8 @@ func respondError(w http.ResponseWriter, status int, message string) {
 	respondJSON(w, status, map[string]string{"error": message})
 }
 ```
+
+{% include 'stacks/go/agents/partials/data-access.md.j2' %}
 
 ## Style Rules (MANDATORY)
 

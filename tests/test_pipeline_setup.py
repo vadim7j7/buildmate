@@ -226,3 +226,68 @@ class TestStackFiles:
                     stack_dir, yaml.safe_load(stack_yaml.read_text())
                 )
                 assert errors == [], (stack_dir.name, errors)
+
+
+class TestPerStackContext:
+    """Each stack's agents and skills see that stack's own variables."""
+
+    def test_backend_agents_do_not_get_frontend_variables(self):
+        output = render_all(compose_stacks(["rails", "nextjs"]))
+        backend = output.agents["backend-developer.md"]
+        frontend = output.agents["frontend-developer.md"]
+
+        assert "Rails 8+" in backend
+        assert "Next.js (App Router)" not in backend
+        assert "Next.js" in frontend
+
+    def test_option_variables_reach_the_stack(self):
+        composed = compose_stacks(["nextjs"], options={"nextjs": {"ui": "tailwind"}})
+        nextjs = composed.stacks[0]
+
+        assert any("tailwind" in style for style in nextjs.styles)
+
+    def test_skill_template_uses_its_stack(self, tmp_path, monkeypatch):
+        """A SKILL.md.j2 in a stack is rendered with that stack's variables."""
+        from lib import renderer
+
+        skill_dir = STACKS_DIR / "rails" / "skills" / "_tmp-template-skill"
+        skill_dir.mkdir()
+        try:
+            (skill_dir / "SKILL.md.j2").write_text(
+                "framework={{ variables.framework }}"
+            )
+            composed = compose_stacks(["rails", "nextjs"])
+            env = renderer.create_jinja_env([renderer.V2_ROOT])
+            context = renderer.build_template_context(composed)
+            files = renderer.render_skill_templates(
+                env, context, {"_tmp-template-skill": skill_dir}, composed.stacks
+            )
+            assert files["_tmp-template-skill/SKILL.md"] == "framework=Rails 8+"
+        finally:
+            for f in skill_dir.iterdir():
+                f.unlink()
+            skill_dir.rmdir()
+
+
+class TestPatternInstall:
+    def test_base_patterns_installed(self):
+        output = render_all(compose_stacks(["fastapi"]))
+        assert "git-workflow.md" in output.patterns
+        assert "browser-cloning.md" in output.patterns
+
+    def test_reference_patterns_installed_and_listed(self):
+        composed = compose_stacks(["rails"])
+        rails = composed.stacks[0]
+        if not rails.reference_patterns:
+            return  # nothing to check until the stack declares some
+        output = render_all(composed)
+        name = Path(rails.reference_patterns[0]).name
+        assert name in output.patterns
+        assert f".claude/patterns/{name}" in output.agents["backend-developer.md"]
+
+    def test_skill_template_counts_as_skill_file(self, tmp_path):
+        stack = tmp_path / "stacks" / "demo"
+        (stack / "skills" / "x").mkdir(parents=True)
+        (stack / "skills" / "x" / "SKILL.md.j2").write_text("x")
+        errors, _ = check_stack_files(stack, {"name": "demo", "skills": ["x"]})
+        assert errors == []

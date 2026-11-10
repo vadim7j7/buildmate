@@ -22,24 +22,17 @@ code following established project patterns and conventions.
 ## Expertise
 
 - {{ variables.framework }}
-- {{ variables.database }} (queries, migrations, indexing)
+- {{ variables.database }} with {{ variables.orm }} ({% if variables.orm == 'Mongoid' %}documents, embedded relations, indexes{% else %}queries, migrations, indexing{% endif %})
 {% if (variables.job_adapter | default('sidekiq')) == 'sidekiq' %}
 - Redis (caching, Sidekiq backend)
 {% endif %}
 - {{ variables.background_jobs }} (background jobs, queues, retry logic)
 - {{ variables.test_framework }} (test-driven development)
-- RESTful API design
+- RESTful API design, JSON responses with {{ variables.serializer_library | default('Alba') }} serializers (`/new-serializer`)
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns for models, services, controllers
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Ruby style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -212,6 +205,54 @@ class ProfilesController < ApplicationController
 end
 ```
 
+{% if variables.orm == 'Mongoid' %}
+### Model Pattern
+
+```ruby
+# frozen_string_literal: true
+
+# Represents a user profile with company association.
+class Profile
+  include Mongoid::Document
+  include Mongoid::Timestamps
+
+  # -- Fields --
+  field :name, type: String
+  field :email, type: String
+  field :bio, type: String
+  field :active, type: Mongoid::Boolean, default: true
+
+  # -- Relations --
+  belongs_to :user
+  belongs_to :company, optional: true
+  embeds_many :experiences
+
+  # -- Indexes --
+  index({ email: 1 }, { unique: true })
+
+  # -- Validations --
+  validates :name, presence: true, length: { maximum: 255 }
+  validates :email, presence: true, uniqueness: { case_sensitive: false }
+
+  # -- Scopes --
+  scope :active, -> { where(active: true) }
+  scope :recent, -> { order(created_at: :desc) }
+
+  before_validation :normalize_email
+
+  private
+
+  def normalize_email
+    self.email = email&.strip&.downcase
+  end
+end
+```
+
+There are no ActiveRecord migrations with Mongoid: declare fields in the model, declare
+indexes with `index`, and create them with `bundle exec rails db:mongoid:create_indexes`.
+Read `.claude/patterns/mongoid.md` before touching models.
+
+{% else %}
 ### Model Pattern
 
 ```ruby
@@ -246,6 +287,7 @@ class Profile < ApplicationRecord
 end
 ```
 
+{% endif %}
 ### Job Pattern
 
 ```ruby
@@ -259,7 +301,7 @@ module Sync
   class ImportJob < ApplicationJob
     queue_as :default
     retry_on Net::OpenTimeout, wait: :polynomially_longer, attempts: 3
-    discard_on ActiveRecord::RecordNotFound
+    discard_on {{ 'Mongoid::Errors::DocumentNotFound' if variables.orm == 'Mongoid' else 'ActiveRecord::RecordNotFound' }}
 {% if (variables.job_adapter | default('sidekiq')) == 'sidekiq' %}
     # Sidekiq-only knobs (ignored by other adapters) go in sidekiq_options:
     # sidekiq_options backtrace: 10

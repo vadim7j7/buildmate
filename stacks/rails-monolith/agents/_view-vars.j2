@@ -1,0 +1,67 @@
+{#- Option flags shared by the view-* agents. Set from the stack's own variables. -#}
+{%- set comp = variables.component_kind | default('view_component') -%}
+{%- set vc = comp == 'view_component' -%}
+{%- set phlex = comp == 'phlex' -%}
+{%- set rt = variables.realtime_kind | default('hotwire') -%}
+{%- set turbo = rt == 'hotwire' -%}
+{%- set stim = rt in ['hotwire', 'stimulus_only'] -%}
+{%- set ui = variables.ui_kind | default('tailwind') -%}
+{%- set lookbook = (variables.preview_tool | default('Lookbook')) == 'Lookbook' and comp != 'none' -%}
+{%- if ui == 'tailwind' -%}
+{%- set css = {
+  'card': 'rounded-lg border border-gray-200 bg-white p-4',
+  'size_sm': 'w-48', 'size_md': 'w-64', 'size_lg': 'w-full max-w-md',
+  'header': 'flex items-center gap-3',
+  'avatar': 'w-10 h-10 rounded-full',
+  'name': 'font-semibold',
+  'muted': 'text-sm text-gray-500',
+  'body': 'mt-3 text-sm text-gray-700',
+  'button': 'px-4 py-2 bg-blue-600 text-white rounded',
+  'dropdown': 'relative',
+  'menu': 'hidden absolute mt-2 bg-white shadow rounded',
+  'menu_item': 'block px-4 py-2 hover:bg-gray-100',
+  'form': 'space-y-4',
+  'errors': 'rounded bg-red-50 border border-red-200 p-3',
+  'errors_list': 'text-sm text-red-700',
+  'label': 'block text-sm font-medium',
+  'input': 'mt-1 block w-full rounded border-gray-300',
+} -%}
+{%- elif ui == 'bootstrap' -%}
+{%- set css = {
+  'card': 'card card-body',
+  'size_sm': 'w-25', 'size_md': 'w-50', 'size_lg': 'w-100',
+  'header': 'd-flex align-items-center gap-3',
+  'avatar': 'rounded-circle',
+  'name': 'h5 mb-0',
+  'muted': 'small text-muted mb-0',
+  'body': 'mt-3 small',
+  'button': 'btn btn-primary',
+  'dropdown': 'dropdown',
+  'menu': 'dropdown-menu',
+  'menu_item': 'dropdown-item',
+  'form': 'vstack gap-3',
+  'errors': 'alert alert-danger',
+  'errors_list': 'mb-0',
+  'label': 'form-label',
+  'input': 'form-control',
+} -%}
+{%- else -%}
+{%- set css = {
+  'card': 'profile-card',
+  'size_sm': 'profile-card--sm', 'size_md': 'profile-card--md', 'size_lg': 'profile-card--lg',
+  'header': 'profile-card__header',
+  'avatar': 'profile-card__avatar',
+  'name': 'profile-card__name',
+  'muted': 'profile-card__headline',
+  'body': 'profile-card__bio',
+  'button': 'button button--primary',
+  'dropdown': 'dropdown',
+  'menu': 'dropdown__menu',
+  'menu_item': 'dropdown__item',
+  'form': 'form',
+  'errors': 'form__errors',
+  'errors_list': 'form__errors-list',
+  'label': 'form__label',
+  'input': 'form__input',
+} -%}
+{%- endif -%}

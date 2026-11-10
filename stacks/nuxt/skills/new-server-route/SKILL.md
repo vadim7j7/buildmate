@@ -19,7 +19,7 @@ with Zod validation and auth checks.
 
 ## How It Works
 
-1. **Read reference patterns** from `patterns/nuxt-patterns.md` and `styles/typescript.md`
+1. **Read reference patterns** from `.claude/patterns/nuxt-patterns.md` and `.claude/styles/typescript.md`
 2. **Generate a schema** in `shared/schemas/<resource>.ts` (Zod: input, query, params)
 3. **Generate route handlers** with `defineEventHandler`:
    - `index.get.ts` - List with pagination (`getValidatedQuery(event, schema.parse)`)

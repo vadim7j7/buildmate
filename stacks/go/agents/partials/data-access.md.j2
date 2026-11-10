@@ -1,0 +1,95 @@
+{#- Data-access rules for the selected db option. Shared by go, gin, fiber and chi developer agents. -#}
+### Data Access ({{ variables.database }})
+
+Use {{ variables.orm }}{% if variables.database != "MongoDB" %}, with SQL in sqlc-generated or hand-written queries{% endif %}; driver `{{ variables.db_driver }}`. Repositories hide it behind an
+interface the service depends on; handlers never touch the database.
+
+{% if variables.database == 'MongoDB' %}
+- Follow `.claude/patterns/mongodb.md`: driver v2 only (`go.mongodb.org/mongo-driver/v2/...`),
+  `bson.ObjectID` IDs, `errors.Is(err, mongo.ErrNoDocuments)` mapped to `ErrNotFound`.
+- The SQL repository examples in `backend-patterns.md` do not apply; a repository wraps a
+  `*mongo.Collection` instead of a `*sql.DB`.
+- Build filters and updates from typed values; never pass request JSON through as `bson.M`.
+- Create indexes at startup; there are no schema migrations.
+
+```go
+type mongoUserRepo struct {
+	coll *mongo.Collection
+}
+
+func (r *mongoUserRepo) FindAll(ctx context.Context) ([]User, error) {
+	cursor, err := r.coll.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	users := []User{}
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, fmt.Errorf("decode users: %w", err)
+	}
+	return users, nil
+}
+```
+{% elif variables.database == 'PostgreSQL' %}
+- Open one `*pgxpool.Pool` at startup (`pgxpool.New(ctx, os.Getenv("DATABASE_URL"))`), pass it
+  to repositories, `Close()` it on shutdown. Use `pgx.ErrNoRows` (not `sql.ErrNoRows`).
+- Parameters are `$1, $2, ...`; never build SQL with `fmt.Sprintf` from input.
+- Collect rows with `pgx.CollectRows(rows, pgx.RowToStructByName[User])`; use `pool.BeginTx`
+  for multi-statement writes.
+- Schema changes go in versioned migrations (goose, golang-migrate or atlas: whichever the project uses).
+
+```go
+type pgUserRepo struct {
+	pool *pgxpool.Pool
+}
+
+func (r *pgUserRepo) FindAll(ctx context.Context) ([]User, error) {
+	rows, err := r.pool.Query(ctx, "SELECT id, name, email FROM users ORDER BY id")
+	if err != nil {
+		return nil, fmt.Errorf("query users: %w", err)
+	}
+	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[User])
+	if err != nil {
+		return nil, fmt.Errorf("collect users: %w", err)
+	}
+	return users, nil
+}
+```
+{% else %}
+- Open one `*sql.DB` at startup with `sql.Open("{{ 'mysql' if variables.database == 'MySQL' else 'sqlite' }}", dsn)`
+  (blank-import `{{ variables.db_driver }}`), set pool limits, `Close()` it on shutdown.
+{% if variables.database == 'MySQL' %}
+- Parameters are `?`; add `parseTime=true` to the DSN so `DATETIME` scans into `time.Time`.
+{% else %}
+- Parameters are `?`. SQLite allows one writer: `db.SetMaxOpenConns(1)` for writes, or enable
+  WAL (`_pragma=journal_mode(WAL)`) and `busy_timeout`; turn on `foreign_keys`.
+{% endif %}
+- Use the `*Context` methods (`QueryContext`, `ExecContext`, `BeginTx`), always `defer rows.Close()`
+  and check `rows.Err()`; map `sql.ErrNoRows` to `ErrNotFound`.
+- Never build SQL with `fmt.Sprintf` from input. Schema changes go in versioned migrations.
+
+```go
+type sqlUserRepo struct {
+	db *sql.DB
+}
+
+func (r *sqlUserRepo) FindAll(ctx context.Context) ([]User, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT id, name, email FROM users ORDER BY id")
+	if err != nil {
+		return nil, fmt.Errorf("query users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email); err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+```
+{% endif %}

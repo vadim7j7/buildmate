@@ -187,14 +187,21 @@ skills:
   - clone-page
   - analyze-site
 
+# Always read: the core framework pattern (+ the state option's pattern, + the
+# javascript parent's typescript-patterns.md).
 patterns:
   - patterns/frontend-patterns.md
+
+# Read only when the task touches the topic.
+reference_patterns:
   - patterns/auth.md
   - patterns/pagination.md
   - patterns/i18n.md
   - patterns/logging.md
   - patterns/error-tracking.md
-  - patterns/browser-cloning.md
+  - patterns/security.md
+  - patterns/testing.md
+  - patterns/pitfalls.md
   - patterns/verification.md
 
 styles:

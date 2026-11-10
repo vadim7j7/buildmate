@@ -25,7 +25,7 @@ the surface type:
 
 WXT also auto-imports the `define*` helpers and the `browser` global, so you don't need
 to import `defineBackground` / `defineContentScript`. (Importing `browser` from
-`wxt/browser` explicitly is still encouraged for clarity — see `styles/extension.md`.)
+`wxt/browser` explicitly is still encouraged for clarity — see `.claude/styles/extension.md`.)
 
 ## 2. Background
 
@@ -52,7 +52,7 @@ export default defineBackground({
 });
 ```
 
-See `patterns/background.md` for service-worker lifecycle rules.
+See `.claude/patterns/background.md` for service-worker lifecycle rules.
 
 ## 3. Content scripts
 
@@ -63,7 +63,7 @@ export default defineContentScript({
   runAt: 'document_idle',   // document_start | document_end | document_idle
   world: 'ISOLATED',        // or 'MAIN' to run in the page's JS context
   main(ctx) {
-    // ctx (ContentScriptContext) handles cleanup — see patterns/content-scripts.md
+    // ctx (ContentScriptContext) handles cleanup — see .claude/patterns/content-scripts.md
   },
 });
 ```
@@ -86,7 +86,7 @@ entrypoints/
 
 WXT detects the folder name (`popup`, `options`, `sidepanel`, …) and adds the right
 manifest key (`action.default_popup`, `options_ui.page`, `side_panel.default_path`, …).
-See `patterns/ui-surfaces.md`.
+See `.claude/patterns/ui-surfaces.md`.
 
 ## 5. Per-entrypoint manifest options
 

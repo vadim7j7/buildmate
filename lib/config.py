@@ -136,6 +136,9 @@ class StackConfig:
     styles: list[str]
     variables: dict[str, Any]
     options: dict[str, StackOption] = field(default_factory=dict)
+    # Installed like patterns, but agents read them only when relevant
+    # (security, testing, pitfalls, logging...), not before every task
+    reference_patterns: list[str] = field(default_factory=list)
     extends: str | None = None
     parent_stack_path: Path | None = None
     # Self-verification settings (enabled, dev_server: {command, port, health_check})
@@ -196,6 +199,7 @@ class StackConfig:
             styles=data.get("styles", []),
             variables=data.get("variables", {}),
             options=options,
+            reference_patterns=data.get("reference_patterns", []),
             extends=data.get("extends"),
             verification=data.get("verification") or {},
             scaffold_enabled=scaffold.get("enabled", False),
@@ -365,8 +369,8 @@ def _resolve_inheritance(
     parent_gates.update(child_gates)
     resolved["quality_gates"] = parent_gates
 
-    # patterns, styles: merge, deduplicated
-    for key in ("patterns", "styles"):
+    # patterns, styles, reference_patterns: merge, deduplicated
+    for key in ("patterns", "styles", "reference_patterns"):
         parent_items = parent_config.get(key, [])
         child_items = child_config.get(key, [])
         seen: set[str] = set()
@@ -641,9 +645,14 @@ def compose_stacks(
     for stack in stacks:
         all_quality_gates[stack.name] = stack.quality_gates
 
-    # Collect patterns and styles
+    # Collect patterns and styles; base patterns (git workflow, browser
+    # cloning) are installed for every project, stack files override them
     all_patterns: dict[str, Path] = {}
     all_styles: dict[str, Path] = {}
+    base_patterns_dir = BASE_DIR / "patterns"
+    if base_patterns_dir.is_dir():
+        for base_pattern in sorted(base_patterns_dir.glob("*.md")):
+            all_patterns[base_pattern.name] = base_pattern
 
     # Merge variables
     merged_variables: dict[str, Any] = {}
@@ -654,6 +663,14 @@ def compose_stacks(
     for stack in stacks:
         # Add base patterns
         for pattern in stack.patterns:
+            pattern_path = stack.stack_path / pattern
+            if not pattern_path.exists() and stack.parent_stack_path:
+                pattern_path = stack.parent_stack_path / pattern
+            if pattern_path.exists():
+                all_patterns[pattern_path.name] = pattern_path
+
+        # Add reference patterns (installed; read when relevant)
+        for pattern in stack.reference_patterns:
             pattern_path = stack.stack_path / pattern
             if not pattern_path.exists() and stack.parent_stack_path:
                 pattern_path = stack.parent_stack_path / pattern
@@ -700,6 +717,16 @@ def compose_stacks(
             # Add option-based variables
             merged_variables.update(extra_vars)
 
+            # Keep the stack's own view complete too: its agents are rendered
+            # with stack.variables / stack.patterns / stack.styles
+            stack.variables = {**stack.variables, **extra_vars}
+            stack.patterns = stack.patterns + [
+                p for p in extra_patterns if p not in stack.patterns
+            ]
+            stack.styles = stack.styles + [
+                s for s in extra_styles if s not in stack.styles
+            ]
+
             # Apply option-based quality gate overrides
             for gate_name, gate_data in extra_gates.items():
                 if isinstance(gate_data, dict):
@@ -719,6 +746,8 @@ def compose_stacks(
     # Add profile variables
     if profile:
         merged_variables.update(profile.variables)
+        for stack in stacks:
+            stack.variables = {**stack.variables, **profile.variables}
 
     # Resolve each stack's working_dir. Precedence (highest first):
     #   1. explicit --dir override (working_dirs)

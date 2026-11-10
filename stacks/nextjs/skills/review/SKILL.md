@@ -40,7 +40,7 @@ Filter to relevant files: `*.ts`, `*.tsx`, `*.css`, `*.json` (exclude
 
 Read each changed file in full. Also read:
 
-- `patterns/frontend-patterns.md` -- project code patterns
+- `.claude/patterns/frontend-patterns.md` -- project code patterns
 - `.agent-pipeline/implement.md` -- implementation notes (if exists)
 - `.agent-pipeline/test.md` -- test results (if exists)
 - Related feature file from `.claude/context/features/` (if linked)

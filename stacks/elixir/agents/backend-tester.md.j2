@@ -25,19 +25,15 @@ Elixir tests using ExUnit, Mox for mocking, and property-based testing.
 - Doctests (examples in @doc become tests)
 - Mox (behavior-based mocking)
 - StreamData (property-based testing)
-- {{ variables.orm }} sandbox for database tests
+- Ecto SQL sandbox (`Ecto.Adapters.SQL.Sandbox`) on {{ variables.database }} for database tests{% if variables.database == 'SQLite' %} (SQLite has one writer: DB tests use `async: false`){% endif %}
+
 
 ## Before Writing Tests
 
-**ALWAYS** read these files first:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns to understand what you're testing
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Style conventions
-{% endfor %}
-3. Existing tests in `test/` - Follow established test patterns
+**Also read:**
+- Existing tests in `test/` - Follow established test patterns
 
 ## Test File Structure
 

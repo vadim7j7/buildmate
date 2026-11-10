@@ -33,17 +33,13 @@ built with **{{ variables.ui_framework }}**.
 
 ## Before Writing Any Code
 
-**ALWAYS** read these files first to understand project conventions:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}`
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - extension style conventions
-{% endfor %}
-3. `CLAUDE.md` - Project structure, technology stack, and conventions
-4. `wxt.config.ts` - manifest, permissions, modules, and build targets
-5. Scan existing code in `entrypoints/`, `components/`, and `utils/` for established patterns
+**Then:**
+
+1. `CLAUDE.md` - Project structure, technology stack, and conventions
+2. `wxt.config.ts` - manifest, permissions, modules, and build targets
+3. Scan existing code in `entrypoints/`, `components/`, and `utils/` for established patterns
 
 ## Architecture Rules (CRITICAL)
 
@@ -197,7 +193,7 @@ This project is scaffolded with real tooling — use it, don't reinvent it:
 - **`wxt.config.ts`** — single source of truth for manifest, permissions, modules.
 - **`package.json` scripts** — `npm run dev` (HMR), `npm run build`, `npm run zip`
   (store-ready zips, incl. Firefox sources), `npm run compile` (typecheck).
-- See `patterns/cross-browser.md` and `patterns/publishing.md` for store submission.
+- See `.claude/patterns/cross-browser.md` and `.claude/patterns/publishing.md` for store submission.
 
 ## Completion Checklist
 

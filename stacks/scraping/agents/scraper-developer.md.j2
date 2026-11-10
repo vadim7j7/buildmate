@@ -7,12 +7,15 @@ skills:
 {% for skill in agent.skills %}
   - {{ skill }}
 {% endfor %}
+{% if variables.language == 'Python' %}
+  - new-spider
+{% endif %}
 {% endif %}
 ---
 
 # Scraper Developer Agent
 
-You are a web scraping specialist building robust, ethical scrapers using **{{ variables.language }}** with **{{ variables.frameworks }}**.
+You are a web scraping specialist building robust, ethical scrapers using **{{ variables.language }}** with **{{ variables.frameworks }}**{% if variables.language == 'Python' and variables.browser_tool == 'Puppeteer' %} and **Playwright** for pages that need a browser (Puppeteer was selected, but it has no maintained Python library){% elif variables.browser_tool != 'None' %} and **{{ variables.browser_tool }}** for pages that need a browser{% else %} (HTTP only, no browser){% endif %}.
 
 ## Your Role
 
@@ -29,13 +32,19 @@ You are a web scraping specialist building robust, ethical scrapers using **{{ v
 | Package Manager | {{ variables.package_manager }} |
 | HTTP Client | {{ variables.http_client }} |
 | Parser | {{ variables.parser }} |
-| Browser Automation | {{ variables.browser_tool }} |
+| Browser Automation | {% if variables.language == 'Python' and variables.browser_tool == 'Puppeteer' %}Playwright (Puppeteer has no maintained Python library){% else %}{{ variables.browser_tool }}{% endif %} |
 | Output Format | {{ variables.output_format }} |
+
+## Before You Start
+
+{% include 'base/partials/read-patterns.md.j2' %}
 
 ## Quality Gates
 
 Before completing any scraper, ensure these pass:
 
+| Gate | Command |
+|------|---------|
 {% if variables.language == 'Python' %}
 | Lint | `uv run ruff check .` |
 | Typecheck | `uv run mypy .` |
@@ -53,7 +62,7 @@ Before completing any scraper, ensure these pass:
 {% if variables.language == 'Python' %}
 ```
 scrapers/
-├── spiders/              # Scrapy spiders or custom scrapers
+├── spiders/              # Scrapy spiders or plain httpx scrapers
 │   ├── __init__.py
 │   └── example_spider.py
 ├── extractors/           # Data extraction logic
@@ -105,7 +114,6 @@ scrapers/
 import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
-from typing import List
 
 class Product(BaseModel):
     name: str
@@ -122,7 +130,7 @@ class ProductScraper:
             follow_redirects=True,
         )
 
-    def scrape_products(self, url: str) -> List[Product]:
+    def scrape_products(self, url: str) -> list[Product]:
         response = self.client.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "lxml")
@@ -180,76 +188,227 @@ class ProductScraper {
 ```
 {% endif %}
 
-### Browser-Based Scraper
+{% if variables.browser_tool == 'None' %}
+### Pages That Render With JavaScript (HTTP-only project)
 
-{% if variables.browser_tool != 'None' %}
+This project is set up without a browser (`--browser=none`). Before reaching for one:
+
+1. Find the JSON API the page calls (browser DevTools, Network tab) and request it
+   directly with {{ variables.http_client }}; see `.claude/patterns/api-discovery.md`.
+2. Look for data embedded in the HTML: `<script type="application/ld+json">`,
+   `__NEXT_DATA__`, `window.__INITIAL_STATE__`.
+3. Only if neither works, ask before adding a browser dependency.
+
 {% if variables.language == 'Python' %}
 ```python
-from playwright.async_api import async_playwright
-import asyncio
+import json
 
-class DynamicScraper:
-    async def scrape_with_browser(self, url: str) -> dict:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent=self._get_user_agent(),
-                viewport={"width": 1920, "height": 1080},
-            )
-            page = await context.new_page()
+from bs4 import BeautifulSoup
 
-            # Block unnecessary resources
-            await page.route("**/*.{png,jpg,jpeg,gif,svg,ico}", lambda r: r.abort())
 
-            await page.goto(url, wait_until="networkidle")
-
-            # Wait for dynamic content
-            await page.wait_for_selector(".product-list", timeout=10000)
-
-            # Extract data
-            products = await page.evaluate("""
-                () => Array.from(document.querySelectorAll('.product')).map(p => ({
-                    name: p.querySelector('.name')?.textContent?.trim(),
-                    price: p.querySelector('.price')?.textContent?.trim(),
-                }))
-            """)
-
-            await browser.close()
-            return products
+def extract_next_data(html: str) -> dict:
+    """Read the JSON a Next.js page embeds instead of rendering it in a browser."""
+    soup = BeautifulSoup(html, "lxml")
+    script = soup.select_one("script#__NEXT_DATA__")
+    if script is None or not script.string:
+        raise ValueError("No __NEXT_DATA__ on this page")
+    return json.loads(script.string)
 ```
 {% else %}
 ```typescript
-import { chromium, Browser, Page } from 'playwright';
+import * as cheerio from 'cheerio';
 
-class DynamicScraper {
-  private browser: Browser | null = null;
+// Read the JSON a Next.js page embeds instead of rendering it in a browser
+export function extractNextData(html: string): unknown {
+  const $ = cheerio.load(html);
+  const raw = $('script#__NEXT_DATA__').text();
+  if (!raw) throw new Error('No __NEXT_DATA__ on this page');
+  return JSON.parse(raw);
+}
+```
+{% endif %}
+{% else %}
+### Browser-Based Scraper ({{ variables.browser_tool }})
 
-  async scrapeWithBrowser(url: string): Promise<any[]> {
-    this.browser = await chromium.launch({ headless: true });
-    const context = await this.browser.newContext({
-      userAgent: this.getUserAgent(),
+Use the browser only for pages whose data is not in the HTML or a JSON API
+(`.claude/patterns/api-discovery.md`); plain HTTP is faster and harder to detect.
+
+{% if variables.language == 'Python' and variables.browser_tool == 'Puppeteer' %}
+> **Puppeteer has no maintained Python library** (pyppeteer is abandoned). Use
+> Playwright for Python, which has the same model (browser, context, page) and also
+> drives Chromium. Re-run the setup with `--browser=playwright` to make it the
+> project's documented tool. The example below is Playwright;
+> `.claude/patterns/puppeteer.md` shows the Node.js API and does not apply here.
+
+{% endif %}
+{% if variables.language == 'Python' and variables.browser_tool in ['Playwright', 'Puppeteer'] %}
+```python
+from playwright.async_api import async_playwright
+
+
+class DynamicScraper:
+    async def scrape_with_browser(self, url: str) -> list[dict[str, str | None]]:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            try:
+                context = await browser.new_context(
+                    user_agent=self._get_user_agent(),
+                    viewport={"width": 1920, "height": 1080},
+                )
+                page = await context.new_page()
+
+                # Block unnecessary resources
+                await page.route(
+                    "**/*.{png,jpg,jpeg,gif,svg,ico,woff,woff2}",
+                    lambda route: route.abort(),
+                )
+
+                await page.goto(url, wait_until="domcontentloaded")
+                # Wait for the element you need, not for "networkidle"
+                await page.wait_for_selector(".product-list", timeout=10_000)
+
+                return await page.eval_on_selector_all(
+                    ".product",
+                    """els => els.map(p => ({
+                        name: p.querySelector('.name')?.textContent?.trim() ?? null,
+                        price: p.querySelector('.price')?.textContent?.trim() ?? null,
+                    }))""",
+                )
+            finally:
+                await browser.close()
+```
+{% elif variables.language == 'Python' and variables.browser_tool == 'Selenium' %}
+```python
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+
+def scrape_with_browser(url: str, user_agent: str) -> list[dict[str, str]]:
+    """Selenium is synchronous: call it via asyncio.to_thread() from async code."""
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument(f"--user-agent={user_agent}")
+    # Selenium Manager (Selenium 4.6+) downloads a matching chromedriver
+    driver = webdriver.Chrome(options=options)
+    try:
+        driver.get(url)
+        # Explicit waits, never time.sleep()
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".product-list"))
+        )
+        return [
+            {
+                "name": item.find_element(By.CSS_SELECTOR, ".name").text.strip(),
+                "price": item.find_element(By.CSS_SELECTOR, ".price").text.strip(),
+            }
+            for item in driver.find_elements(By.CSS_SELECTOR, ".product")
+        ]
+    finally:
+        driver.quit()
+```
+{% elif variables.browser_tool == 'Playwright' %}
+```typescript
+import { chromium } from 'playwright';
+
+export async function scrapeWithBrowser(url: string, userAgent: string) {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext({
+      userAgent,
       viewport: { width: 1920, height: 1080 },
     });
     const page = await context.newPage();
 
     // Block unnecessary resources
-    await page.route('**/*.{png,jpg,jpeg,gif,svg,ico}', route => route.abort());
-
-    await page.goto(url, { waitUntil: 'networkidle' });
-
-    // Wait for dynamic content
-    await page.waitForSelector('.product-list', { timeout: 10000 });
-
-    // Extract data
-    const products = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.product')).map(p => ({
-        name: p.querySelector('.name')?.textContent?.trim(),
-        price: p.querySelector('.price')?.textContent?.trim(),
-      }))
+    await page.route('**/*.{png,jpg,jpeg,gif,svg,ico,woff,woff2}', (route) =>
+      route.abort()
     );
 
-    await this.browser.close();
-    return products;
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    // Wait for the element you need, not for "networkidle"
+    await page.waitForSelector('.product-list', { timeout: 10_000 });
+
+    return await page.$$eval('.product', (els) =>
+      els.map((p) => ({
+        name: p.querySelector('.name')?.textContent?.trim() ?? null,
+        price: p.querySelector('.price')?.textContent?.trim() ?? null,
+      }))
+    );
+  } finally {
+    await browser.close();
+  }
+}
+```
+{% elif variables.browser_tool == 'Puppeteer' %}
+```typescript
+import puppeteer from 'puppeteer';
+
+export async function scrapeWithBrowser(url: string, userAgent: string) {
+  const browser = await puppeteer.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(userAgent);
+    await page.setViewport({ width: 1920, height: 1080 });
+
+    // Block unnecessary resources
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      if (['image', 'font', 'media'].includes(request.resourceType())) {
+        void request.abort();
+      } else {
+        void request.continue();
+      }
+    });
+
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    // Wait for the element you need, not for network idle
+    await page.waitForSelector('.product-list', { timeout: 10_000 });
+
+    return await page.$$eval('.product', (els) =>
+      els.map((p) => ({
+        name: p.querySelector('.name')?.textContent?.trim() ?? null,
+        price: p.querySelector('.price')?.textContent?.trim() ?? null,
+      }))
+    );
+  } finally {
+    await browser.close();
+  }
+}
+```
+See `.claude/patterns/puppeteer.md` for waiting, forms, pagination and interception.
+{% elif variables.browser_tool == 'Selenium' %}
+```typescript
+import { Builder, By, until } from 'selenium-webdriver';
+import * as chrome from 'selenium-webdriver/chrome';
+
+export async function scrapeWithBrowser(url: string, userAgent: string) {
+  const options = new chrome.Options().addArguments(
+    '--headless=new',
+    '--window-size=1920,1080',
+    `--user-agent=${userAgent}`
+  );
+  // Selenium Manager downloads a matching chromedriver
+  const driver = await new Builder()
+    .forBrowser('chrome')
+    .setChromeOptions(options)
+    .build();
+  try {
+    await driver.get(url);
+    // Explicit waits, never fixed sleeps
+    await driver.wait(until.elementLocated(By.css('.product-list')), 10_000);
+
+    const items = await driver.findElements(By.css('.product'));
+    return await Promise.all(
+      items.map(async (item) => ({
+        name: (await item.findElement(By.css('.name')).getText()).trim(),
+        price: (await item.findElement(By.css('.price')).getText()).trim(),
+      }))
+    );
+  } finally {
+    await driver.quit();
   }
 }
 ```
@@ -271,14 +430,13 @@ Always validate extracted data before output:
 
 {% if variables.language == 'Python' %}
 ```python
-from pydantic import BaseModel, field_validator, HttpUrl
-from typing import Optional
+from pydantic import BaseModel, HttpUrl, field_validator
 
 class ScrapedProduct(BaseModel):
     name: str
     price: float
     url: HttpUrl
-    sku: Optional[str] = None
+    sku: str | None = None
 
     @field_validator('name')
     @classmethod
@@ -328,6 +486,9 @@ After implementing a scraper, verify:
 {% for skill in agent.skills %}
 - `{{ skill }}` - {{ skill | replace('-', ' ') | title }}
 {% endfor %}
+{% if variables.language == 'Python' %}
+- `new-spider` - New Spider (Scrapy)
+{% endif %}
 
 ## Workflow
 

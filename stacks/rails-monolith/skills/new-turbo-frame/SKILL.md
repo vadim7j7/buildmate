@@ -24,8 +24,8 @@ frame is rendered by another response.
 ### 1. Read Patterns
 
 Before generating, read:
-- `patterns/hotwire-patterns.md`
-- `patterns/forms-patterns.md` (for form-in-frame interactions)
+- `.claude/patterns/hotwire-patterns.md`
+- `.claude/patterns/forms-patterns.md` (for form-in-frame interactions)
 
 ### 2. Decide the Frame Strategy
 

@@ -48,7 +48,7 @@ if ('sidePanel' in browser) {
 }
 ```
 
-See `patterns/cross-browser.md` for the per-browser manifest keys.
+See `.claude/patterns/cross-browser.md` for the per-browser manifest keys.
 
 ## 4. New tab / devtools
 
@@ -59,8 +59,8 @@ See `patterns/cross-browser.md` for the per-browser manifest keys.
 ## 5. Injected UI (content scripts)
 
 To render UI **into a web page**, mount from a content script inside a shadow root so
-host styles don't leak. See `patterns/content-scripts.md` §4 and, for React,
-`styles/ui-react.md` §4.
+host styles don't leak. See `.claude/patterns/content-scripts.md` §4 and, for React,
+`.claude/styles/ui-react.md` §4.
 
 ## 6. Share code across surfaces
 

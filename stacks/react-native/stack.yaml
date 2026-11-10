@@ -28,6 +28,8 @@ options:
     choices:
       none:
         description: Plain StyleSheet (default)
+        styles:
+          - styles/stylesheet.md
         variables:
           ui_library: StyleSheet
       nativewind:
@@ -122,7 +124,6 @@ agents:
     skills:
       - new-screen
       - new-rn-component
-      - new-store
       - new-query
       - new-db-query
 
@@ -157,7 +158,6 @@ skills:
   - verify
   - new-screen
   - new-rn-component
-  - new-store
   - new-query
   - new-db-query
   - platform-check
@@ -180,16 +180,22 @@ quality_gates:
 
 working_dir: "."
 
+# Always read: the core patterns (+ the state option's pattern).
 patterns:
   - patterns/mobile-patterns.md
+  - patterns/drizzle-sqlite.md
+  - patterns/mobile-i18n.md
+
+# Read only when the task touches the topic.
+reference_patterns:
   - patterns/offline.md
   - patterns/push-notifications.md
   - patterns/logging.md
   - patterns/error-tracking.md
-  - patterns/browser-cloning.md
+  - patterns/security.md
+  - patterns/testing.md
+  - patterns/pitfalls.md
   - patterns/verification.md
-  - patterns/drizzle-sqlite.md
-  - patterns/mobile-i18n.md
   - patterns/fastlane-screenshots.md
   - patterns/eas-build.md
 
@@ -213,7 +219,6 @@ variables:
   package_manager: npm
   language: TypeScript (strict mode)
   test_framework: Jest + React Native Testing Library
-  ui_state: Zustand
   server_state: React Query (TanStack Query v5)
   database: Drizzle ORM (SQLite)
   navigation: expo-router

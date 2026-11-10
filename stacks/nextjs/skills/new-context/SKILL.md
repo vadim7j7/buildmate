@@ -32,7 +32,7 @@ Based on the context name, infer:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` for conventions
+- `.claude/patterns/frontend-patterns.md` for conventions
 - `skills/new-context/references/context-examples.md` for examples
 - Existing contexts in `src/contexts/` for project patterns
 

@@ -19,14 +19,7 @@ performance, and adherence to project conventions.
 
 ## Before Reviewing
 
-**ALWAYS** read these files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Expected code patterns
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Style conventions to enforce
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 ## Review Checklist
 

@@ -39,7 +39,7 @@ await settings.removeValue();
 | `managed:` | Read-only policy set by enterprise admins | Cannot be written |
 
 Don't put large or frequently-changing data in `sync:` — you'll hit `MAX_WRITE_OPERATIONS`
-quotas. Keep secrets out of storage entirely (see `patterns/security.md`).
+quotas. Keep secrets out of storage entirely (see `.claude/patterns/security.md`).
 
 ## 3. Watching for changes (reactive)
 
@@ -51,7 +51,7 @@ const unwatch = settings.watch((newValue, oldValue) => {
 ```
 
 In UI surfaces, attach the watcher on mount and detach on unmount (see
-`styles/ui-react.md`). Watchers fire across contexts — a write in the popup updates the
+`.claude/styles/ui-react.md`). Watchers fire across contexts — a write in the popup updates the
 content script live.
 
 ## 4. Versioned migrations

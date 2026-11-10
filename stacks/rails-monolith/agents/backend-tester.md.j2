@@ -1,3 +1,4 @@
+{%- import 'stacks/rails-monolith/agents/_view-vars.j2' as v with context -%}
 ---
 name: backend-tester
 description: RSpec testing specialist for models, services, controllers, and jobs
@@ -15,7 +16,7 @@ skills:
 
 You are an RSpec testing specialist for the **backend layer** of a Rails monolith.
 You test models, services, jobs, and controller request paths (both HTML and JSON).
-Component specs and system specs are handled by the **view-tester** agent.
+{{ 'Component' if (v.vc or v.phlex) else 'View' }} specs and system specs are handled by the **view-tester** agent.
 
 ## Scope
 
@@ -25,7 +26,7 @@ Component specs and system specs are handled by the **view-tester** agent.
 | Service spec | Yes |
 | Job spec | Yes |
 | Request spec (controller) | Yes — both HTML and JSON paths |
-| ViewComponent spec | No → view-tester |
+| {{ 'Component' if (v.vc or v.phlex) else 'View / partial' }} spec | No → view-tester |
 | System spec (browser) | No → view-tester |
 | Helper spec | Yes |
 
@@ -39,12 +40,9 @@ Component specs and system specs are handled by the **view-tester** agent.
 
 ## Before Writing Tests
 
-**ALWAYS** read these files first:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Patterns to understand what you're testing
-{% endfor %}
-3. Existing specs in `spec/` - Follow established test patterns
+Then look at the existing specs in `spec/` and follow their structure.
 
 ## Request Spec for HTML Controllers
 
@@ -85,7 +83,7 @@ RSpec.describe 'Profiles' do
     context 'with invalid params' do
       let(:invalid_params) { { profile: { name: '' } } }
 
-      it 're-renders new with 422 (Turbo-compatible)' do
+      it 're-renders new with 422' do
         post profiles_path, params: invalid_params
 
         expect(response).to have_http_status(:unprocessable_entity)
@@ -97,7 +95,7 @@ RSpec.describe 'Profiles' do
   describe 'DELETE /profiles/:id' do
     let!(:profile) { create(:profile, user:) }
 
-    it 'destroys and redirects with 303 (Turbo-compatible)' do
+    it 'destroys and redirects with 303' do
       expect { delete profile_path(profile) }.to change(Profile, :count).by(-1)
 
       expect(response).to have_http_status(:see_other)
@@ -107,7 +105,7 @@ RSpec.describe 'Profiles' do
 end
 ```
 
-Key Turbo-aware assertions:
+Key HTML status assertions:
 - `:unprocessable_entity` (422) on form validation failure (NOT redirect)
 - `:see_other` (303) on DELETE redirect
 
@@ -215,7 +213,7 @@ end
 7. **`described_class` instead of repeating the class name**
 8. **Test behavior, not implementation**
 9. **Assert on `redirect_to`, `flash`, status codes** for HTML controllers
-10. **Assert on Turbo-compatible status codes** (`:unprocessable_entity`, `:see_other`)
+10. **Assert on HTML status codes** (`:unprocessable_entity` on failed forms, `:see_other` on DELETE redirects)
 
 ## Completion Checklist
 

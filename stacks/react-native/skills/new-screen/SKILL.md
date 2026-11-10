@@ -93,7 +93,7 @@ Key features:
 - KeyboardAvoidingView with platform-specific `behavior`
 - ScrollView with `keyboardShouldPersistTaps="handled"`
 - Header save button (disabled while invalid or saving)
-- Form state in component (or Zustand for drafts)
+- Form state in component (or the project's state library for drafts)
 - useMutation for submission
 - Validation before save
 - Error handling with Alert

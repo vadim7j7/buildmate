@@ -36,7 +36,7 @@ Based on the layout name, infer:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` for conventions
+- `.claude/patterns/frontend-patterns.md` for conventions
 - `skills/new-layout/references/layout-examples.md` for examples
 - Existing layouts in `src/app/` for project patterns
 

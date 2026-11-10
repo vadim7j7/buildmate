@@ -68,6 +68,13 @@ skills:
 
 patterns:
   - patterns/fastapi-patterns.md
+
+# Installed too, but read only when the task touches the topic (the developer
+# would otherwise read ~6k lines before writing any code)
+reference_patterns:
+  - patterns/testing.md
+  - patterns/security.md
+  - patterns/pitfalls.md
   - patterns/oauth.md
   - patterns/pagination.md
   - patterns/rate-limiting.md
@@ -75,6 +82,37 @@ patterns:
   - patterns/logging.md
   - patterns/error-tracking.md
   - patterns/verification.md
+
+# FastAPI goes through Beanie for MongoDB (the python parent uses plain PyMongo)
+options:
+  db:
+    description: Database system
+    default: postgresql
+    choices:
+      postgresql:
+        description: PostgreSQL with async driver
+        variables:
+          database: PostgreSQL
+          db_adapter: asyncpg
+      mysql:
+        description: MySQL with async driver
+        variables:
+          database: MySQL
+          db_adapter: aiomysql
+      sqlite:
+        description: SQLite for simple projects
+        variables:
+          database: SQLite
+          db_adapter: aiosqlite
+      mongodb:
+        description: MongoDB with Beanie (on the PyMongo Async API)
+        patterns:
+          - patterns/mongodb.md
+        variables:
+          database: MongoDB
+          db_adapter: pymongo (AsyncMongoClient)
+          orm: Beanie 2.x (on the PyMongo Async API)
+          migrations: none for schema (Beanie documents; indexes declared in Settings, data fixes as scripts)
 
 styles:
   - styles/async-patterns.md

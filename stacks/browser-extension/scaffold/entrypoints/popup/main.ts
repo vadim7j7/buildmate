@@ -3,12 +3,12 @@ import { sendMessage } from '@/utils/messaging';
 
 // Vanilla popup that works under any --ui choice. If you selected react / vue / svelte,
 // convert this surface with the `new-entrypoint` skill — the framework module is already
-// configured in wxt.config.ts. See patterns/ui-surfaces.md
+// configured in wxt.config.ts. See .claude/patterns/ui-surfaces.md
 //
 // style.css is loaded once, by the <link> in index.html.
 //
 // SECURITY: tab titles/URLs are page-controlled. Build DOM nodes and set textContent —
-// never interpolate them into innerHTML. See patterns/security.md
+// never interpolate them into innerHTML. See .claude/patterns/security.md
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
 const main = document.createElement('main');

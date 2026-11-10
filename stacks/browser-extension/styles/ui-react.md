@@ -145,5 +145,5 @@ export default defineContentScript({
 
 - ❌ `chrome.storage.local.get` in a component — use `wxt/utils/storage` via a hook.
 - ❌ Long-lived timers in a popup — the popup is destroyed when it closes.
-- ❌ `dangerouslySetInnerHTML` with page/user content — see `styles/extension.md` and
-  `patterns/security.md`.
+- ❌ `dangerouslySetInnerHTML` with page/user content — see `.claude/styles/extension.md` and
+  `.claude/patterns/security.md`.

@@ -22,7 +22,11 @@ tests following project conventions and best practices.
 ## Expertise
 
 - {{ variables.test_framework }}
+{% if variables.database == 'MongoDB' %}
+- MongoDB async testing (separate test database, collections dropped between tests)
+{% else %}
 - SQLAlchemy async testing (test sessions, rollback isolation)
+{% endif %}
 - Factory patterns for test data
 - Coverage analysis
 
@@ -41,7 +45,11 @@ Grep for conftest fixtures: tests/conftest.py
 
 ```python
 import pytest
+{% if variables.database == 'MongoDB' %}
+from pymongo.asynchronous.database import AsyncDatabase
+{% else %}
 from sqlalchemy.ext.asyncio import AsyncSession
+{% endif %}
 
 from app.schemas.project import ProjectCreate, ProjectUpdate
 from app.services.project_service import ProjectService
@@ -50,7 +58,7 @@ from app.services.project_service import ProjectService
 class TestProjectService:
     """Tests for ProjectService business logic."""
 
-    async def test_create_project(self, test_db: AsyncSession) -> None:
+    async def test_create_project(self, test_db: {% if variables.database == 'MongoDB' %}AsyncDatabase{% else %}AsyncSession{% endif %}) -> None:
         service = ProjectService(test_db)
         payload = ProjectCreate(name="Test", description="A test project")
         project = await service.create(payload)
@@ -59,10 +67,10 @@ class TestProjectService:
         assert project.name == "Test"
 
     async def test_get_by_id_returns_none_for_missing(
-        self, test_db: AsyncSession
+        self, test_db: {% if variables.database == 'MongoDB' %}AsyncDatabase{% else %}AsyncSession{% endif %}
     ) -> None:
         service = ProjectService(test_db)
-        result = await service.get_by_id(99999)
+        result = await service.get_by_id({% if variables.database == 'MongoDB' %}"000000000000000000000000"{% else %}99999{% endif %})
         assert result is None
 ```
 

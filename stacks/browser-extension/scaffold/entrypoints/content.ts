@@ -1,7 +1,7 @@
 // Content script. Use `ctx` for lifecycle-safe timers/listeners so they are torn
-// down on invalidation (SPA navigation, extension reload). See patterns/content-scripts.md
+// down on invalidation (SPA navigation, extension reload). See .claude/patterns/content-scripts.md
 export default defineContentScript({
-  // Narrow this to the sites you actually need — see patterns/permissions.md
+  // Narrow this to the sites you actually need — see .claude/patterns/permissions.md
   matches: ['<all_urls>'],
   runAt: 'document_idle',
   main(ctx) {

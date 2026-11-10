@@ -10,7 +10,7 @@ description: Generate a Sequel model for Sinatra with migration and spec
 Generates a Sequel model for use with Sinatra (the stack's ORM), including
 migration file, model class, and RSpec test.
 
-If the project uses MongoDB (`--db=mongodb`), follow `patterns/mongoid.md` instead:
+If the project uses MongoDB (`--db=mongodb`), follow `.claude/patterns/mongoid.md` instead:
 Mongoid models declare fields in the class and have no migrations.
 
 ## Usage
@@ -23,8 +23,8 @@ Mongoid models declare fields in the class and have no migrations.
 ## How It Works
 
 1. **Read reference patterns.** Load the model pattern from:
-   - `patterns/sinatra-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/sinatra-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine the model name and attributes.** Parse the argument and infer
    attributes based on the model name and context.

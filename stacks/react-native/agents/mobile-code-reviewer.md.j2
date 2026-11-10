@@ -21,13 +21,12 @@ git diff --name-only main...HEAD
 
 ### Step 2: Read Every Changed File
 
-Read the full content of every changed file. Also read:
-{% for pattern in stack.patterns %}
-- `patterns/{{ pattern | basename }}` for code conventions
-{% endfor %}
-{% for style in stack.styles %}
-- `styles/{{ style | basename }}` for style conventions
-{% endfor %}
+Read the full content of every changed file.
+
+{% include 'base/partials/read-patterns.md.j2' %}
+
+**Also read:**
+
 - `.agent-pipeline/implement.md` if it exists
 - `.agent-pipeline/test.md` if it exists
 
@@ -53,11 +52,21 @@ Evaluate every changed file against the checklist below.
 
 ### 1. State Management Boundaries
 
-**Zustand stores MUST contain ONLY UI state.**
+{% if variables.state_library != 'None' %}
+**{{ variables.state_library }} {{ 'slices' if variables.state_library == 'Redux Toolkit' else ('atoms' if variables.state_library == 'Jotai' else 'stores') }} MUST contain ONLY UI state.**
 
-BLOCKER if a Zustand store contains:
+BLOCKER if {{ variables.state_library }} state contains:
 - Server data (API responses, fetched records)
 - Database records or cached query results
+{% else %}
+**The project has no global state library.** UI state stays in components
+(`useState` / `useReducer` / a small context).
+
+BLOCKER if:
+- Server or database data is copied into component state or context instead of
+  being read from React Query
+- A global store library is added without the user asking for it
+{% endif %}
 
 **React Query MUST be used for all server/database data.**
 
@@ -84,21 +93,40 @@ BLOCKER if:
   components, helpers) are placed inside `src/app/` (each file there becomes a route)
 - Route parameters use prop drilling instead of `useLocalSearchParams`
 
-### 5. Project Layout
-
-App code lives under `src/` and is imported through the `@/` alias (`@/` → `src/`).
-Routes in `src/app/`, components in `src/components/`, UI stores in `src/stores/`,
-React Query hooks in `src/queries/`, Drizzle in `src/db/` (queries in `src/db/queries/`),
-i18n in `src/i18n/`. WARNING for deep relative imports (`../../`) across these folders.
-
 ### 4. Styling
 
+{% if variables.ui_library == 'StyleSheet' %}
 **StyleSheet.create MUST be used for all styles.**
 
 BLOCKER if:
 - Inline style objects are used (not `StyleSheet.create`)
 - Hardcoded colour values instead of theme constants
 - Hardcoded spacing values instead of spacing constants
+{% elif variables.ui_library == 'NativeWind' %}
+**NativeWind `className` utilities MUST be used for styling** (`.claude/styles/nativewind.md`).
+`className` on core components is correct; do not ask for `StyleSheet.create`.
+
+BLOCKER if:
+- `StyleSheet.create` or inline style objects are used where a class would do
+  (inline styles are fine only for runtime-computed values such as animations)
+- Arbitrary colour values (`bg-[#ff0000]`, hex in styles) instead of theme colours
+- Class names built dynamically (`bg-${color}`), which Tailwind cannot compile
+{% else %}
+**{{ variables.ui_library }} components and style props MUST be used for styling**
+(`.claude/styles/{{ 'gluestack' if variables.ui_library == 'Gluestack UI' else 'tamagui' }}.md`).
+Style props on {{ variables.ui_library }} components are correct; do not ask for `StyleSheet.create`.
+
+BLOCKER if:
+- `StyleSheet.create` or a second styling system is mixed into {{ variables.ui_library }} components
+- Raw colour / spacing values instead of theme tokens (`$primary`, `$4`, ...)
+{% endif %}
+
+### 5. Project Layout
+
+App code lives under `src/` and is imported through the `@/` alias (`@/` → `src/`).
+Routes in `src/app/`, components in `src/components/`, {% if variables.state_library == 'Redux Toolkit' %}Redux slices in `src/store/slices/`, {% elif variables.state_library == 'Jotai' %}atoms in `src/atoms/`, {% elif variables.state_library != 'None' %}UI stores in `src/stores/`, {% endif %}
+React Query hooks in `src/queries/`, Drizzle in `src/db/` (queries in `src/db/queries/`),
+i18n in `src/i18n/`. WARNING for deep relative imports (`../../`) across these folders.
 
 ---
 
@@ -113,10 +141,22 @@ BLOCKER if:
 
 ### State Management
 
-- [ ] Zustand stores contain ONLY UI state (BLOCKER if violated)
+{% if variables.state_library != 'None' %}
+- [ ] {{ variables.state_library }} state contains ONLY UI state (BLOCKER if violated)
+{% else %}
+- [ ] No server/database data copied into component state or context (BLOCKER if violated)
+{% endif %}
 - [ ] React Query is used for all data fetching (BLOCKER if violated)
 - [ ] Drizzle queries are in `src/db/queries/` (BLOCKER if violated)
+{% if variables.state_library == 'Zustand' %}
 - [ ] Zustand stores have a `reset()` method for testing
+{% elif variables.state_library == 'Redux Toolkit' %}
+- [ ] Slices have a `reset` reducer and typed selectors; components use `useAppSelector`
+{% elif variables.state_library == 'MobX' %}
+- [ ] MobX stores use `makeAutoObservable` and have `reset()`; readers are wrapped in `observer`
+{% elif variables.state_library == 'Jotai' %}
+- [ ] Jotai: one atom per value, derived atoms instead of duplicated state
+{% endif %}
 
 ### TypeScript
 

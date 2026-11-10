@@ -33,7 +33,7 @@ Determine from the component name and context:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` for code conventions
+- `.claude/patterns/frontend-patterns.md` for code conventions
 - `skills/new-component/references/component-examples.md` for examples
 - The project's UI library style guide (in `styles/`) for component usage
 - Existing components in `src/components/` for project-specific patterns

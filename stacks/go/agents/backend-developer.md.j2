@@ -22,21 +22,14 @@ established project patterns and idiomatic conventions.
 ## Expertise
 
 - {{ variables.language }} (interfaces, goroutines, channels, generics)
-- {{ variables.orm }} with {{ variables.database }}
+- {{ variables.database }} via {{ variables.orm }}, driver `{{ variables.db_driver }}`
 - {{ variables.test_framework }} (table-driven tests, benchmarks)
 - Clean architecture, dependency injection via interfaces
 - Error handling with wrapped errors
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns for handlers, services, repositories
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Go style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -58,6 +51,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 )
 
@@ -75,12 +69,17 @@ func NewUserHandler(svc UserService) *UserHandler {
 func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.ListUsers(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// Log the cause; never send internal error text to the client.
+		slog.ErrorContext(r.Context(), "list users", "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	if err := json.NewEncoder(w).Encode(users); err != nil {
+		// Headers are already sent; all we can do is log.
+		slog.ErrorContext(r.Context(), "encode users response", "err", err)
+	}
 }
 ```
 
@@ -117,46 +116,15 @@ func (s *userService) ListUsers(ctx context.Context) ([]User, error) {
 ```go
 package repository
 
-import (
-	"context"
-	"database/sql"
-	"fmt"
-)
-
 // UserRepository defines the interface for user data access.
 type UserRepository interface {
 	FindAll(ctx context.Context) ([]User, error)
 	FindByID(ctx context.Context, id string) (*User, error)
 	Create(ctx context.Context, user *User) error
 }
-
-type pgUserRepo struct {
-	db *sql.DB
-}
-
-// NewUserRepository creates a new PostgreSQL-backed UserRepository.
-func NewUserRepository(db *sql.DB) UserRepository {
-	return &pgUserRepo{db: db}
-}
-
-func (r *pgUserRepo) FindAll(ctx context.Context) ([]User, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id, name, email FROM users")
-	if err != nil {
-		return nil, fmt.Errorf("query users: %w", err)
-	}
-	defer rows.Close()
-
-	var users []User
-	for rows.Next() {
-		var u User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email); err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, u)
-	}
-	return users, rows.Err()
-}
 ```
+
+{% include 'stacks/go/agents/partials/data-access.md.j2' %}
 
 ### Error Handling Pattern
 

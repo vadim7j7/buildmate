@@ -78,6 +78,7 @@ agents:
       - new-migration
       - new-job
       - new-presenter
+      - new-serializer
 
   - name: backend-tester
     template: agents/backend-tester.md.j2
@@ -120,9 +121,14 @@ skills:
 
 patterns:
   - patterns/backend-patterns.md
+
+reference_patterns:
+  - patterns/pitfalls.md
+  - patterns/security.md
+  - patterns/testing.md
   - patterns/auth.md
-  - patterns/pagination.md
   - patterns/oauth.md
+  - patterns/pagination.md
   - patterns/file-upload.md
   - patterns/websocket.md
   - patterns/caching.md

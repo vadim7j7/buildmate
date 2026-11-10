@@ -52,12 +52,12 @@ The reviewer checks for automatic BLOCKERs:
 
 | Rule | Violation |
 |------|-----------|
-| Zustand for UI state only | Server data or DB records in Zustand store |
+| State library for UI state only | Server data or DB records in a store / slice / atom |
 | React Query for data | Direct API calls or DB queries in components |
 | Drizzle queries in src/db/queries/ | DB queries scattered outside src/db/queries/ |
 | FlashList for long lists | ScrollView + map() or FlatList for 20+ items |
-| StyleSheet.create | Inline style objects |
-| Theme constants | Hardcoded colours, spacing, or font sizes |
+| The project's styling library (`.claude/styles/`) | A second styling system mixed in (e.g. `StyleSheet.create` in a NativeWind project, inline style objects in a StyleSheet project) |
+| Theme constants / tokens | Hardcoded colours, spacing, or font sizes |
 | expo-router | Direct React Navigation usage |
 
 ### 5. Collect and Report Results
@@ -93,7 +93,7 @@ If running as part of a sequential pipeline, write results to
 See `references/rn-performance.md` for performance patterns and
 `references/rn-platform.md` for platform-specific patterns.
 
-1. Zustand stores must contain ONLY UI state
+1. State-library stores / slices / atoms must contain ONLY UI state
 2. React Query must be used for ALL data fetching
 3. Drizzle queries must live in `src/db/queries/`
 4. Query keys must use the centralised factory

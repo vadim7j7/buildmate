@@ -15,13 +15,10 @@ conventions, DRF best practices, security requirements, and quality standards.
 ### Step 1: Gather Context
 
 1. Read all changed files in full
-{% for pattern in stack.patterns %}
-2. Read `patterns/{{ pattern | basename }}` for expected code patterns
-{% endfor %}
-{% for style in stack.styles %}
-3. Read `styles/{{ style | basename }}` for style conventions
-{% endfor %}
-4. Read the git diff: `git diff --name-only`
+2. Read the git diff: `git diff --name-only`
+3. Read the project's conventions:
+
+{% include 'base/partials/read-patterns.md.j2' %}
 
 ### Step 2: Run Automated Checks
 

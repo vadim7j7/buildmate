@@ -1,0 +1,24 @@
+{#- Database notes for the selected db option. Shared by elixir and phoenix developer agents. -#}
+### Database ({{ variables.database }})
+
+The Repo uses `adapter: {{ variables.db_adapter }}` (dep `:{{ variables.db_driver }}`).
+Schema changes go through `mix ecto.gen.migration`; never edit a migration that already ran.
+
+{% if variables.database == 'PostgreSQL' %}
+- Postgres features are available: `:uuid`/`:binary_id` keys, `:map` as `jsonb`, `:array` fields,
+  partial and unique indexes, `returning: true` on inserts/updates.
+- Add constraints in the migration and mirror them with `unique_constraint/3` /
+  `foreign_key_constraint/3` in the changeset so violations become changeset errors.
+{% elif variables.database == 'MySQL' %}
+- MySQL has no `RETURNING`: `Repo.insert_all/3` cannot return rows and upserts with
+  `on_conflict` do not report the stored values; re-read when you need them.
+- No `:array` fields and no partial indexes; `:map` is stored as `JSON`. Use `utf8mb4`.
+- Mirror DB constraints with `unique_constraint/3` (the constraint name must match the index name).
+{% else %}
+- SQLite has one writer at a time: keep transactions short and expect `Database busy` under
+  concurrent writes; set `journal_mode: :wal` and a `busy_timeout` in the Repo config.
+- Migrations cannot alter or drop most column constraints in place (`modify/3` is limited);
+  create a new table and copy when needed. Foreign keys need the `foreign_keys: :on` option.
+- No `:array` fields; `:map` is stored as JSON text. Use the Ecto SQL sandbox with `async: false`.
+{% endif %}
+

@@ -53,7 +53,7 @@ If you must render HTML, sanitise with a vetted library (e.g. DOMPurify) first.
 
 Broad `host_permissions` and `<all_urls>` are the biggest risk and the biggest review
 hurdle. Prefer `activeTab` + `scripting`, and `optional_permissions` requested at runtime.
-See `patterns/permissions.md`.
+See `.claude/patterns/permissions.md`.
 
 ## 5. Don't store secrets
 

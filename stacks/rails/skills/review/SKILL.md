@@ -28,8 +28,8 @@ WARNING, SUGGESTION).
    review only matching files.
 
 2. **Gather context.** Read each changed file in full. Also read:
-   - `patterns/backend-patterns.md` for expected code patterns
-   - `styles/backend-ruby.md` for style conventions
+   - `.claude/patterns/backend-patterns.md` for expected code patterns
+   - `.claude/styles/backend-ruby.md` for style conventions
    - `skills/review/references/rails-patterns.md` for pattern reference
    - `skills/review/references/rails-security.md` for security checklist
    - `.agent-pipeline/implement.md` if it exists (implementation notes)

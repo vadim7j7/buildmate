@@ -19,25 +19,32 @@ memory: {{ agent.memory }}
 You are a senior Python developer. You write production-quality async Python code
 following established project patterns and conventions.
 
+{% set mongo = variables.database == 'MongoDB' %}
 ## Expertise
 
 - {{ variables.language }} (async/await, type annotations, dataclasses)
+{% if mongo %}
+- {{ variables.orm }} (collections, indexes, aggregation pipelines)
+- {{ variables.validation }} (schemas, settings, validators)
+- Migrations: {{ variables.migrations }}
+- {{ variables.database }} (queries, indexing, embedded vs referenced documents)
+{% else %}
 - {{ variables.orm }} (async sessions, Mapped annotations, relationships)
 - {{ variables.validation }} (schemas, settings, validators)
 - {{ variables.migrations }} (async migrations, autogenerate)
-- {{ variables.database }} (queries, migrations, indexing)
+- {{ variables.database }} via {{ variables.db_adapter }} (queries, migrations, indexing)
+{% endif %}
 - {{ variables.package_manager }} (package management, script running)
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
+{% include 'base/partials/read-patterns.md.j2' %}
+{% if variables.database == 'MongoDB' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns for models, schemas, services
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Python style guide and conventions
-{% endfor %}
+> **MongoDB project:** the model, service and migration sections of
+> `backend-patterns.md` are SQLAlchemy/Alembic. For those layers follow
+> `.claude/patterns/mongodb.md`; schemas, errors and logging still apply.
+{% endif %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -82,11 +89,73 @@ class ResourceRead(ResourceBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: {% if mongo %}str{% else %}int{% endif %}
     created_at: datetime
     updated_at: datetime
 ```
 
+{% if mongo %}
+### Document Model Pattern (Pydantic v2 + PyMongo)
+
+```python
+from datetime import UTC, datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.db.types import PyObjectId  # Annotated ObjectId type, see mongodb.md
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+class Resource(BaseModel):
+    """Document stored in the resources collection."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: PyObjectId | None = Field(default=None, alias="_id")
+    name: str
+    description: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+```
+
+### Service Pattern
+
+```python
+from bson import ObjectId
+from pymongo.asynchronous.database import AsyncDatabase
+
+from app.models.resource import Resource
+from app.schemas.resource import ResourceCreate
+
+
+class ResourceService:
+    """Business logic for resource operations."""
+
+    def __init__(self, db: AsyncDatabase) -> None:
+        self._collection = db.resources
+
+    async def list(self, *, skip: int = 0, limit: int = 20) -> list[Resource]:
+        """List resources with pagination."""
+        cursor = self._collection.find().skip(skip).limit(limit)
+        return [Resource.model_validate(doc) async for doc in cursor]
+
+    async def get_by_id(self, resource_id: str) -> Resource | None:
+        """Get a resource by its ObjectId."""
+        doc = await self._collection.find_one({"_id": ObjectId(resource_id)})
+        return Resource.model_validate(doc) if doc else None
+
+    async def create(self, payload: ResourceCreate) -> Resource:
+        """Create a new resource."""
+        resource = Resource(**payload.model_dump())
+        data = resource.model_dump(by_alias=True, exclude={"id"})
+        result = await self._collection.insert_one(data)
+        resource.id = str(result.inserted_id)
+        return resource
+```
+{% else %}
 ### Model Pattern (SQLAlchemy 2.0)
 
 ```python
@@ -146,10 +215,11 @@ class ResourceService:
         await self._db.refresh(resource)
         return resource
 ```
+{% endif %}
 
 ## Style Rules (MANDATORY)
 
-1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; FastAPI, Pydantic and SQLAlchemy read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead (`Mapped[list["Task"]]`)
+1. **No `from __future__ import annotations`** - Python 3.13 has `X | None` natively; Pydantic{% if not mongo %} and SQLAlchemy{% endif %} read annotations at runtime, and the future import makes ruff (TC rules) move runtime-needed imports into `TYPE_CHECKING`. Quote forward references instead ({% if mongo %}`list["Task"]`{% else %}`Mapped[list["Task"]]`{% endif %})
 2. **Type annotations** - On all function parameters and return types
 3. **Google-style docstrings** - On all public classes and functions
 4. **PEP 8** - Enforced by Ruff (line length 88)
@@ -159,7 +229,11 @@ class ResourceService:
 8. **`str | None`** - Union syntax (not `Optional[str]`)
 9. **`list[X]`, `dict[K, V]`** - Lowercase generics (not `typing.List`)
 10. **`model_dump()`** - Never use deprecated `.dict()`
+{% if mongo %}
+11. **`ObjectId`** - Convert ids at the service boundary; never put a raw `ObjectId` in a response schema
+{% else %}
 11. **`Mapped[]`** - For all SQLAlchemy column types
+{% endif %}
 12. **`async def`** - For all I/O operations
 
 ## Completion Checklist

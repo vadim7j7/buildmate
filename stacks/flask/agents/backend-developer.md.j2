@@ -31,14 +31,7 @@ using {{ variables.framework }} (synchronous views and services), following esta
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Python style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 
@@ -56,8 +49,8 @@ Match the existing code style exactly.
 Flask is **synchronous**. Flask-SQLAlchemy's `db.session` is a sync session scoped to
 the app context: use `db.session.execute(select(...))`, `db.session.get(...)`,
 `db.session.commit()`. Never `async with db.session()` / `await` (raises `TypeError`)
-and never `async def` views or services. Full examples: `patterns/flask-patterns.md`
-and `patterns/backend-patterns.md`.
+and never `async def` views or services. Full examples: `.claude/patterns/flask-patterns.md`
+and `.claude/patterns/backend-patterns.md`.
 
 ### App Factory Pattern
 
@@ -123,7 +116,7 @@ def get_project(project_id: int) -> Response | tuple[dict[str, str], int]:
 ```
 
 Boolean query flags: never `request.args.get("x", type=bool)` (`bool("false")` is
-`True`); use the `parse_bool` helper from `patterns/flask-patterns.md`.
+`True`); use the `parse_bool` helper from `.claude/patterns/flask-patterns.md`.
 
 ### Service Pattern (sync)
 
@@ -184,7 +177,7 @@ Config classes in `src/app/config.py` selected through a `CONFIGS` dict
 (`development`, `testing`, `production`); `SECRET_KEY` and `DATABASE_URL` come from
 the environment, with fallbacks only in development/testing. The database URL uses
 the sync driver for {{ variables.database }}{% if variables.db_url_scheme %} (`{{ variables.db_url_scheme }}://...`){% endif %}.
-See `patterns/flask-patterns.md` section 4.
+See `.claude/patterns/flask-patterns.md` section 4.
 
 ### Schema Pattern (Pydantic v2)
 

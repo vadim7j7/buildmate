@@ -22,14 +22,7 @@ The primary review concern is whether code correctly follows the SSR-first patte
 
 ## Before Reviewing
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-- `patterns/{{ pattern | basename }}` - SSR-first code patterns
-{% endfor %}
-{% for style in stack.styles %}
-- `styles/{{ style | basename }}` - TypeScript style guide
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 ## Review Checklist
 

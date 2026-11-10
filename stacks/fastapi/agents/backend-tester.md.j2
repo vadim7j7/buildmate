@@ -23,13 +23,18 @@ tests following project conventions and best practices.
 
 - {{ variables.test_framework }}
 - httpx (AsyncClient for FastAPI testing via ASGITransport)
+{% if variables.database == 'MongoDB' %}
+- Beanie/MongoDB testing (`init_beanie` on a separate test database, collections dropped between tests)
+{% else %}
 - SQLAlchemy async testing (test sessions, rollback isolation)
+{% endif %}
 - Factory patterns for test data
 - Coverage analysis
 
 ## Before Writing Any Tests
 
-**ALWAYS** read existing test patterns:
+**ALWAYS** read `.claude/patterns/testing.md` (fixtures, factories, authenticated
+clients{% if variables.database != 'MongoDB' %}, database overrides{% endif %}) and the existing test patterns:
 
 ```
 Grep for existing tests: tests/
@@ -74,7 +79,7 @@ class TestProjectRouter:
         assert isinstance(response.json(), list)
 
     async def test_get_project_not_found(self, client: AsyncClient) -> None:
-        response = await client.get("/api/v1/projects/99999")
+        response = await client.get("/api/v1/projects/{% if variables.database == 'MongoDB' %}000000000000000000000000{% else %}99999{% endif %}")
         assert response.status_code == 404
 ```
 
@@ -82,6 +87,28 @@ class TestProjectRouter:
 
 ```python
 import pytest
+{% if variables.database == 'MongoDB' %}
+from beanie import PydanticObjectId
+
+from app.schemas.project import ProjectCreate
+from app.services.project_service import ProjectService
+
+
+@pytest.mark.usefixtures("test_db")  # runs init_beanie on the test database
+class TestProjectService:
+    """Tests for ProjectService business logic."""
+
+    async def test_create_project(self) -> None:
+        payload = ProjectCreate(name="Test", description="A test project")
+        project = await ProjectService().create(payload)
+
+        assert project.id is not None
+        assert project.name == "Test"
+
+    async def test_get_by_id_returns_none_for_missing(self) -> None:
+        result = await ProjectService().get_by_id(PydanticObjectId())
+        assert result is None
+{% else %}
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.project import ProjectCreate, ProjectUpdate
@@ -105,6 +132,7 @@ class TestProjectService:
         service = ProjectService(test_db)
         result = await service.get_by_id(99999)
         assert result is None
+{% endif %}
 ```
 
 ### Schema Tests

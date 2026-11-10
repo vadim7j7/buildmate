@@ -42,7 +42,7 @@ Based on the action name, infer:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` and `patterns/auth.md` for conventions
+- `.claude/patterns/frontend-patterns.md` and `.claude/patterns/auth.md` for conventions
 - `skills/new-server-action/references/server-action-examples.md` for examples
 - Existing actions in `src/lib/actions/` and the session helper in `src/lib/auth` / `src/auth.ts`
 

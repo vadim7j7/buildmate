@@ -264,6 +264,7 @@ variables:
 | `quality_gates` | Child overrides parent by key; unmatched parent gates inherited |
 | `variables` | Child overrides parent by key; unmatched parent values inherited |
 | `patterns` | Merged (parent + child) |
+| `reference_patterns` | Merged (parent + child) |
 | `styles` | Merged (parent + child) |
 | `options` | Child overrides parent by key; unmatched parent options inherited |
 | `compatible_with` | Union of parent + child |
@@ -392,6 +393,11 @@ setup:
 - [ ] Parent stacks define base patterns (e.g., `patterns/backend-patterns.md`) and styles
 - [ ] Child stacks add framework-specific patterns; parent patterns are merged automatically
 - [ ] Option-referenced patterns (e.g., MongoDB pattern in `options.db.mongodb.patterns`) must also exist on disk
+- [ ] `patterns:` holds only what agents read before every task (the core framework pattern); topical files (security, testing, pitfalls, auth, caching, logging...) go in `reference_patterns:`, which are installed and listed as "read when the task touches the topic"
+- [ ] Agent templates show the read list with `{% include 'base/partials/read-patterns.md.j2' %}` (it uses `.claude/patterns/...` paths), not a hand-written loop
+- [ ] Agent and skill templates use `variables` / `stack`, which are the stack's own (with its selected options); never assume another stack's values
+- [ ] Content that depends on an option uses Jinja conditions in `.j2` files; a skill whose text depends on an option is a `SKILL.md.j2` (any `*.j2` in a skill folder is rendered at install)
+- [ ] `buildmate --validate <name>` shows no warnings (unreferenced files, folders the installer never reads)
 
 #### 8. Compatible With
 

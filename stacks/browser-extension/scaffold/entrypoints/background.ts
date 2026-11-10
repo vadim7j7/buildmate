@@ -2,7 +2,7 @@ import { browser } from 'wxt/browser';
 import { onMessage } from '@/utils/messaging';
 
 // Background service worker. In Manifest V3 this is killed when idle — keep it
-// event-driven and never rely on module-level state surviving. See patterns/background.md
+// event-driven and never rely on module-level state surviving. See .claude/patterns/background.md
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(({ reason }) => {
     if (reason === 'install') {
@@ -10,7 +10,7 @@ export default defineBackground(() => {
     }
   });
 
-  // Typed message handlers — see utils/messaging.ts and patterns/messaging.md
+  // Typed message handlers — see utils/messaging.ts and .claude/patterns/messaging.md
   onMessage('ping', () => 'pong');
 
   onMessage('getActiveTab', async () => {

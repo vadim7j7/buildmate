@@ -22,11 +22,15 @@ options:
           job_adapter: sidekiq
       good_job:
         description: Postgres-backed job processor (no Redis needed)
+        patterns:
+          - patterns/good_job.md
         variables:
           background_jobs: GoodJob
           job_adapter: good_job
       solid_queue:
         description: Database-backed job processor (Rails 8+ default)
+        patterns:
+          - patterns/solid_queue.md
         variables:
           background_jobs: SolidQueue
           job_adapter: solid_queue
@@ -37,16 +41,28 @@ options:
     choices:
       view_component:
         description: GitHub's ViewComponent (Ruby class + sidecar template)
+        skills:
+          - new-component
+          - new-form-component
+        patterns:
+          - patterns/view-component-patterns.md
+        styles:
+          - styles/view-component-style.md
         variables:
           component_library: ViewComponent
+          component_kind: view_component
       phlex:
         description: Phlex (pure-Ruby views, no ERB)
+        patterns:
+          - patterns/phlex-patterns.md
         variables:
           component_library: Phlex
+          component_kind: phlex
       none:
         description: Plain ERB partials (no component layer)
         variables:
           component_library: None (plain partials)
+          component_kind: none
 
   realtime:
     description: Real-time interactivity layer
@@ -54,21 +70,34 @@ options:
     choices:
       hotwire:
         description: Turbo + Stimulus (server-rendered SPA-like UX)
+        skills:
+          - new-stimulus-controller
+          - new-turbo-frame
+          - new-turbo-stream
         patterns:
           - patterns/hotwire-patterns.md
           - patterns/stimulus-patterns.md
+        styles:
+          - styles/stimulus-style.md
         variables:
           realtime: Hotwire (Turbo + Stimulus)
+          realtime_kind: hotwire
       stimulus_only:
         description: Stimulus only (no Turbo)
+        skills:
+          - new-stimulus-controller
         patterns:
           - patterns/stimulus-patterns.md
+        styles:
+          - styles/stimulus-style.md
         variables:
           realtime: Stimulus
+          realtime_kind: stimulus_only
       none:
         description: Server-rendered HTML only (no JS)
         variables:
           realtime: None
+          realtime_kind: none
 
   ui:
     description: CSS framework
@@ -80,14 +109,17 @@ options:
           - patterns/tailwind-in-rails.md
         variables:
           ui_library: TailwindCSS
+          ui_kind: tailwind
       bootstrap:
         description: Bootstrap 5
         variables:
           ui_library: Bootstrap 5
+          ui_kind: bootstrap
       none:
         description: Plain CSS / SCSS
         variables:
           ui_library: Plain CSS
+          ui_kind: none
 
   preview:
     description: Component preview tool
@@ -155,7 +187,7 @@ agents:
 
   - name: view-developer
     template: agents/view-developer.md.j2
-    description: Senior frontend developer for ViewComponents, Hotwire, and TailwindCSS
+    description: Senior frontend developer for views, components, interactivity and CSS
     model: opus
     tools:
       - Read
@@ -165,18 +197,13 @@ agents:
       - Grep
       - Glob
     skills:
-      - new-component
-      - new-stimulus-controller
-      - new-turbo-frame
-      - new-turbo-stream
       - new-view
       - new-partial
-      - new-form-component
       - new-mailer-template
 
   - name: view-tester
     template: agents/view-tester.md.j2
-    description: ViewComponent + system spec testing specialist
+    description: Component, view and system spec testing specialist
     model: sonnet
     tools:
       - Read
@@ -191,7 +218,7 @@ agents:
 
   - name: view-reviewer
     template: agents/view-reviewer.md.j2
-    description: Reviewer for ViewComponents, Hotwire usage, accessibility, and CSS conventions
+    description: Reviewer for views, components, interactivity, accessibility, and CSS conventions
     model: opus
     tools:
       - Read
@@ -210,31 +237,28 @@ skills:
   - new-policy
   - new-concern
   - new-spec
+  - test
+  - review
   - db-migrate
-  - new-component
-  - new-stimulus-controller
-  - new-turbo-frame
-  - new-turbo-stream
   - new-view
   - new-partial
   - new-helper
-  - new-form-component
   - new-mailer-template
 
 patterns:
+  - patterns/backend-patterns.md
   - patterns/rails-monolith-patterns.md
-  - patterns/auth.md
-  - patterns/pagination.md
+
+reference_patterns:
   - patterns/forms-patterns.md
   - patterns/flash-and-redirect-patterns.md
-  - patterns/view-component-patterns.md
+  - patterns/auth.md
+  - patterns/pagination.md
   - patterns/file-upload.md
   - patterns/verification.md
 
 styles:
-  - styles/view-component-style.md
   - styles/erb-style.md
-  - styles/stimulus-style.md
 
 setup:
   install_command: bundle install && yarn install
@@ -251,8 +275,11 @@ variables:
   linter: RuboCop
   dev_port: 3000
   component_library: ViewComponent
+  component_kind: view_component
   realtime: Hotwire (Turbo + Stimulus)
+  realtime_kind: hotwire
   ui_library: TailwindCSS
+  ui_kind: tailwind
   preview_tool: Lookbook
   background_jobs: Sidekiq
 

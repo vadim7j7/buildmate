@@ -33,9 +33,9 @@ Determine from the component name + context:
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/view-component-patterns.md`
-- `styles/view-component-style.md`
-- `styles/erb-style.md`
+- `.claude/patterns/view-component-patterns.md`
+- `.claude/styles/view-component-style.md`
+- `.claude/styles/erb-style.md`
 - Existing components in `app/components/` for project-specific conventions
 
 ### 3. Generate Files

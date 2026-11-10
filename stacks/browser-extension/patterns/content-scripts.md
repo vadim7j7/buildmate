@@ -96,7 +96,7 @@ export default defineContentScript({
 
 `createIntegratedUi` is the alternative when you want your element to inherit page styles
 (no shadow root). For framework UIs, return/unmount the root in `onMount`/`onRemove`
-(see `styles/ui-react.md`).
+(see `.claude/styles/ui-react.md`).
 
 ## 5. Isolated vs main world
 
@@ -109,7 +109,7 @@ export default defineContentScript({
 ## 6. Talking to the rest of the extension
 
 Content scripts can't call most privileged APIs. Send a typed message to the background
-to do privileged work (`patterns/messaging.md`):
+to do privileged work (`.claude/patterns/messaging.md`):
 
 ```typescript
 import { sendMessage } from '@/utils/messaging';
@@ -121,7 +121,7 @@ main() {
 ## 7. Security with untrusted page content
 
 The page is hostile. Never inject unsanitised page/user strings via `innerHTML`; never
-`eval` page-provided code. See `patterns/security.md`.
+`eval` page-provided code. See `.claude/patterns/security.md`.
 
 ## Checklist
 

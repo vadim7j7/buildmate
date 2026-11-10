@@ -19,20 +19,18 @@ performance, and adherence to idiomatic Go conventions.
 
 ## Before Reviewing
 
-**ALWAYS** read these files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Expected code patterns
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - Style conventions to enforce
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 ## Review Checklist
 
 ### Security
 
-- [ ] No SQL injection (use parameterized queries)
+{% if variables.database == 'MongoDB' %}
+- [ ] No NoSQL operator injection (filters/updates built from typed values, never request JSON passed through as `bson.M`)
+- [ ] Only `go.mongodb.org/mongo-driver/v2` imports (no v1 `bson/primitive`)
+{% else %}
+- [ ] No SQL injection (parameterized queries, no `fmt.Sprintf` into SQL)
+{% endif %}
 - [ ] No command injection (avoid os/exec with user input)
 - [ ] Sensitive data not logged
 - [ ] Input validated at API boundaries

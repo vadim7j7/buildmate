@@ -55,7 +55,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 @router.post("/process")
 async def process_data(data: DataInput):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(executor, expensive_computation, data)
     return result
 ```

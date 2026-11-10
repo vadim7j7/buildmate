@@ -30,11 +30,10 @@ content-script behaviour, and UI surfaces in isolation — mocking the WebExtens
 
 ## Before Writing Tests
 
-Read these first:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-- `patterns/{{ pattern | basename }}`
-{% endfor %}
+**Also read:**
+
 - `vitest.config.ts` and any existing `*.test.ts` files for established conventions
 - The code under test — understand the message protocol and storage shape
 

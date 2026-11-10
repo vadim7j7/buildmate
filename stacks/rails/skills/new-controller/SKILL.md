@@ -23,8 +23,8 @@ integration for JSON responses, and proper error handling.
 
 1. **Read reference patterns.** Load the controller pattern from:
    - `skills/new-controller/references/controller-examples.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine namespace and class name.** Parse the argument:
    - `Profiles` becomes `Api::V1::ProfilesController`

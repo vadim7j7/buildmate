@@ -87,7 +87,7 @@ overlays, scope a base font-size on your shadow container or prefer fixed units 
 - ✅ `cssInjectionMode: 'ui'` for any Tailwind used in a content-script shadow root.
 - ❌ Don't expect page-level Tailwind to reach a shadow root.
 - ❌ Don't add a CDN `<script src="cdn.tailwindcss.com">` — MV3 CSP forbids remote code
-  (see `patterns/security.md`).
+  (see `.claude/patterns/security.md`).
 
 ## Checklist
 

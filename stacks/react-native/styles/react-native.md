@@ -6,128 +6,24 @@ agents must follow these conventions when generating or modifying code.
 
 ---
 
-## 1. StyleSheet.create Rules
+## 1. Styling Approach
 
-**Always** use `StyleSheet.create()` for all styles. Never use inline style objects.
+Style with the library this project was set up with, and nothing else:
 
-```typescript
-// CORRECT
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: spacing.md,
-    backgroundColor: colors.background,
-  },
-});
-
-<View style={styles.container} />
-
-// CORRECT - combining styles
-<View style={[styles.container, styles.centered]} />
-
-// CORRECT - conditional styles
-<Text style={[styles.label, isActive && styles.labelActive]} />
-
-// WRONG - inline style object
-<View style={{ flex: 1, padding: 16, backgroundColor: '#fff' }} />
-
-// WRONG - computed object outside StyleSheet
-const customStyle = { padding: 16 };
-<View style={customStyle} />
-```
-
-Define styles at the bottom of the file, after the component:
-
-```typescript
-export function MyComponent() {
-  return <View style={styles.container}>...</View>;
-}
-
-const styles = StyleSheet.create({
-  container: { ... },
-});
-```
-
----
-
-## 2. Theme Constants
-
-Import all visual values from `@/constants`. **Never hardcode** colours, fonts,
-or border radii.
-
-```typescript
-// CORRECT
-import { colors, spacing, typography, borderRadius, shadows } from '@/constants';
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    ...shadows.sm,
-  },
-  title: {
-    ...typography.heading3,
-    color: colors.text,
-  },
-});
-
-// WRONG - hardcoded values
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-});
-```
-
-Available constant modules:
-
-| Module | Purpose | Example |
+| Project uses | Rules | Style with |
 |---|---|---|
-| `colors` | Colour palette | `colors.primary`, `colors.text`, `colors.surface` |
-| `spacing` | Spacing scale | `spacing.xs`, `spacing.md`, `spacing.xl` |
-| `typography` | Font presets | `typography.body`, `typography.heading3` |
-| `borderRadius` | Border radius scale | `borderRadius.sm`, `borderRadius.md` |
-| `shadows` | Platform shadows | `shadows.sm`, `shadows.md` |
-| `layout` | Screen dimensions | `layout.screenWidth`, `layout.safeAreaTop` |
+| Plain StyleSheet | `.claude/styles/stylesheet.md` | `StyleSheet.create()` + theme constants from `@/constants` |
+| NativeWind | `.claude/styles/nativewind.md` | `className` utility classes + the Tailwind theme |
+| Tamagui | `.claude/styles/tamagui.md` | Tamagui components with style props + `$tokens` |
+| Gluestack UI | `.claude/styles/gluestack.md` | Gluestack components + its theme tokens |
+
+Only the file for this project's library is installed. Whatever the library:
+never hardcode colours, spacing or font sizes — use the theme tokens/constants,
+and don't mix a second styling system into the same component.
 
 ---
 
-## 3. Spacing Scale
-
-Use the standard spacing scale for all padding, margin, and gap values:
-
-| Token | Value | Use for |
-|---|---|---|
-| `spacing.xs` | 4 | Tight spacing, icon gaps |
-| `spacing.sm` | 8 | Inner padding, list item gaps |
-| `spacing.md` | 16 | Standard padding, section gaps |
-| `spacing.lg` | 24 | Section separators, card padding |
-| `spacing.xl` | 32 | Screen-level padding, major sections |
-| `spacing.xxl` | 48 | Hero areas, large separators |
-
-```typescript
-// CORRECT
-padding: spacing.md,
-marginBottom: spacing.lg,
-gap: spacing.sm,
-
-// WRONG
-padding: 16,
-marginBottom: 24,
-gap: 8,
-```
-
----
-
-## 4. Platform.OS Handling
+## 2. Platform.OS Handling
 
 Use `Platform.OS` for platform-specific behaviour. Common differences:
 
@@ -153,18 +49,14 @@ Use `Platform.OS` for platform-specific behaviour. Common differences:
 {Platform.OS === 'android' && (
   <FloatingActionButton icon="plus" onPress={handleAdd} />
 )}
-
-// Platform-specific styles using the shadows constant
-const styles = StyleSheet.create({
-  card: {
-    ...shadows.sm,  // Handles iOS shadows + Android elevation
-  },
-});
 ```
+
+Shadows differ per platform (iOS `shadow*` props, Android `elevation`): use the
+shared shadow tokens of the project's styling library rather than writing both by hand.
 
 ---
 
-## 5. FlashList Usage
+## 3. FlashList Usage
 
 Use `FlashList` for any list with more than ~20 items. Never use `ScrollView` +
 `.map()` or `FlatList` for long lists.
@@ -202,7 +94,7 @@ Rules:
 
 ---
 
-## 6. React.memo and Performance
+## 4. React.memo and Performance
 
 Wrap list item components with `React.memo()`. Use `useCallback` for event
 handlers passed to children. Use `useMemo` for expensive computations.
@@ -248,7 +140,7 @@ When to use:
 
 ---
 
-## 7. expo-image
+## 5. expo-image
 
 Use `expo-image` instead of `<Image>` from `react-native` for all image display:
 
@@ -275,7 +167,7 @@ performance than the built-in `Image` component.
 
 ---
 
-## 8. i18n Requirements
+## 6. i18n Requirements
 
 All user-facing strings **must** use the `t()` function from `react-i18next`.
 Never hardcode UI text.
@@ -325,14 +217,14 @@ Rules:
 
 ---
 
-## 9. Import Conventions
+## 7. Import Conventions
 
 Use the `@/` alias mapped to the project root. Group imports in five sections:
 
 ```typescript
 // 1. React / React Native
 import { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, Platform, Pressable } from 'react-native';
 
 // 2. Expo / expo-router
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -354,15 +246,14 @@ import { formatAmount } from './utils';
 
 ---
 
-## 10. Naming Conventions
+## 8. Naming Conventions
 
 | Entity | Convention | Example |
 |---|---|---|
 | Screen file | kebab-case or index | `transactions.tsx`, `[id].tsx` |
 | Component | PascalCase | `TransactionCard`, `EmptyState` |
 | Component file | PascalCase.tsx | `TransactionCard.tsx` |
-| Zustand store | `use` + PascalCase + `Store` | `useTransactionStore` |
-| Store file | camelCase.ts | `useTransactionStore.ts` |
+| UI state (if a state library is used) | as in `.claude/patterns/<library>.md` | `useTransactionStore`, `transactionSlice`, `transactionAtom` |
 | React Query hook | `use` + PascalCase | `useTransactions`, `useCreateTransaction` |
 | Query hook file | camelCase.ts | `useTransactions.ts` |
 | Drizzle query file | camelCase.ts | `transactions.ts` |
@@ -373,7 +264,7 @@ import { formatAmount } from './utils';
 
 ---
 
-## 11. TypeScript Strict Mode
+## 9. TypeScript Strict Mode
 
 TypeScript strict mode is enabled. Follow these rules:
 
@@ -415,7 +306,7 @@ Rules:
 
 ---
 
-## 12. Error Handling
+## 10. Error Handling
 
 Handle three states for every data operation: **loading**, **error**, and **success**.
 
@@ -448,7 +339,7 @@ Rules:
 
 ---
 
-## 13. Safe Area and Keyboard
+## 11. Safe Area and Keyboard
 
 Use `SafeAreaView` or `useSafeAreaInsets` for notch and Dynamic Island handling.
 Use `KeyboardAvoidingView` for form screens.
@@ -488,7 +379,7 @@ Rules:
 
 ---
 
-## 14. ESLint and TypeScript Enforcement
+## 12. ESLint and TypeScript Enforcement
 
 These rules are enforced by ESLint and TypeScript. Run before every commit:
 
@@ -508,7 +399,7 @@ Key ESLint rules:
 - `@typescript-eslint/no-non-null-assertion` -- disallow `!` operator
 - `react-hooks/rules-of-hooks` -- enforce rules of hooks
 - `react-hooks/exhaustive-deps` -- enforce correct dependency arrays
-- `react-native/no-inline-styles` -- disallow inline style objects
 - `react-native/no-color-literals` -- disallow hardcoded colours in styles
+- `react-native/no-inline-styles` -- disallow inline style objects (plain StyleSheet projects)
 
 All three commands must pass with zero errors before code is considered complete.

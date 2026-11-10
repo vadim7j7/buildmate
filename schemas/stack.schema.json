@@ -91,6 +91,13 @@
       },
       "description": "Pattern files to include (relative paths)"
     },
+    "reference_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Pattern files installed but read only when relevant (security, testing, pitfalls...), not before every task"
+    },
     "styles": {
       "type": "array",
       "items": {

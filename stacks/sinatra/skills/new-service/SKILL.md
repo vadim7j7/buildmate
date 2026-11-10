@@ -20,8 +20,8 @@ method and corresponding RSpec spec.
 ## How It Works
 
 1. **Read reference patterns.** Load the service pattern from:
-   - `patterns/sinatra-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/sinatra-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine service name.** Parse the argument to determine the class name:
    - `ArticlePublish` becomes `ArticlePublishService` in `app/services/article_publish_service.rb`

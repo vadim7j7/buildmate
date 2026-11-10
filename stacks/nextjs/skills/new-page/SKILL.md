@@ -52,7 +52,7 @@ If the project has no `src/app/[locale]/` directory (i18n was removed), drop the
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/frontend-patterns.md` and `patterns/i18n.md` for conventions
+- `.claude/patterns/frontend-patterns.md` and `patterns/i18n.md` for conventions
 - `skills/new-page/references/page-examples.md` for examples
 - The project's UI library style guide (in `styles/`) for loading/error components
 - Existing pages in `src/app/[locale]/` and data functions in `src/lib/data/`

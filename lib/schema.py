@@ -167,6 +167,10 @@ def check_agent_conflicts(stack_configs: list[dict[str, Any]]) -> list[str]:
     return warnings
 
 
+# Stack sub-folders the installer reads (scaffold is configurable, see stack.yaml)
+KNOWN_STACK_DIRS = {"agents", "skills", "patterns", "styles", "hooks", "scaffold"}
+
+
 def check_stack_files(
     stack_dir: Path, config: dict[str, Any]
 ) -> tuple[list[str], list[str]]:
@@ -178,7 +182,8 @@ def check_stack_files(
     the stack or its parent; a referenced skill must exist in the stack, its
     parent or ``base/skills``. Files and skill folders on disk that nothing
     references are reported as warnings, as are directories the installer
-    never reads (``infrastructure/``).
+    never reads (any folder other than agents, skills, patterns, styles,
+    hooks, scaffold).
 
     Args:
         stack_dir: Path to ``stacks/<name>``
@@ -194,7 +199,7 @@ def check_stack_files(
     base_skills = stacks_root.parent / "base" / "skills"
 
     def references(cfg: dict[str, Any]) -> tuple[set[str], set[str], set[str]]:
-        pats = set(cfg.get("patterns") or [])
+        pats = set(cfg.get("patterns") or []) | set(cfg.get("reference_patterns") or [])
         stys = set(cfg.get("styles") or [])
         skls = set(cfg.get("skills") or [])
         for agent in cfg.get("agents") or []:
@@ -228,9 +233,9 @@ def check_stack_files(
         if not exists(rel):
             errors.append(f"Referenced file not found: {rel}")
     for skill in sorted(skills):
-        if not (
-            exists(f"skills/{skill}/SKILL.md")
-            or (base_skills / skill / "SKILL.md").exists()
+        if not any(
+            exists(f"skills/{skill}/{name}") or (base_skills / skill / name).exists()
+            for name in ("SKILL.md", "SKILL.md.j2")
         ):
             errors.append(f"Skill '{skill}' has no SKILL.md (stack, parent or base)")
 
@@ -267,7 +272,10 @@ def check_stack_files(
             if d.is_dir() and d.name not in skills and d.name not in child_skills:
                 warnings.append(f"Unreferenced skill: skills/{d.name}")
 
-    if (stack_dir / "infrastructure").is_dir():
-        warnings.append("infrastructure/ is never installed (lib/ does not read it)")
+    for folder in sorted(stack_dir.iterdir()):
+        if folder.is_dir() and folder.name not in KNOWN_STACK_DIRS:
+            warnings.append(
+                f"{folder.name}/ is never installed (lib/ does not read it)"
+            )
 
     return errors, warnings

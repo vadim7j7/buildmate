@@ -17,27 +17,31 @@ options:
     default: postgresql
     choices:
       postgresql:
-        description: PostgreSQL with pgx driver
+        description: PostgreSQL with pgx v5 (pgxpool)
         variables:
           database: PostgreSQL
-          db_driver: pgx
+          orm: pgx v5 (pgxpool)
+          db_driver: github.com/jackc/pgx/v5
       mysql:
-        description: MySQL with go-sql-driver
+        description: MySQL with database/sql and go-sql-driver/mysql
         variables:
           database: MySQL
-          db_driver: go-sql-driver/mysql
+          orm: database/sql
+          db_driver: github.com/go-sql-driver/mysql
       sqlite:
-        description: SQLite with modernc driver
+        description: SQLite with database/sql and the pure-Go modernc driver
         variables:
           database: SQLite
+          orm: database/sql
           db_driver: modernc.org/sqlite
       mongodb:
-        description: MongoDB with official Go driver
+        description: MongoDB with the official Go driver v2
         patterns:
           - patterns/mongodb.md
         variables:
           database: MongoDB
-          db_driver: go.mongodb.org/mongo-driver
+          orm: official MongoDB Go driver v2
+          db_driver: go.mongodb.org/mongo-driver/v2
 
 agents:
   - name: backend-developer
@@ -117,5 +121,7 @@ variables:
   language: Go 1.25+
   test_framework: testing + testify
   linter: golangci-lint
+  # Fallbacks only: the db option (default postgresql) always sets orm, db_driver and database.
   orm: database/sql
+  db_driver: github.com/jackc/pgx/v5
   database: PostgreSQL

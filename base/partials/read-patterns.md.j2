@@ -1,0 +1,16 @@
+{#- What an agent reads before working. Uses `stack` from the agent's context. -#}
+**Read before you start:**
+{% for pattern in stack.patterns %}
+- `.claude/patterns/{{ pattern | basename }}`
+{% endfor %}
+{% for style in stack.styles %}
+- `.claude/styles/{{ style | basename }}`
+{% endfor %}
+{% if stack.reference_patterns %}
+
+**Read when the task touches the topic:**
+{% for pattern in stack.reference_patterns %}
+- `.claude/patterns/{{ pattern | basename }}` ({{ pattern | basename | replace('.md', '') | replace('-', ' ') }})
+{% endfor %}
+{% endif %}
+

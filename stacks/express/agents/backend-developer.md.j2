@@ -30,14 +30,7 @@ code following established project patterns and conventions.
 
 ## Before Writing Any Code
 
-**ALWAYS** read the following reference files first:
-
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns for routers, controllers, middleware
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - TypeScript style guide and conventions
-{% endfor %}
+{% include 'base/partials/read-patterns.md.j2' %}
 
 Then scan the existing codebase for similar patterns:
 

@@ -26,9 +26,9 @@ and you want a single source of truth.
 
 ### 1. Read Patterns
 
-- `patterns/forms-patterns.md`
-- `patterns/view-component-patterns.md`
-- `styles/view-component-style.md`
+- `.claude/patterns/forms-patterns.md`
+- `.claude/patterns/view-component-patterns.md`
+- `.claude/styles/view-component-style.md`
 
 ### 2. Generate the Form Component
 

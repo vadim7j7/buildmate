@@ -3,6 +3,16 @@
 Reference patterns for code generation based on React Native + Expo conventions.
 All agents and skills should follow these patterns when generating code.
 
+**Styling in these examples** is plain `StyleSheet` + `@/constants`. If the project
+uses NativeWind, Tamagui or Gluestack (its guide is in `.claude/styles/`), keep the
+structure and style the way that guide shows (`className`, style props, tokens) —
+don't add `StyleSheet.create` next to it.
+
+**UI state** examples depend on the state library the project uses: its code lives
+in the matching `.claude/patterns/` file (`zustand.md`, `redux.md`, `mobx.md` or
+`jotai.md`). With no state library, keep UI state in components (`useState`,
+context) and server/database data in React Query.
+
 ---
 
 ## Pattern 1: Screen with Data Loading
@@ -83,70 +93,27 @@ const styles = StyleSheet.create({
 - `FlashList` (v2: no `estimatedItemSize`; use `getItemType` for mixed rows) for performant list rendering
 - `ListEmptyComponent` shows empty state only when not loading
 - Pull-to-refresh via `onRefresh` + `refreshing` from React Query
-- All styles via `StyleSheet.create` with theme constants
+- Styles via the project's styling library with theme tokens (StyleSheet shown here)
 - All user-facing strings via `t('key')`
 
 ---
 
-## Pattern 2: Zustand Store
+## Pattern 2: UI State
 
-A UI-only Zustand store with selectors, actions, and reset function.
-
-```typescript
-// src/stores/useTransactionStore.ts
-import { create } from 'zustand';
-
-interface TransactionStoreState {
-  filterCategory: string | null;
-  sortOrder: 'asc' | 'desc';
-  isFilterVisible: boolean;
-  searchQuery: string;
-  setFilterCategory: (category: string | null) => void;
-  toggleSortOrder: () => void;
-  setFilterVisible: (visible: boolean) => void;
-  setSearchQuery: (query: string) => void;
-  reset: () => void;
-}
-
-const initialState = {
-  filterCategory: null,
-  sortOrder: 'desc' as const,
-  isFilterVisible: false,
-  searchQuery: '',
-};
-
-export const useTransactionStore = create<TransactionStoreState>()((set) => ({
-  ...initialState,
-  setFilterCategory: (category) => set({ filterCategory: category }),
-  toggleSortOrder: () =>
-    set((state) => ({
-      sortOrder: state.sortOrder === 'asc' ? 'desc' : 'asc',
-    })),
-  setFilterVisible: (visible) => set({ isFilterVisible: visible }),
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  reset: () => set(initialState),
-}));
-
-// Selector hooks for fine-grained subscriptions
-export const useFilterCategory = () =>
-  useTransactionStore((s) => s.filterCategory);
-export const useSortOrder = () =>
-  useTransactionStore((s) => s.sortOrder);
-export const useIsFilterVisible = () =>
-  useTransactionStore((s) => s.isFilterVisible);
-export const useSearchQuery = () =>
-  useTransactionStore((s) => s.searchQuery);
-```
+UI state (filters, sort order, visibility toggles, drafts) is kept apart from data.
+Write it with the project's state library, following its pattern file in
+`.claude/patterns/` (or `/new-store` when the skill is installed).
 
 ### Key Points
 
-- `initialState` extracted as a constant for the `reset()` method
-- Store contains **UI state only**: filters, sort order, visibility toggles
-- **Never** store server data, API responses, or database records in Zustand
-- Selector hooks exported for fine-grained subscriptions (avoids unnecessary re-renders)
-- `reset()` method required for testing (reset store between tests)
-- `interface` used for store state type (Zustand convention)
-- Actions are simple `set()` calls; complex logic goes in services
+- Holds **UI state only**: filters, sort order, visibility toggles, form drafts
+- **Never** store server data, API responses, or database records there — that is
+  React Query's job (Pattern 3)
+- Expose fine-grained reads (selector hooks, typed selectors, single atoms) so a
+  component re-renders only for what it reads
+- Provide a way back to the initial state (`reset()` / reset atom / fresh instance)
+  so tests start clean
+- Actions stay simple; complex logic goes in services
 
 ---
 
@@ -305,9 +272,11 @@ export async function deleteTransaction(id: string) {
 
 ---
 
-## Pattern 5: Component with StyleSheet
+## Pattern 5: Reusable Component
 
 A reusable component using theme constants, spacing scale, and platform shadows.
+Shown with plain `StyleSheet`; with NativeWind, Tamagui or Gluestack keep the props,
+`React.memo` and i18n parts and write the styling as `.claude/styles/<library>.md` shows.
 
 ```typescript
 // src/components/ui/TransactionCard.tsx
@@ -402,8 +371,10 @@ const styles = StyleSheet.create({
 ### Key Points
 
 - `React.memo()` wraps list item components for performance
-- All styles via `StyleSheet.create` (never inline objects)
-- Theme constants imported from `@/constants` (colors, spacing, typography, borderRadius, shadows)
+- Styles through the project's styling library — plain StyleSheet: `StyleSheet.create`
+  (never inline objects); NativeWind: `className`; Tamagui / Gluestack: component style
+  props with theme tokens
+- Theme values from the theme (StyleSheet: `@/constants` colors, spacing, typography, borderRadius, shadows)
 - Spacing uses the scale: `xs=4, sm=8, md=16, lg=24, xl=32, xxl=48`
 - Platform shadows via `shadows` constants (differ for iOS vs Android)
 - `expo-image` used instead of `<Image>` from react-native
@@ -667,9 +638,9 @@ export default function TabLayout() {
 | I need to... | Use this pattern |
 |---|---|
 | Display a list of data | Pattern 1: Screen with Data Loading |
-| Track UI state (filters, modals) | Pattern 2: Zustand Store |
+| Track UI state (filters, modals) | Pattern 2: UI State |
 | Fetch or mutate data | Pattern 3: React Query Hook |
 | Read/write to database | Pattern 4: Drizzle ORM Query Module |
-| Build a reusable UI component | Pattern 5: Component with StyleSheet |
+| Build a reusable UI component | Pattern 5: Reusable Component |
 | Build a create/edit form | Pattern 6: Form Screen |
 | Set up navigation structure | Pattern 7: Navigation Layout |

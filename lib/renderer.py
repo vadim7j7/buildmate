@@ -248,11 +248,14 @@ def render_stack_agents(
         source = agent.source_stack or stack.name
         template_path = f"stacks/{source}/{agent.template}"
 
-        # Add agent-specific context
+        # Add agent-specific context. `variables` is this stack's own (with its
+        # selected options), not the merge of every stack in the project:
+        # in rails+nextjs the Rails agents must not see Next.js values.
         agent_context = {
             **context,
             "agent": agent,
             "stack": stack,
+            "variables": stack.variables,
         }
 
         try:
@@ -343,7 +346,10 @@ def collect_skills(config: ComposedConfig) -> dict[str, Path]:
 
 
 def render_skill_templates(
-    env: Environment, context: dict[str, Any], skills: dict[str, Path]
+    env: Environment,
+    context: dict[str, Any],
+    skills: dict[str, Path],
+    stacks: list[StackConfig],
 ) -> dict[str, str]:
     """
     Render ``*.j2`` files that live inside skill directories.
@@ -355,17 +361,31 @@ def render_skill_templates(
         env: Jinja2 environment rooted at the repo
         context: Template context
         skills: skill_name -> source directory
+        stacks: Composed stacks; a stack's skills get its stack/variables
 
     Returns:
         Dictionary of "<skill>/<relative path>" -> rendered content
     """
     rendered = {}
     for skill_name, skill_dir in skills.items():
+        skill_context = context
+        # A stack's skill is rendered with that stack (and its own variables)
+        for stack in stacks:
+            owners = [stack.stack_path] + (
+                [stack.parent_stack_path] if stack.parent_stack_path else []
+            )
+            if any(owner in skill_dir.parents for owner in owners):
+                skill_context = {
+                    **context,
+                    "stack": stack,
+                    "variables": stack.variables,
+                }
+                break
         for template_file in sorted(skill_dir.rglob("*.j2")):
             template_path = template_file.relative_to(V2_ROOT).as_posix()
             rel = template_file.relative_to(skill_dir).as_posix()[: -len(".j2")]
             template = env.get_template(template_path)
-            rendered[f"{skill_name}/{rel}"] = template.render(**context)
+            rendered[f"{skill_name}/{rel}"] = template.render(**skill_context)
     return rendered
 
 
@@ -527,7 +547,9 @@ def render_all(config: ComposedConfig, dashboard: bool = False) -> RenderedOutpu
 
     # Collect skills, then render templates inside them (e.g. pm/orchestrator.md)
     output.skills = collect_skills(config)
-    output.skill_files = render_skill_templates(env, context, output.skills)
+    output.skill_files = render_skill_templates(
+        env, context, output.skills, config.stacks
+    )
 
     # Collect project-root scaffold (rendered .j2 / verbatim files)
     output.scaffold = collect_scaffold(env, context, config)

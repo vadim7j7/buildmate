@@ -21,7 +21,7 @@ children (Rails, Sinatra) override with their own conventions.
 ## How It Works
 
 1. **Read reference patterns.** Load the service pattern from:
-   - `styles/backend-ruby.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine service name.** Parse the argument to determine the class name:
    - `ArticlePublish` becomes `ArticlePublishService` in `app/services/article_publish_service.rb`

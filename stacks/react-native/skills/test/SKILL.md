@@ -89,7 +89,7 @@ If running as part of a sequential pipeline, write results to
 
 When writing new tests or fixing failing tests, enforce these rules:
 
-1. **Reset Zustand stores** before every test via `beforeEach`
+1. **Isolate UI state** between tests (reset stores / fresh store or instance in `beforeEach`, as `.claude/patterns/<state library>.md` shows)
 2. **Fresh QueryClient** per test -- never share cached data
 3. **Mock database queries** -- never hit the real database
 4. **Mock expo-router** -- navigation must be mocked
@@ -103,4 +103,4 @@ See `references/rn-jest-patterns.md` for complete code examples.
 - If no test configuration is found, report the error and suggest adding Jest config
 - If tests fail, report failures clearly but do NOT attempt to fix production code
 - If the test runner crashes, report the full error output
-- If Zustand state leaks between tests, report it as a test infrastructure issue
+- If store state leaks between tests, report it as a test infrastructure issue

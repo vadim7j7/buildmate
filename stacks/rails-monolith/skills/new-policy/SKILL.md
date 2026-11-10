@@ -23,8 +23,8 @@ comprehensive authorization tests.
 
 1. **Read reference patterns.** Load policy patterns from:
    - `skills/new-policy/references/policy-examples.md`
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine policy name.** Parse the argument to determine:
    - Class name (e.g., `PostPolicy`)

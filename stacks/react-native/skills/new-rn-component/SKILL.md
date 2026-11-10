@@ -1,6 +1,6 @@
 ---
 name: new-rn-component
-description: Generate a new React Native component with StyleSheet, theme constants, and TypeScript props
+description: Generate a new React Native component with the project's styling library, theme tokens, and TypeScript props
 ---
 
 # /new-rn-component -- Generate a React Native Component
@@ -8,8 +8,9 @@ description: Generate a new React Native component with StyleSheet, theme consta
 ## What This Does
 
 Generates a new React Native component following project conventions: TypeScript
-interface for props, StyleSheet.create for styles, theme constants for colours
-and spacing, and platform-specific considerations.
+interface for props, the project's styling library for styles (plain `StyleSheet`,
+NativeWind, Tamagui or Gluestack — see `.claude/styles/`), theme constants or tokens
+for colours and spacing, and platform-specific considerations.
 
 ## Usage
 
@@ -48,13 +49,15 @@ Default directory is `ui`. Common directories:
 Create the component with:
 - TypeScript `interface` for props (exported)
 - Functional component with destructured props
-- `StyleSheet.create()` for all styles
-- Theme constants imported from `@/constants`
+- Styles the way the project's style guide in `.claude/styles/` shows: plain StyleSheet
+  → `StyleSheet.create()` + theme constants from `@/constants`; NativeWind → `className`;
+  Tamagui / Gluestack → their components with style props and `$tokens`
 - Platform-specific handling where relevant
 - Optional `testID` prop for testing
 - `React.memo` wrapping if it's a list item component
 
-See `references/rn-component-examples.md` for templates.
+See `references/rn-component-examples.md` for templates (written with plain StyleSheet;
+keep their structure and swap the styling when the project uses another library).
 
 ### 3. Generate Test File
 
@@ -87,7 +90,9 @@ export interface TransactionCardProps {
 }
 ```
 
-### StyleSheet
+### Styles (plain StyleSheet projects)
+
+With NativeWind, Tamagui or Gluestack, follow `.claude/styles/<library>.md` instead.
 
 ```typescript
 // Always at the bottom of the file
@@ -101,7 +106,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-### Theme Constants
+### Theme Constants (plain StyleSheet projects)
 
 Always import from `@/constants`:
 ```typescript

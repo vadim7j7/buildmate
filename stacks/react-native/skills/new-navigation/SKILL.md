@@ -37,7 +37,7 @@ without adding a URL segment (`src/app/(tabs)/profile.tsx` is `/profile`).
 ### 2. Read Existing Patterns
 
 Before generating, read:
-- `patterns/mobile-patterns.md` for conventions
+- `.claude/patterns/mobile-patterns.md` for conventions
 - `skills/new-navigation/references/navigation-examples.md` for examples
 - The existing `src/app/` tree (especially `src/app/_layout.tsx`) — never add a
   second root layout

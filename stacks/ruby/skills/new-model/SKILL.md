@@ -11,7 +11,7 @@ Generates a Sequel model (the stack's ORM) with migration file, model class, and
 RSpec spec. This is the generic Ruby version — framework children override with
 their own conventions.
 
-If the project uses MongoDB (`--db=mongodb`), follow `patterns/mongoid.md` instead:
+If the project uses MongoDB (`--db=mongodb`), follow `.claude/patterns/mongoid.md` instead:
 Mongoid models declare fields in the class and have no migrations.
 
 ## Usage
@@ -24,8 +24,8 @@ Mongoid models declare fields in the class and have no migrations.
 ## How It Works
 
 1. **Read reference patterns.** Load the model pattern from:
-   - `patterns/backend-patterns.md`
-   - `styles/backend-ruby.md`
+   - `.claude/patterns/backend-patterns.md`
+   - `.claude/styles/backend-ruby.md`
 
 2. **Determine the model name and attributes.** Parse the argument and infer
    attributes based on the model name and context.

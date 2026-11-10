@@ -26,25 +26,31 @@ mobile code that runs on both iOS and Android.
   RN 0.82+) — no `newArchEnabled` toggles, no libraries that only support the old one
 - {{ variables.language }}; linting with {{ variables.linter }}; package manager {{ variables.package_manager }}
 - {{ variables.navigation }} for file-based navigation
-- {{ variables.ui_state }} for UI state management
+{% if variables.state_library != 'None' %}
+- {{ variables.state_library }} for UI state management
+{% else %}
+- Component state (`useState`, `useReducer`, context) for UI state — no global store library
+{% endif %}
 - {{ variables.server_state }} for server/database state
 - {{ variables.database }} for local database operations
 - {{ variables.lists }} for performant lists
 - {{ variables.i18n }} for internationalisation
+{% if variables.ui_library == 'StyleSheet' %}
 - StyleSheet.create with theme constants
+{% elif variables.ui_library == 'NativeWind' %}
+- NativeWind (`className` utility classes) with the Tailwind theme
+{% else %}
+- {{ variables.ui_library }} components with theme tokens
+{% endif %}
 
 ## Before Writing Any Code
 
-**ALWAYS** read these files first to understand project conventions:
+{% include 'base/partials/read-patterns.md.j2' %}
 
-{% for pattern in stack.patterns %}
-1. `patterns/{{ pattern | basename }}` - Code patterns and examples
-{% endfor %}
-{% for style in stack.styles %}
-2. `styles/{{ style | basename }}` - React Native style conventions
-{% endfor %}
-3. `CLAUDE.md` - Project structure, technology stack, and conventions
-4. Scan existing code in `src/app/`, `src/components/`, `src/stores/`, and `src/queries/` for established patterns
+**Then:**
+
+1. `CLAUDE.md` - Project structure, technology stack, and conventions
+2. Scan existing code in `src/app/`, `src/components/`, {% if variables.state_library == 'Redux Toolkit' %}`src/store/`, {% elif variables.state_library == 'Jotai' %}`src/atoms/`, {% elif variables.state_library != 'None' %}`src/stores/`, {% endif %}and `src/queries/` for established patterns
 
 ## Project Layout
 
@@ -56,11 +62,19 @@ src/
   app/           # expo-router routes ONLY (_layout.tsx, (tabs)/, (modals)/, [id].tsx)
   components/    # ui/, lists/, forms/
   hooks/
-  stores/        # UI-state stores only (never server/DB data)
+{% if variables.state_library == 'Redux Toolkit' %}
+  store/         # Redux store, typed hooks, slices/ (UI state only, never server/DB data)
+{% elif variables.state_library == 'Jotai' %}
+  atoms/         # Jotai atoms (UI state only, never server/DB data)
+{% elif variables.state_library != 'None' %}
+  stores/        # {{ variables.state_library }} UI-state stores only (never server/DB data)
+{% endif %}
   queries/       # React Query hooks + queryKeys.ts
   db/            # schema.ts, client.ts, queries/<entity>.ts, migrations/ (generated)
   i18n/          # index.ts + locales/<code>.json
+{% if variables.ui_library == 'StyleSheet' %}
   constants/     # colors, spacing, typography, shadows
+{% endif %}
 babel.config.js  # inline-import for Drizzle .sql migrations
 metro.config.js  # resolver.sourceExts += 'sql'
 ```
@@ -70,22 +84,31 @@ there becomes a route.
 
 ## State Management Rules (CRITICAL)
 
-### Zustand -- UI State ONLY
+{% if variables.state_library != 'None' %}
+### {{ variables.state_library }} -- UI State ONLY
 
-Zustand stores hold **transient UI state** that does not originate from the server
-or database.
+{{ variables.state_library }} holds **transient UI state** that does not originate from the server
+or database. Write it as `.claude/patterns/{{ variables.state_library | lower | replace(' toolkit', '') }}.md` shows (`/new-store` generates it).
 
-**Acceptable Zustand state:**
+**Acceptable {{ variables.state_library }} state:**
 - Loading indicators, modal visibility, bottom sheet state
 - Form draft values (before submission)
 - Selected tab index, filter selections, sort order
 - Onboarding step, theme preference, locale selection
 
-**NEVER put in Zustand:**
+**NEVER put in {{ variables.state_library }}:**
 - Server data (API responses)
 - Database records
 - Cached query results
 - User profile data from the backend
+{% else %}
+### UI State -- Component State Only
+
+There is no global state library. Keep transient UI state (modal visibility, drafts,
+filters) in the component (`useState` / `useReducer`), lift it to the nearest common
+parent, or share it via a small React context. Never copy server or database data
+into component state — read it from React Query.
+{% endif %}
 
 ### React Query -- Server / Database State
 
@@ -100,6 +123,162 @@ called from React Query hooks.
 
 ### List Screen
 
+{% if variables.ui_library == 'NativeWind' %}
+{% raw %}
+```typescript
+// src/app/(tabs)/items.tsx
+import { View, Text, Platform } from 'react-native';
+import { Stack, Link, router } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
+import { useTranslation } from 'react-i18next';
+import { useItems } from '@/queries/useItems';
+import { ItemCard } from '@/components/lists/ItemCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+
+export default function ItemsScreen() {
+  const { t } = useTranslation();
+  const { data: items, isLoading, refetch } = useItems();
+
+  return (
+    <View className="flex-1 bg-background">
+      <Stack.Screen
+        options={{
+          title: t('items.title'),
+          ...(Platform.OS === 'ios' && {
+            headerRight: () => (
+              <Link href="/items/new">
+                <Text className="text-base font-semibold text-primary">{t('common.add')}</Text>
+              </Link>
+            ),
+          }),
+        }}
+      />
+      <FlashList
+        data={items ?? []}
+        renderItem={({ item }) => <ItemCard item={item} />}
+        onRefresh={refetch}
+        refreshing={isLoading}
+        ListEmptyComponent={
+          !isLoading ? <EmptyState message={t('items.empty')} /> : null
+        }
+      />
+      {Platform.OS === 'android' && (
+        <FloatingActionButton
+          icon="plus"
+          onPress={() => router.push('/items/new')}
+        />
+      )}
+    </View>
+  );
+}
+```
+{% endraw %}
+{% elif variables.ui_library == 'Tamagui' %}
+{% raw %}
+```typescript
+// src/app/(tabs)/items.tsx
+import { Platform } from 'react-native';
+import { YStack, Text } from 'tamagui';
+import { Stack, Link, router } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
+import { useTranslation } from 'react-i18next';
+import { useItems } from '@/queries/useItems';
+import { ItemCard } from '@/components/lists/ItemCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+
+export default function ItemsScreen() {
+  const { t } = useTranslation();
+  const { data: items, isLoading, refetch } = useItems();
+
+  return (
+    <YStack flex={1} backgroundColor="$background">
+      <Stack.Screen
+        options={{
+          title: t('items.title'),
+          ...(Platform.OS === 'ios' && {
+            headerRight: () => (
+              <Link href="/items/new">
+                <Text color="$primary" fontSize="$5" fontWeight="600">{t('common.add')}</Text>
+              </Link>
+            ),
+          }),
+        }}
+      />
+      <FlashList
+        data={items ?? []}
+        renderItem={({ item }) => <ItemCard item={item} />}
+        onRefresh={refetch}
+        refreshing={isLoading}
+        ListEmptyComponent={
+          !isLoading ? <EmptyState message={t('items.empty')} /> : null
+        }
+      />
+      {Platform.OS === 'android' && (
+        <FloatingActionButton
+          icon="plus"
+          onPress={() => router.push('/items/new')}
+        />
+      )}
+    </YStack>
+  );
+}
+```
+{% endraw %}
+{% elif variables.ui_library == 'Gluestack UI' %}
+{% raw %}
+```typescript
+// src/app/(tabs)/items.tsx
+import { Platform } from 'react-native';
+import { Box, Text } from '@gluestack-ui/themed';
+import { Stack, Link, router } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
+import { useTranslation } from 'react-i18next';
+import { useItems } from '@/queries/useItems';
+import { ItemCard } from '@/components/lists/ItemCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+
+export default function ItemsScreen() {
+  const { t } = useTranslation();
+  const { data: items, isLoading, refetch } = useItems();
+
+  return (
+    <Box flex={1} bg="$backgroundLight0">
+      <Stack.Screen
+        options={{
+          title: t('items.title'),
+          ...(Platform.OS === 'ios' && {
+            headerRight: () => (
+              <Link href="/items/new">
+                <Text color="$primary500" fontWeight="$semibold">{t('common.add')}</Text>
+              </Link>
+            ),
+          }),
+        }}
+      />
+      <FlashList
+        data={items ?? []}
+        renderItem={({ item }) => <ItemCard item={item} />}
+        onRefresh={refetch}
+        refreshing={isLoading}
+        ListEmptyComponent={
+          !isLoading ? <EmptyState message={t('items.empty')} /> : null
+        }
+      />
+      {Platform.OS === 'android' && (
+        <FloatingActionButton
+          icon="plus"
+          onPress={() => router.push('/items/new')}
+        />
+      )}
+    </Box>
+  );
+}
+```
+{% endraw %}
+{% else %}
 {% raw %}
 ```typescript
 // src/app/(tabs)/items.tsx
@@ -167,7 +346,9 @@ const styles = StyleSheet.create({
 });
 ```
 {% endraw %}
+{% endif %}
 
+{% if variables.state_library == 'Zustand' %}
 ### Zustand Store Pattern
 
 {% raw %}
@@ -208,6 +389,12 @@ export const useIsFilterVisible = () =>
 ```
 {% endraw %}
 
+{% elif variables.state_library != 'None' %}
+### {{ variables.state_library }} UI State Pattern
+
+Follow `.claude/patterns/{{ variables.state_library | lower | replace(' toolkit', '') }}.md`; generate new UI state with `/new-store`.
+
+{% endif %}
 ### React Query Pattern
 
 {% raw %}
@@ -258,9 +445,20 @@ export async function createFeature(data: NewFeature) {
 
 ## Styling Rules
 
+{% if variables.ui_library == 'StyleSheet' %}
 - Always use `StyleSheet.create()` -- never inline style objects
 - Import constants: `import { colors, spacing, typography, borderRadius, shadows } from '@/constants'`
 - Spacing scale: `xs=4, sm=8, md=16, lg=24, xl=32, xxl=48`
+{% elif variables.ui_library == 'NativeWind' %}
+- Style with `className` utility classes (`.claude/styles/nativewind.md`) -- no `StyleSheet.create`
+  and no inline style objects except for values computed at runtime (e.g. animations)
+- Colours, spacing and fonts come from the Tailwind theme -- no arbitrary hex values
+- Keep class names whole static strings (Tailwind can't see `bg-${color}`); for conditional styles switch between full class names
+{% else %}
+- Build UI from {{ variables.ui_library }} components with style props (`.claude/styles/{{ 'gluestack' if variables.ui_library == 'Gluestack UI' else 'tamagui' }}.md`)
+  -- no `StyleSheet.create` alongside them
+- Colours, spacing and fonts are theme tokens (`$primary`, `$4`, ...) -- no raw values
+{% endif %}
 - Use `Platform.OS` for platform-specific styles
 - Use `useSafeAreaInsets()` for notch and island handling
 
@@ -291,8 +489,8 @@ This project is scaffolded with real build infrastructure — use it, don't rein
   (e.g. `make build-preview-ios`, `make ship-prod-android`, `make update-prod`, `make verify`).
 - **`fastlane/`** — Maestro capture scripts + Fastlane lanes push **localized metadata +
   framed screenshots only** (no binary) to App Store Connect / Google Play, looping the same
-  locale set as i18n. See `patterns/fastlane-screenshots.md` and `patterns/eas-build.md`.
-- Drizzle migrations are applied **on startup** (`patterns/drizzle-sqlite.md`); after editing
+  locale set as i18n. See `.claude/patterns/fastlane-screenshots.md` and `.claude/patterns/eas-build.md`.
+- Drizzle migrations are applied **on startup** (`.claude/patterns/drizzle-sqlite.md`); after editing
   `src/db/schema.ts`, run `npx drizzle-kit generate`. The generated `.sql` files only bundle
   because `babel.config.js` has `["inline-import", { extensions: [".sql"] }]`
   (`npm i -D babel-plugin-inline-import`) and `metro.config.js` pushes `"sql"` onto

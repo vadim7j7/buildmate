@@ -1,21 +1,20 @@
 ---
 name: new-spider
-description: Generate a Scrapy spider with items, pipeline and tests (Python projects only)
+description: Generate a Scrapy spider with items, pipeline and tests
 ---
 
 # /new-spider
 
-> **Scrapy is Python-only.** The Scrapy spider below applies only to projects set up
-> with `--language=python`. In Node.js projects there is no Scrapy: this skill falls back
-> to the plain crawler class in the "Node.js" section (or use `/new-scraper`).
+> **Scrapy is Python-only**, so this skill is installed only with `--language=python`.
+> Node.js projects use `/new-scraper` instead.
 
-Generate a new Scrapy spider (Python) or structured scraper class.
+Generate a new Scrapy spider with its item definition and tests.
 
 ## Arguments
 
 | Argument | Description | Required |
 |----------|-------------|----------|
-| `name` | Spider/scraper name (e.g., `products`, `listings`) | Yes |
+| `name` | Spider name (e.g., `products`, `listings`) | Yes |
 | `--url` | Target base URL to scrape | No |
 | `--type` | Spider type: `crawl`, `sitemap`, `api` | No |
 | `--pagination` | Pagination type: `url`, `infinite`, `load-more` | No |
@@ -99,83 +98,6 @@ class {{ Name }}Item(BaseModel):
         import re
         clean = re.sub(r"[^\d.]", "", str(v))
         return float(clean) if clean else 0.0
-```
-
-### Node.js
-
-```
-scrapers/
-├── src/
-│   └── spiders/
-│       └── {{ name }}.ts       # Scraper class
-└── tests/
-    └── {{ name }}.test.ts
-```
-
-### Spider Template
-
-```typescript
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-import { z } from 'zod';
-
-const {{ Name }}Schema = z.object({
-  name: z.string().min(1),
-  price: z.number().positive(),
-  url: z.string().url(),
-  description: z.string().optional(),
-});
-
-type {{ Name }} = z.infer<typeof {{ Name }}Schema>;
-
-export class {{ Name }}Spider {
-  private baseUrl: string;
-  private delay: number = 2000;
-
-  constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
-  }
-
-  async scrape(path: string): Promise<{{ Name }}[]> {
-    const items: {{ Name }}[] = [];
-    let currentUrl = `${this.baseUrl}${path}`;
-
-    while (currentUrl) {
-      const response = await axios.get(currentUrl);
-      const $ = cheerio.load(response.data);
-
-      $('.item').each((_, element) => {
-        const rawItem = {
-          name: $(element).find('.name').text().trim(),
-          price: this.parsePrice($(element).find('.price').text()),
-          url: new URL($(element).find('a').attr('href') || '', this.baseUrl).href,
-        };
-
-        const item = {{ Name }}Schema.parse(rawItem);
-        items.push(item);
-      });
-
-      // Handle pagination
-      const nextHref = $('a.next').attr('href');
-      currentUrl = nextHref ? new URL(nextHref, this.baseUrl).href : '';
-
-      if (currentUrl) {
-        await this.sleep(this.delay);
-      }
-    }
-
-    return items;
-  }
-
-  private parsePrice(text: string): number {
-    const clean = text.replace(/[^\d.]/g, '');
-    return parseFloat(clean) || 0;
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-}
 ```
 
 ## Implementation Steps

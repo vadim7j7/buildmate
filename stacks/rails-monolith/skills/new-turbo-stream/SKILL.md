@@ -23,8 +23,8 @@ without a full page reload.
 
 ### 1. Read Patterns
 
-- `patterns/hotwire-patterns.md`
-- `patterns/forms-patterns.md`
+- `.claude/patterns/hotwire-patterns.md`
+- `.claude/patterns/forms-patterns.md`
 
 ### 2. Choose the Broadcast Style
 
