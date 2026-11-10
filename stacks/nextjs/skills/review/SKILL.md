@@ -47,7 +47,7 @@ Read each changed file in full. Also read:
 
 ### 3. Delegate to Frontend Reviewer
 
-Use the Task tool to invoke the `frontend-reviewer` agent with:
+Use the Agent tool to invoke the `frontend-reviewer` agent with:
 
 - Full file contents of each changed file
 - The git diff for each file

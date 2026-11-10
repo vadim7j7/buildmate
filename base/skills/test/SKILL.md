@@ -31,7 +31,7 @@ auto-detecting the available test runner.
    - `Cargo.toml` for Rust (`cargo test`)
    - Falls back to the stack's default test command if detection fails.
 
-2. **Delegate to the stack's tester agent.** Use the Task tool to invoke the
+2. **Delegate to the stack's tester agent.** Use the Agent tool to invoke the
    tester sub-agent with the following context:
    - Which test framework was detected
    - Which files or directories to test (all if none specified)

@@ -30,7 +30,7 @@ and modules are properly documented.
    - **Modified file:** Update existing documentation to reflect changes
    - **Deleted file:** Flag documentation that references the removed file
 
-3. **Delegate to the documentation-specialist agent.** Use the Task tool to
+3. **Delegate to the documentation-specialist agent.** Use the Agent tool to
    invoke the sub-agent with:
    - The full content of each changed file
    - Existing documentation files that may need updating

@@ -24,7 +24,7 @@ files or the full test suite and reports a structured pass/fail summary.
 1. **Determine scope.** If a file or directory path is provided, scope the test run
    to that path. If no argument is given, run the full suite with `uv run pytest`.
 
-2. **Delegate to backend-tester.** Use the Task tool to invoke the `backend-tester`
+2. **Delegate to backend-tester.** Use the Agent tool to invoke the `backend-tester`
    sub-agent with the following context:
    - Which test files or directories to run
    - Whether coverage was requested

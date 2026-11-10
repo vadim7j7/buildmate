@@ -29,11 +29,11 @@
     "default_model": {
       "type": "string",
       "anyOf": [
-        { "enum": ["opus", "sonnet", "haiku"] },
+        { "enum": ["opus", "sonnet", "haiku", "fable", "inherit"] },
         { "pattern": "^claude-" }
       ],
       "default": "sonnet",
-      "description": "Default model for agents in this stack (alias like 'opus' or full model ID like 'claude-opus-4-6')"
+      "description": "Default model for agents in this stack (alias like 'opus' or full model ID like 'claude-opus-5-5')"
     },
     "compatible_with": {
       "type": "array",
@@ -142,16 +142,16 @@
         "model": {
           "type": "string",
           "anyOf": [
-            { "enum": ["opus", "sonnet", "haiku"] },
+            { "enum": ["opus", "sonnet", "haiku", "fable", "inherit"] },
             { "pattern": "^claude-" }
           ],
-          "description": "Model to use for this agent (alias like 'opus' or full model ID like 'claude-opus-4-6')"
+          "description": "Model to use for this agent (alias like 'opus' or full model ID like 'claude-opus-5-5')"
         },
         "tools": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "Task", "WebFetch", "WebSearch"]
+            "enum": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "Agent", "Task", "WebFetch", "WebSearch"]
           },
           "minItems": 1,
           "uniqueItems": true,

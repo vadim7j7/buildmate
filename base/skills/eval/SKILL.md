@@ -30,7 +30,7 @@ code, and writes a scored report to `.agent-eval-results/`.
    - A specific file if one was provided
    - A specific dimension if `--dimension` was passed
 
-3. **Delegate to the eval-agent.** Use the Task tool to invoke the eval-agent
+3. **Delegate to the eval-agent.** Use the Agent tool to invoke the eval-agent
    with:
    - The full content of each file being evaluated
    - The rubric definitions

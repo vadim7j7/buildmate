@@ -26,7 +26,7 @@ findings with severity levels.
    - A specific file if one was provided
    - The entire codebase if `--full` was passed
 
-2. **Delegate to the security-auditor agent.** Use the Task tool to invoke
+2. **Delegate to the security-auditor agent.** Use the Agent tool to invoke
    the security-auditor sub-agent with:
    - The full content of each file in scope
    - The project's dependency manifest (package.json, requirements.txt, etc.)

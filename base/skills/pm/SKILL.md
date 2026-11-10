@@ -75,9 +75,9 @@ This file contains:
 **You MUST execute each phase as instructed in the orchestrator:**
 
 1. **Phase 1 (Planning):** Check previous context, understand requirements, create feature file, get user approval
-2. **Phase 2 (Implementation):** Delegate to developer agents via Task tool
-3. **Phase 3 (Testing):** Delegate to tester agents via Task tool
-4. **Phase 4 (Review):** Delegate to reviewer agents via Task tool
+2. **Phase 2 (Implementation):** Delegate to developer agents via Agent tool
+3. **Phase 3 (Testing):** Delegate to tester agents via Agent tool
+4. **Phase 4 (Review):** Delegate to reviewer agents via Agent tool
 5. **Phase 5 (Completion):** Update feature status, report to user
 
 ## CRITICAL Rules
@@ -85,7 +85,7 @@ This file contains:
 1. **NEVER skip the orchestrator** — Always read `.claude/agents/orchestrator.md` first
 2. **NEVER implement directly** — You are the PM, you delegate. Specialist agents do the work.
 3. **NEVER decide a task is "too simple"** — If user invoked /pm, follow the full workflow
-4. **ALWAYS use Task tool** — Spawn agents with `subagent_type: general-purpose`
+4. **ALWAYS use Agent tool** — Spawn agents with `subagent_type: general-purpose`
 5. **ALWAYS track progress** — Create feature file, use TodoWrite
 
 ## Why Delegation Matters
@@ -108,7 +108,7 @@ Even for "simple" tasks like adding seeds:
 1. Read .claude/agents/orchestrator.md
 2. Create feature file: .claude/context/features/seed-data.md
 3. Phase 2: Delegate to backend-developer:
-   Task (subagent_type: general-purpose):
+   Agent (subagent_type: general-purpose):
    "You are the backend-developer agent. Read .claude/agents/backend-developer.md.
    Your task: Add seed data for development..."
 4. Phase 3: Delegate to backend-tester
@@ -156,7 +156,7 @@ Your choice is saved for future features.
 ## Delegation Template
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the backend-developer agent. Read .claude/agents/backend-developer.md for your role and instructions.
 
 Your task: <specific implementation task>

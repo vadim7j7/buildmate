@@ -36,7 +36,7 @@ WARNING, SUGGESTION).
    - `.agent-pipeline/test.md` if it exists (test results)
    - The relevant feature file from `.claude/context/features/` if linked
 
-3. **Delegate to backend-reviewer.** Use the Task tool to invoke the
+3. **Delegate to backend-reviewer.** Use the Agent tool to invoke the
    `backend-reviewer` sub-agent with:
    - The list of changed files and their full contents
    - The diff for each file (`git diff` output)

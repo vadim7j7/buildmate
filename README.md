@@ -721,7 +721,7 @@ session-end.sh saves summary
 | Hook | Trigger | Purpose |
 |------|---------|---------|
 | `track-changes.sh` | PostToolUse: Edit\|Write | Logs file modifications |
-| `task-complete.sh` | PostToolUse: Task | Logs subagent task completions |
+| `task-complete.sh` | PostToolUse: Agent | Logs subagent task completions |
 | `session-end.sh` | Stop | Generates session summary |
 | `session-save.sh` | Manual | Saves active work context |
 

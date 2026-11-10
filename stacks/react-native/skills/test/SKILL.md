@@ -32,7 +32,7 @@ Check for test configuration in the project:
 
 ### 2. Delegate to mobile-tester Agent
 
-Use the Task tool to invoke the `mobile-tester` sub-agent with:
+Use the Agent tool to invoke the `mobile-tester` sub-agent with:
 - Which test framework was detected (Jest)
 - Which files or patterns to test
 - Whether coverage was requested

@@ -36,7 +36,7 @@ enables concurrent work on independent tasks without branch conflicts.
    - Set up the worktree environment (copy `.claude/` config if needed)
    - Return the worktree path
 
-5. **Spawn agents.** For each worktree, use the Task tool to delegate the
+5. **Spawn agents.** For each worktree, use the Agent tool to delegate the
    task to an agent working in that worktree's directory. Each agent:
    - Receives the task description and any shared context
    - Works independently in its own worktree

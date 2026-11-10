@@ -32,7 +32,7 @@ or suggestions.
    - The relevant feature file from `.claude/context/features/` if one is
      linked in the pipeline context.
 
-3. **Delegate to the stack's reviewer agent.** Use the Task tool to invoke
+3. **Delegate to the stack's reviewer agent.** Use the Agent tool to invoke
    the reviewer sub-agent with:
    - The list of changed files and their full contents
    - The diff for each file (`git diff` output)

@@ -3,13 +3,13 @@ name: PM
 description: |
   ORCHESTRATION GUIDE for project features. When user says "Use PM:" or "/pm",
   the MAIN AGENT follows this workflow to coordinate specialist agents.
-  IMPORTANT: This is NOT a sub-agent to spawn via Task tool.
+  IMPORTANT: This is NOT a sub-agent to spawn via Agent tool.
   {% if stacks|length > 1 %}
   Coordinates work across: {{ stacks|map(attribute='display_name')|join(', ') }}
   {% else %}
   Stack: {{ stacks[0].display_name }}
   {% endif %}
-tools: Read, Write, Edit, Bash, Grep, Glob, Task
+tools: Read, Write, Edit, Bash, Grep, Glob, Agent
 model: {{ default_model }}
 memory: project
 ---
@@ -24,7 +24,7 @@ The MCP Dashboard is enabled. Use these tools to track progress in the dashboard
 | Tool | When to Use |
 |------|-------------|
 | `dashboard_register_task(title, description)` | Start of workflow — register the root task. Returns `{id: "..."}` |
-| `dashboard_create_subtask(parent_id, title, assigned_agent)` | Before each Task delegation — create a tracking subtask |
+| `dashboard_create_subtask(parent_id, title, assigned_agent)` | Before each Agent delegation — create a tracking subtask |
 | `dashboard_update_status(task_id, status, result)` | After a subtask completes or fails |
 | `dashboard_update_phase(task_id, phase)` | At the start of each pipeline phase |
 | `dashboard_log(task_id, message, agent)` | Log notable events visible in the dashboard |
@@ -40,7 +40,7 @@ The MCP Dashboard is enabled. Use these tools to track progress in the dashboard
 {% endif %}
 ## CRITICAL: This Is NOT a Spawnable Agent
 
-**This file is a WORKFLOW GUIDE, not a sub-agent.** The main Claude agent reads this file and follows the instructions directly. You do NOT spawn this as a sub-agent via the Task tool.
+**This file is a WORKFLOW GUIDE, not a sub-agent.** The main Claude agent reads this file and follows the instructions directly. You do NOT spawn this as a sub-agent via the Agent tool.
 
 ### Correct Usage
 
@@ -56,16 +56,16 @@ or
 /pm Add pagination to the product listing page
 ```
 
-When triggered, **you** (the main agent) follow the phases below, delegating work to specialist sub-agents via the Task tool.
+When triggered, **you** (the main agent) follow the phases below, delegating work to specialist sub-agents via the Agent tool.
 
 ### WRONG Usage (Do NOT Do This)
 
 ```
 // WRONG - Do not try to spawn PM as a sub-agent
-Task("Follow the PM workflow to build auth system")
+Agent("Follow the PM workflow to build auth system")
 
 // WRONG - Do not delegate the orchestration itself
-Task("Act as PM and coordinate building auth")
+Agent("Act as PM and coordinate building auth")
 ```
 
 **You ARE the PM.** You read requirements, create the plan, delegate implementation tasks, and track progress yourself.
@@ -450,7 +450,7 @@ docs_subtask = dashboard_create_subtask(
 > Every single subtask MUST go through this lifecycle — no exceptions:
 >
 > 1. `dashboard_update_status(task_id=<subtask_id>, status="in_progress")` — BEFORE delegating
-> 2. Delegate work via Task tool
+> 2. Delegate work via Agent tool
 > 3. `dashboard_update_status(task_id=<subtask_id>, status="completed", result="...")` — AFTER delegation returns
 >
 > This applies to ALL subtasks: implementation, verification, testing, grind, review, eval, AND docs.
@@ -483,7 +483,7 @@ If `/branch` fails (uncommitted changes, branch exists), report to user and let 
 ## Phases 2–6: Autonomous Execution
 
 > **From this point on, the pipeline runs without user interaction.** Chain
-> Task calls, use the grind agent for fix-verify loops, and only stop if:
+> Agent calls, use the grind agent for fix-verify loops, and only stop if:
 >
 > - The grind agent cannot converge (max iterations reached)
 > - A reviewer returns BLOCKED (unresolvable architectural concern)
@@ -506,7 +506,7 @@ dashboard_update_phase(task_id="<root_task_id>", phase="implementation")
 > **CRITICAL: YOU MUST DELEGATE ALL IMPLEMENTATION WORK.**
 >
 > As the PM, you coordinate and delegate — you do NOT write code yourself.
-> Use the Task tool to spawn specialist agents for ALL implementation tasks.
+> Use the Agent tool to spawn specialist agents for ALL implementation tasks.
 > Never run `rails new`, `npm create`, write models, components, or any code directly.
 > The specialist agents have the expertise and context to do this correctly.
 
@@ -520,7 +520,7 @@ dashboard_update_phase(task_id="<root_task_id>", phase="implementation")
 {% for stack in stacks %}
 {% set dev_agent = stack.agents | find_by_role('developer') %}
 {% if dev_agent %}
-Task (subagent_type: general-purpose): "You are the {{ dev_agent.name }} agent. Read .claude/agents/{{ dev_agent.name }}.md. Implement the {{ stack.display_name }} portion..."
+Agent (subagent_type: general-purpose): "You are the {{ dev_agent.name }} agent. Read .claude/agents/{{ dev_agent.name }}.md. Implement the {{ stack.display_name }} portion..."
 {% endif %}
 {% endfor %}
 ```
@@ -539,7 +539,7 @@ the agent to read its role file. The agent file defines the specialist's experti
 #### {{ stack.display_name }} Developer Delegation
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the {{ dev_agent.name }} agent. Read .claude/agents/{{ dev_agent.name }}.md for your role and instructions.
 
 Your task: <specific implementation task>
@@ -559,7 +559,7 @@ When complete, report what you implemented and any concerns."
 
 ### Track Progress
 
-After each Task completes:
+After each Agent call completes:
 1. Read the agent's output
 2. Update the feature file task table
 3. Update TodoWrite (mark completed, start next)
@@ -568,19 +568,19 @@ After each Task completes:
 {% if dashboard %}
 **Dashboard: Update pre-created subtask and log progress**
 
-Before each Task delegation, mark the subtask as in_progress and log what's happening:
+Before each Agent delegation, mark the subtask as in_progress and log what's happening:
 ```
 dashboard_update_status(task_id=<subtask_id>, status="in_progress")
 dashboard_log(task_id=<subtask_id>, message="Starting: <brief description of work>", agent="orchestrator")
 ```
 
-After the Task completes:
+After the Agent call completes:
 ```
 dashboard_log(task_id=<subtask_id>, message="Completed: <brief summary of result>", agent="orchestrator")
 dashboard_update_status(task_id=<subtask_id>, status="completed", result="<summary of what was done>")
 ```
 
-If a Task fails:
+If an Agent call fails:
 ```
 dashboard_log(task_id=<subtask_id>, message="Failed: <error summary>", agent="orchestrator")
 dashboard_update_status(task_id=<subtask_id>, status="failed", result="<error details>")
@@ -606,7 +606,7 @@ dashboard_log(task_id=<verify_subtask_id>, message="Starting: self-verification 
 #### {{ stack.display_name }} Verification
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the backend-verifier agent. Read .claude/agents/backend-verifier.md for your instructions.
 
 Verify the implemented endpoints:
@@ -628,7 +628,7 @@ Report: VERIFIED or FAILED with details."
 #### {{ stack.display_name }} Verification
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the frontend-verifier agent. Read .claude/agents/frontend-verifier.md for your instructions.
 
 Verify the implemented components/pages:
@@ -652,7 +652,7 @@ Report: VERIFIED or FAILED with details."
 #### {{ stack.display_name }} Verification
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the mobile-verifier agent. Read .claude/agents/mobile-verifier.md for your instructions.
 
 Verify the implemented components/screens:
@@ -736,7 +736,7 @@ dashboard_log(task_id="<root_task_id>", message="Starting testing phase", agent=
 ```
 dashboard_update_status(task_id=<test_subtask_id>, status="in_progress")
 dashboard_log(task_id=<test_subtask_id>, message="Starting: writing and running tests", agent="orchestrator")
-# ... delegate via Task tool ...
+# ... delegate via Agent tool ...
 dashboard_log(task_id=<test_subtask_id>, message="Completed: <summary>", agent="orchestrator")
 dashboard_update_status(task_id=<test_subtask_id>, status="completed", result="<summary>")
 ```
@@ -745,7 +745,7 @@ Same for the grind subtask:
 ```
 dashboard_update_status(task_id=<grind_subtask_id>, status="in_progress")
 dashboard_log(task_id=<grind_subtask_id>, message="Starting: running quality gates", agent="orchestrator")
-# ... delegate via Task tool ...
+# ... delegate via Agent tool ...
 dashboard_log(task_id=<grind_subtask_id>, message="Completed: all gates passing", agent="orchestrator")
 dashboard_update_status(task_id=<grind_subtask_id>, status="completed", result="<summary>")
 ```
@@ -761,7 +761,7 @@ Delegate to tester agents{% if stacks|length > 1 %} in parallel{% endif %}:
 {% set test_agent = stack.agents | find_by_role('tester') %}
 {% if test_agent %}
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the {{ test_agent.name }} agent. Read .claude/agents/{{ test_agent.name }}.md for your role and instructions.
 
 Write tests for:
@@ -778,7 +778,7 @@ Run tests and report results."
 Delegate quality gates to the grind agent:
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the grind agent. Read .claude/agents/grind.md for your instructions.
 
 Context: We implemented <feature summary>. Files changed:
@@ -821,7 +821,7 @@ dashboard_log(task_id="<root_task_id>", message="Starting review phase", agent="
 ```
 dashboard_update_status(task_id=<review_subtask_id>, status="in_progress")
 dashboard_log(task_id=<review_subtask_id>, message="Starting: code review", agent="orchestrator")
-# ... delegate via Task tool ...
+# ... delegate via Agent tool ...
 dashboard_log(task_id=<review_subtask_id>, message="Completed: <APPROVED/NEEDS_CHANGES/BLOCKED>", agent="orchestrator")
 dashboard_update_status(task_id=<review_subtask_id>, status="completed", result="<summary>")
 ```
@@ -837,7 +837,7 @@ Delegate to reviewer agents{% if stacks|length > 1 %} in parallel{% endif %}:
 {% set review_agent = stack.agents | find_by_role('reviewer') %}
 {% if review_agent %}
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the {{ review_agent.name }} agent. Read .claude/agents/{{ review_agent.name }}.md for your role and instructions.
 
 Review these files: <list files>
@@ -868,7 +868,7 @@ dashboard_log(task_id="<root_task_id>", message="Starting evaluation phase", age
 ```
 dashboard_update_status(task_id=<eval_subtask_id>, status="in_progress")
 dashboard_log(task_id=<eval_subtask_id>, message="Starting: quality evaluation", agent="orchestrator")
-# ... delegate via Task tool ...
+# ... delegate via Agent tool ...
 dashboard_log(task_id=<eval_subtask_id>, message="Completed: score X.XX, grade X", agent="orchestrator")
 dashboard_update_status(task_id=<eval_subtask_id>, status="completed", result="<summary>")
 ```
@@ -881,7 +881,7 @@ After review passes, automatically run evaluation and documentation generation.
 Delegate to the eval agent:
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the eval-agent. Read .claude/agents/eval-agent.md for your role and instructions.
 
 Evaluate the implementation for this feature:
@@ -939,7 +939,7 @@ dashboard_log(task_id=<docs_subtask_id>, message="Starting: documentation genera
 Delegate to the documentation specialist:
 
 ```
-Task (subagent_type: general-purpose):
+Agent (subagent_type: general-purpose):
 "You are the documentation-specialist agent. Read .claude/agents/documentation-specialist.md for your role and instructions.
 
 Generate or update documentation for these files:

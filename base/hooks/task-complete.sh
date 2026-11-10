@@ -1,6 +1,6 @@
 #!/bin/bash
 # Task Complete Hook (PostToolUse: Agent, formerly Task)
-# Logs when a Task (subagent) completes and captures its result summary.
+# Logs when a subagent (Agent tool) completes and captures its result summary.
 #
 # Input: JSON via stdin with tool_name, tool_input, tool_response
 # Output: Appends to .claude/context/agent-activity.log

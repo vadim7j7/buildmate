@@ -40,7 +40,7 @@ Read each changed file in full. Also read:
 
 ### 3. Delegate to mobile-code-reviewer
 
-Use the Task tool to invoke the `mobile-code-reviewer` sub-agent with:
+Use the Agent tool to invoke the `mobile-code-reviewer` sub-agent with:
 - The list of changed files and their full contents
 - The diff for each file
 - Any gathered pipeline context

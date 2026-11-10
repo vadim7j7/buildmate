@@ -40,7 +40,7 @@ the standard execution mode for the implement-test-review pipeline.
 3. **Execute stages in order.** For each stage:
    a. Mark the stage as `in_progress` in `pipeline.json`.
    b. Gather context from all previous stages' artefacts.
-   c. Delegate to the appropriate agent via the Task tool, passing:
+   c. Delegate to the appropriate agent via the Agent tool, passing:
       - The task description
       - All previous stage artefacts as context
       - The feature file from `.claude/context/features/` if applicable

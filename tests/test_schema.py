@@ -151,6 +151,47 @@ class TestValidateStackConfig:
         with pytest.raises(Exception):
             validate_stack_config(config)
 
+    @pytest.mark.parametrize(
+        "model", ["opus", "sonnet", "haiku", "fable", "inherit", "claude-opus-5-5"]
+    )
+    def test_model_aliases_accepted(self, model):
+        """Agent and default models accept every Claude Code alias and full IDs."""
+        config = {
+            "name": "test-stack",
+            "display_name": "Test Stack",
+            "default_model": model,
+            "agents": [
+                {
+                    "name": "test-agent",
+                    "template": "agents/test.md.j2",
+                    "model": model,
+                    "tools": ["Read", "Agent"],
+                }
+            ],
+            "skills": [],
+            "quality_gates": {},
+        }
+        validate_stack_config(config)
+
+    def test_unknown_model_rejected(self):
+        """A model that is neither an alias nor a claude- ID fails validation."""
+        config = {
+            "name": "test-stack",
+            "display_name": "Test Stack",
+            "agents": [
+                {
+                    "name": "test-agent",
+                    "template": "agents/test.md.j2",
+                    "model": "gpt-4",
+                    "tools": ["Read"],
+                }
+            ],
+            "skills": [],
+            "quality_gates": {},
+        }
+        with pytest.raises(Exception):
+            validate_stack_config(config)
+
 
 class TestCheckCompatibility:
     """Tests for check_compatibility function."""

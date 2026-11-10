@@ -2,7 +2,7 @@
 
 This project uses a multi-agent architecture powered by Claude Code. A single
 main agent orchestrates work by delegating to specialised sub-agents through
-the **Task** tool. Sub-agents never spawn their own sub-agents; only the main
+the **Agent** tool. Sub-agents never spawn their own sub-agents; only the main
 agent delegates.
 
 **Configured stacks:** {{ stacks|map(attribute='display_name')|join(', ') }}
